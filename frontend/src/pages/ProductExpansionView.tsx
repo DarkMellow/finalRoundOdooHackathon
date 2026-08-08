@@ -5,7 +5,6 @@ import {
   ShoppingCart,
   Star,
   CheckCircle2,
-  Shield,
   Clock,
   PackageCheck,
   AlertCircle,

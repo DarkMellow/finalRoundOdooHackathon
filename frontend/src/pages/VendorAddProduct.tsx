@@ -6,20 +6,16 @@ import {
   CheckCircle2,
   Building2,
   Upload,
-  Sparkles,
   ShieldAlert,
   ArrowLeft,
   Plus,
   Trash2,
   Image as ImageIcon,
-  Check,
-  Tag,
-  DollarSign,
   Layers,
   ShoppingBag,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { createProduct, updateProduct, fetchProductById, getLoggedVendor, type VendorUser } from "@/lib/api"
+import { createProduct, updateProduct, fetchProductById, getLoggedVendor } from "@/lib/api"
 
 interface VariantItem {
   id: string
@@ -35,11 +31,9 @@ export function VendorAddProduct() {
   const isEditMode = Boolean(id)
   const navigate = useNavigate()
 
-  const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
   const [activeTab, setActiveTab] = useState<"general" | "attributes" | "sales">("general")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
 
   // Tab 1: General Product State
   const [name, setName] = useState("")
@@ -75,16 +69,9 @@ export function VendorAddProduct() {
   const [securityDeposit, setSecurityDeposit] = useState("150.00")
   const [enableLateFees, setEnableLateFees] = useState(true)
 
-  // Load active logged vendor
-  useEffect(() => {
-    const vendor = getLoggedVendor()
-    setLoggedVendor(vendor)
-  }, [])
-
   // Load product if editing
   useEffect(() => {
     if (id) {
-      setLoading(true)
       fetchProductById(id)
         .then((product) => {
           setName(product.name || "")
@@ -134,7 +121,6 @@ export function VendorAddProduct() {
         .catch((err) => {
           console.warn("Failed to fetch product by ID from backend:", err)
         })
-        .finally(() => setLoading(false))
     }
   }, [id])
 

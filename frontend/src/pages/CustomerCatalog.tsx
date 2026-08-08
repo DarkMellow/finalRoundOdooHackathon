@@ -4,6 +4,7 @@ import { fetchProducts, getLoggedCustomer, type CustomerUser } from "@/lib/api"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
 import { CartCheckout } from "@/pages/CartCheckout"
 import { Wishlist } from "@/pages/Wishlist"
+import { CustomerOrdersView } from "@/pages/CustomerOrdersView"
 import { Input } from "@/components/ui/input"
 import {
   Building2,
@@ -66,6 +67,7 @@ export function CustomerCatalog() {
   const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false)
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState<boolean>(false)
+  const [isMyOrdersModalOpen, setIsMyOrdersModalOpen] = useState<boolean>(false)
 
   // Load logged customer user
   useEffect(() => {
@@ -273,7 +275,7 @@ export function CustomerCatalog() {
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false)
-                        alert("Navigating to My Orders")
+                        setIsMyOrdersModalOpen(true)
                       }}
                       className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
                     >
@@ -624,6 +626,13 @@ export function CustomerCatalog() {
       <Wishlist
         isOpen={isWishlistModalOpen}
         onClose={() => setIsWishlistModalOpen(false)}
+        onSelectProduct={(id) => setSelectedProductIdForModal(id)}
+      />
+
+      {/* My Orders Modal */}
+      <CustomerOrdersView
+        isOpen={isMyOrdersModalOpen}
+        onClose={() => setIsMyOrdersModalOpen(false)}
         onSelectProduct={(id) => setSelectedProductIdForModal(id)}
       />
     </div>

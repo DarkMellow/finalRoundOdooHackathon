@@ -1,12 +1,12 @@
 import { NavLink } from "react-router-dom"
-import { Building2, User, ShieldCheck } from "lucide-react"
+import { Building2, User, Store } from "lucide-react"
 
 export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo */}
-        <NavLink to="/customer/signin" className="flex items-center gap-2.5 group">
+        <NavLink to="/customer/catalog" className="flex items-center gap-2.5 group">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm group-hover:scale-105 transition-transform">
             <Building2 className="size-5" />
           </div>
@@ -23,7 +23,7 @@ export function Navbar() {
           {/* Customer Group */}
           <div className="flex items-center bg-muted/60 p-1 rounded-xl border border-border/40 text-xs font-medium">
             <div className="flex items-center gap-1 px-2 py-1 text-muted-foreground font-semibold">
-              <User className="size-3.5" />
+              <User className="size-3.5 text-blue-600" />
               <span className="hidden md:inline">Customer</span>
             </div>
             <NavLink
@@ -54,14 +54,14 @@ export function Navbar() {
 
           <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
 
-          {/* Admin Group */}
+          {/* Vendor Group */}
           <div className="flex items-center bg-slate-900/10 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-700/20 text-xs font-medium">
             <div className="flex items-center gap-1 px-2 py-1 text-slate-700 dark:text-slate-300 font-semibold">
-              <ShieldCheck className="size-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="hidden md:inline">Admin</span>
+              <Store className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden md:inline">Vendor</span>
             </div>
             <NavLink
-              to="/admin/signin"
+              to="/vendor/signin"
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded-lg transition-all ${
                   isActive
@@ -73,7 +73,7 @@ export function Navbar() {
               Sign In
             </NavLink>
             <NavLink
-              to="/admin/signup"
+              to="/vendor/signup"
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded-lg transition-all ${
                   isActive

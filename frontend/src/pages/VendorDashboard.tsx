@@ -124,7 +124,7 @@ const INITIAL_ORDERS: Order[] = [
   },
 ]
 
-export function AdminDashboard() {
+export function VendorDashboard() {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all")
@@ -206,13 +206,13 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
       {/* ========================================================================= */}
-      {/* TOP HEADER NAVIGATION (LIGHT THEME) */}
+      {/* TOP HEADER NAVIGATION (VENDOR DASHBOARD) */}
       {/* ========================================================================= */}
       <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 shadow-xs">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between">
           {/* Left Brand + Navigation Links */}
           <div className="flex items-center gap-6">
-            <Link to="/admin/dashboard" className="flex items-center gap-2 group">
+            <Link to="/vendor/dashboard" className="flex items-center gap-2 group">
               <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
                 <Building2 className="size-4" />
               </div>
@@ -248,9 +248,9 @@ export function AdminDashboard() {
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
               className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
             >
-              <span className="font-semibold text-slate-900">Alex Admin</span>
+              <span className="font-semibold text-slate-900">Vendor Profile</span>
               <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs">
-                A
+                V
               </div>
               <ChevronDown className="size-3.5 text-slate-400" />
             </button>
@@ -259,13 +259,13 @@ export function AdminDashboard() {
             {profileDropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                  <p className="font-semibold text-slate-900">Alex Smith</p>
-                  <p className="text-[10px] text-slate-500">admin@rentalsuite.com</p>
+                  <p className="font-semibold text-slate-900">Apex Rentals</p>
+                  <p className="text-[10px] text-slate-500">vendor@company.com</p>
                 </div>
                 <button
                   onClick={() => {
                     setProfileDropdownOpen(false)
-                    alert("Admin Profile Settings Opened")
+                    alert("Vendor Profile Settings Opened")
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
                 >
@@ -274,8 +274,8 @@ export function AdminDashboard() {
                 </button>
                 <button
                   onClick={() => {
-                    localStorage.removeItem("admin_user")
-                    navigate("/admin/signin")
+                    localStorage.removeItem("vendor_user")
+                    navigate("/vendor/signin")
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-medium"
                 >
@@ -289,7 +289,7 @@ export function AdminDashboard() {
       </header>
 
       {/* ========================================================================= */}
-      {/* MAIN DASHBOARD CONTENT CONTAINER (LIGHT THEME) */}
+      {/* MAIN DASHBOARD CONTENT CONTAINER */}
       {/* ========================================================================= */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
         {/* Title + Action Button + Search + View Switcher Bar */}
@@ -359,7 +359,7 @@ export function AdminDashboard() {
 
         {/* Status Filter Badges + Summary Metrics Row */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
-          {/* Status Metric Filter Badges (Wireframe matching: 2 Today, 3 Pickup, 3 Return, 1 Late) */}
+          {/* Status Metric Filter Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setActiveFilter("all")}
@@ -429,7 +429,7 @@ export function AdminDashboard() {
             </button>
           </div>
 
-          {/* Right Metrics Summary (Date Range + Sales / Late Fees / Deposit) */}
+          {/* Right Metrics Summary */}
           <div className="flex items-center gap-4 text-xs font-medium flex-wrap">
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs">
               <Calendar className="size-3.5 text-slate-500" />
@@ -464,7 +464,7 @@ export function AdminDashboard() {
         </div>
 
         {/* ========================================================================= */}
-        {/* VIEW MODE 1: LIST VIEW TABLE (LIGHT THEME) */}
+        {/* VIEW MODE 1: LIST VIEW TABLE */}
         {/* ========================================================================= */}
         {viewMode === "list" ? (
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -571,7 +571,7 @@ export function AdminDashboard() {
           </div>
         ) : (
           /* ========================================================================= */
-          /* VIEW MODE 2: KANBAN VIEW GRID (LIGHT THEME) */
+          /* VIEW MODE 2: KANBAN VIEW GRID */
           /* ========================================================================= */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredOrders.length === 0 ? (

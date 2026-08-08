@@ -1,7 +1,7 @@
 export const API_BASE_URL =
   import.meta.env.VITE_SERVER_URL ||
   import.meta.env.VITE_API_URL ||
-  "http://10.1.25.112:8000"
+  "http://10.119.37.110:8000"
 
 export interface ApiError {
   detail: string
@@ -17,17 +17,17 @@ export interface CustomerUser {
   created_at: string
 }
 
-export interface AdminUser {
+export interface VendorUser {
   id: number
   full_name: string
   email: string
-  role: "admin"
+  role: "vendor"
   is_active: boolean
   created_at: string
-  admin_profile?: {
-    department: string
-    is_superadmin: boolean
-    access_level: number
+  vendor_profile?: {
+    company_name?: string
+    category: string
+    is_verified: boolean
   }
 }
 
@@ -73,28 +73,28 @@ export async function customerSignIn(data: {
   return handleResponse<CustomerUser>(res)
 }
 
-export async function adminSignUp(data: {
+export async function vendorSignUp(data: {
   full_name: string
   email: string
   password: string
-  department?: string
-}): Promise<AdminUser> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/admin/signup`, {
+  company_name?: string
+}): Promise<VendorUser> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/vendor/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  return handleResponse<AdminUser>(res)
+  return handleResponse<VendorUser>(res)
 }
 
-export async function adminSignIn(data: {
+export async function vendorSignIn(data: {
   email: string
   password: string
-}): Promise<AdminUser> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/admin/signin`, {
+}): Promise<VendorUser> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/vendor/signin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  return handleResponse<AdminUser>(res)
+  return handleResponse<VendorUser>(res)
 }

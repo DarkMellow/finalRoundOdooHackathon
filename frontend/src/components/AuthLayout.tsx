@@ -1,11 +1,11 @@
 import React from "react"
-import { ShieldCheck, UserCheck, Sparkles, Building2, CheckCircle2 } from "lucide-react"
+import { Store, UserCheck, Sparkles, Building2, CheckCircle2 } from "lucide-react"
 
 interface AuthLayoutProps {
   children: React.ReactNode
   title: string
   subtitle: string
-  role: "customer" | "admin"
+  role: "customer" | "vendor" | "admin"
   badgeText: string
 }
 
@@ -16,7 +16,7 @@ export function AuthLayout({
   role,
   badgeText,
 }: AuthLayoutProps) {
-  const isAdmin = role === "admin"
+  const isVendor = role === "vendor" || role === "admin"
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-background via-muted/20 to-muted/40">
@@ -24,7 +24,7 @@ export function AuthLayout({
         {/* Left Decorative Banner Panel */}
         <div
           className={`hidden lg:flex flex-col justify-between w-5/12 p-8 text-white relative overflow-hidden ${
-            isAdmin
+            isVendor
               ? "bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900"
               : "bg-gradient-to-br from-blue-700 via-indigo-700 to-sky-600"
           }`}
@@ -36,8 +36,8 @@ export function AuthLayout({
           {/* Top Brand Tag */}
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md border border-white/20">
-              {isAdmin ? (
-                <ShieldCheck className="size-3.5 text-indigo-300" />
+              {isVendor ? (
+                <Store className="size-3.5 text-indigo-300" />
               ) : (
                 <UserCheck className="size-3.5 text-blue-200" />
               )}
@@ -45,27 +45,27 @@ export function AuthLayout({
             </div>
 
             <h2 className="mt-6 text-3xl font-extrabold tracking-tight leading-tight">
-              {isAdmin ? "Enterprise Property Management" : "Find & Manage Your Ideal Space"}
+              {isVendor ? "Enterprise Vendor Management" : "Find & Manage Your Ideal Space"}
             </h2>
             <p className="mt-3 text-sm text-white/80 leading-relaxed">
-              {isAdmin
-                ? "Powerful admin tools to oversee bookings, tenants, pricing strategies, and property maintenance in real-time."
+              {isVendor
+                ? "Powerful vendor tools to oversee listings, orders, rental schedules, and customer inquiries in real-time."
                 : "Browse verified rental listings, request tours, manage leases, and handle payments effortlessly."}
             </p>
           </div>
 
           {/* Feature Bullets */}
           <div className="relative z-10 space-y-3 my-6">
-            {(isAdmin
+            {(isVendor
               ? [
-                  "Real-time Occupancy Analytics",
-                  "Automated Tenant Verification",
-                  "Comprehensive Billing & Invoicing",
+                  "Real-time Order & Rental Tracking",
+                  "Automated Vendor Invoicing",
+                  "Product & Inventory Management",
                 ]
               : [
                   "Instant Booking Requests",
                   "Secure Digital Payments",
-                  "24/7 Tenant Support Access",
+                  "24/7 Support Access",
                 ]
             ).map((feature, idx) => (
               <div key={idx} className="flex items-center gap-2.5 text-xs font-medium text-white/90">
@@ -94,8 +94,8 @@ export function AuthLayout({
             {/* Header */}
             <div className="space-y-2 text-center lg:text-left">
               <div className="inline-flex lg:hidden items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-semibold mb-2">
-                {isAdmin ? (
-                  <ShieldCheck className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                {isVendor ? (
+                  <Store className="size-3.5 text-indigo-600 dark:text-indigo-400" />
                 ) : (
                   <UserCheck className="size-3.5 text-blue-600 dark:text-blue-400" />
                 )}

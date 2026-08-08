@@ -156,9 +156,9 @@ export function CustomerSignIn() {
 
           <div className="pt-2 flex items-center justify-center gap-1.5 text-muted-foreground">
             <ShieldCheck className="size-3.5 text-indigo-500" />
-            <span>Are you a property manager?</span>
-            <Link to="/admin/signin" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-              Admin Sign In
+            <span>Are you a rental vendor?</span>
+            <Link to="/vendor/signin" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              Vendor Sign In
             </Link>
           </div>
         </div>

@@ -5,11 +5,11 @@ import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { adminSignIn } from "@/lib/api"
+import { vendorSignIn } from "@/lib/api"
 
-export function AdminSignIn() {
+export function VendorSignIn() {
   const navigate = useNavigate()
-  const [adminId, setAdminId] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -21,30 +21,30 @@ export function AdminSignIn() {
     setError(null)
     setSuccess(false)
 
-    if (!adminId || !password) {
-      setError("Please provide your admin email and password.")
+    if (!email || !password) {
+      setError("Please provide your vendor email and password.")
       return
     }
 
     setLoading(true)
     try {
-      const admin = await adminSignIn({ email: adminId, password })
+      const vendor = await vendorSignIn({ email, password })
       setLoading(false)
       setSuccess(true)
-      localStorage.setItem("admin_user", JSON.stringify(admin))
-      navigate("/admin/dashboard")
+      localStorage.setItem("vendor_user", JSON.stringify(vendor))
+      navigate("/vendor/dashboard")
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || "Failed to authenticate admin. Please check your credentials.")
+      setError(err.message || "Failed to authenticate vendor. Please check your credentials.")
     }
   }
 
   return (
     <AuthLayout
-      title="Admin Portal"
-      subtitle="Authorized personnel only. Access system metrics, tenant management, and listings."
-      role="admin"
-      badgeText="Admin Console"
+      title="Vendor Portal"
+      subtitle="Authorized rental vendors. Manage listings, orders, and rental schedules."
+      role="vendor"
+      badgeText="Vendor Console"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -55,46 +55,46 @@ export function AdminSignIn() {
 
         {success && (
           <div className="rounded-lg bg-indigo-500/10 p-3 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            Admin authentication successful! Redirecting...
+            Vendor authentication successful! Redirecting to vendor portal...
           </div>
         )}
 
-        {/* Admin Email */}
+        {/* Vendor Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="admin-email">Admin Email Address</Label>
+          <Label htmlFor="vendor-email">Vendor Email Address</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
-              id="admin-email"
+              id="vendor-email"
               type="email"
-              placeholder="admin@rentalsuite.com"
-              value={adminId}
-              onChange={(e) => setAdminId(e.target.value)}
+              placeholder="vendor@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="pl-9"
               required
             />
           </div>
         </div>
 
-        {/* Admin Password */}
+        {/* Vendor Password */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="admin-password">Master Password</Label>
+            <Label htmlFor="vendor-password">Password</Label>
             <a
-              href="#forgot-admin-pass"
+              href="#forgot-vendor-pass"
               onClick={(e) => {
                 e.preventDefault()
-                alert("Super-admin key reset requested. Check administrator email.")
+                alert("Password reset instructions sent to vendor email.")
               }}
               className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
             >
-              Reset master key?
+              Forgot password?
             </a>
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
-              id="admin-password"
+              id="vendor-password"
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={password}
@@ -122,7 +122,7 @@ export function AdminSignIn() {
             "Authenticating..."
           ) : (
             <>
-              <span>Sign In to Admin Console</span>
+              <span>Sign In as Vendor</span>
               <ArrowRight className="size-4" />
             </>
           )}
@@ -131,9 +131,9 @@ export function AdminSignIn() {
         {/* Footer Switches */}
         <div className="pt-4 border-t border-border/40 space-y-2 text-center text-xs">
           <p className="text-muted-foreground">
-            New administrator?{" "}
-            <Link to="/admin/signup" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-              Request Admin Registration
+            New vendor?{" "}
+            <Link to="/vendor/signup" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              Vendor Registration
             </Link>
           </p>
 

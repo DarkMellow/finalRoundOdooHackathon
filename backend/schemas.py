@@ -44,37 +44,36 @@ class CustomerUserResponseSchema(BaseModel):
 
 
 # ==========================================
-# ADMIN SCHEMAS
+# VENDOR SCHEMAS
 # ==========================================
 
-class AdminSignUpSchema(BaseModel):
+class VendorSignUpSchema(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    department: Optional[str] = "Operations"
+    company_name: Optional[str] = None
 
 
-class AdminSignInSchema(BaseModel):
+class VendorSignInSchema(BaseModel):
     email: EmailStr
     password: str
 
 
-class AdminProfileSchema(BaseModel):
-    department: str
-    employee_id: Optional[str] = None
-    is_superadmin: bool
-    access_level: int
+class VendorProfileSchema(BaseModel):
+    company_name: Optional[str] = None
+    category: str
+    is_verified: bool
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class AdminUserResponseSchema(BaseModel):
+class VendorUserResponseSchema(BaseModel):
     id: int
     full_name: str
     email: str
     role: str
     is_active: bool
     created_at: datetime
-    admin_profile: Optional[AdminProfileSchema] = None
+    vendor_profile: Optional[VendorProfileSchema] = None
 
     model_config = ConfigDict(from_attributes=True)

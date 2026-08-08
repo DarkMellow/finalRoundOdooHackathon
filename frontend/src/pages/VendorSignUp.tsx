@@ -1,16 +1,17 @@
 import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react"
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, Building } from "lucide-react"
 import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { adminSignUp } from "@/lib/api"
+import { vendorSignUp } from "@/lib/api"
 
-export function AdminSignUp() {
+export function VendorSignUp() {
   const navigate = useNavigate()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
+  const [companyName, setCompanyName] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -33,35 +34,36 @@ export function AdminSignUp() {
       return
     }
 
-    if (password.length < 10) {
-      setError("Admin passwords must be at least 10 characters long.")
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.")
       return
     }
 
     setLoading(true)
     try {
-      await adminSignUp({
+      await vendorSignUp({
         full_name: fullName,
         email,
         password,
+        company_name: companyName || undefined,
       })
       setLoading(false)
       setSuccess(true)
       setTimeout(() => {
-        navigate("/admin/dashboard")
-      }, 600)
+        navigate("/vendor/dashboard")
+      }, 500)
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || "Failed to register administrator. Please try again.")
+      setError(err.message || "Failed to register vendor. Please try again.")
     }
   }
 
   return (
     <AuthLayout
-      title="Admin Registration"
-      subtitle="Create an administrator account for property management."
-      role="admin"
-      badgeText="Admin Console"
+      title="Vendor Registration"
+      subtitle="Register as a vendor to list your properties and items for rental."
+      role="vendor"
+      badgeText="Vendor Console"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -72,21 +74,17 @@ export function AdminSignUp() {
 
         {success && (
           <div className="rounded-lg bg-indigo-500/10 p-3 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            Registration successful! You can now{" "}
-            <Link to="/admin/signin" className="underline font-bold">
-              Sign In as Admin
-            </Link>
-            .
+            Vendor account created! Redirecting to vendor portal...
           </div>
         )}
 
-        {/* Admin Full Name */}
+        {/* Vendor Full Name */}
         <div className="space-y-1.5">
-          <Label htmlFor="admin-signup-name">Full Name</Label>
+          <Label htmlFor="vendor-signup-name">Full Name / Contact Person</Label>
           <div className="relative">
             <User className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
-              id="admin-signup-name"
+              id="vendor-signup-name"
               type="text"
               placeholder="Alex Smith"
               value={fullName}
@@ -97,15 +95,31 @@ export function AdminSignUp() {
           </div>
         </div>
 
-        {/* Work / Department Email */}
+        {/* Company Name */}
         <div className="space-y-1.5">
-          <Label htmlFor="admin-signup-email">Department Email Address</Label>
+          <Label htmlFor="vendor-company">Company / Business Name (Optional)</Label>
+          <div className="relative">
+            <Building className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              id="vendor-company"
+              type="text"
+              placeholder="Apex Rentals Inc."
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+
+        {/* Email Address */}
+        <div className="space-y-1.5">
+          <Label htmlFor="vendor-signup-email">Business Email Address</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
-              id="admin-signup-email"
+              id="vendor-signup-email"
               type="email"
-              placeholder="alex.smith@rentalsuite.com"
+              placeholder="alex@apexrentals.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="pl-9"
@@ -117,13 +131,13 @@ export function AdminSignUp() {
         {/* Password Fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="admin-signup-pass">Admin Password</Label>
+            <Label htmlFor="vendor-signup-pass">Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
-                id="admin-signup-pass"
+                id="vendor-signup-pass"
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••••"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-9 pr-9"
@@ -140,13 +154,13 @@ export function AdminSignUp() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="admin-confirm-pass">Confirm Password</Label>
+            <Label htmlFor="vendor-confirm-pass">Confirm Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
-                id="admin-confirm-pass"
+                id="vendor-confirm-pass"
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••••"
+                placeholder="••••••••"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="pl-9"
@@ -163,10 +177,10 @@ export function AdminSignUp() {
           disabled={loading}
         >
           {loading ? (
-            "Submitting..."
+            "Registering Vendor..."
           ) : (
             <>
-              <span>Register Admin Account</span>
+              <span>Register Vendor Account</span>
               <ArrowRight className="size-4" />
             </>
           )}
@@ -175,9 +189,9 @@ export function AdminSignUp() {
         {/* Footer Switches */}
         <div className="pt-4 border-t border-border/40 space-y-2 text-center text-xs">
           <p className="text-muted-foreground">
-            Already registered as admin?{" "}
-            <Link to="/admin/signin" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-              Admin Sign In
+            Already registered as vendor?{" "}
+            <Link to="/vendor/signin" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              Vendor Sign In
             </Link>
           </p>
 

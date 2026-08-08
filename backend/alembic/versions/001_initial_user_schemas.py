@@ -1,4 +1,4 @@
-"""Create initial customer and admin user schemas
+"""Create initial customer and vendor user schemas
 
 Revision ID: 001_initial_user_schemas
 Revises: 
@@ -52,21 +52,19 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_customer_profiles_id'), 'customer_profiles', ['id'], unique=False)
 
-    # 3. Create admin_profiles table
+    # 3. Create vendor_profiles table
     op.create_table(
-        'admin_profiles',
+        'vendor_profiles',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
-        sa.Column('department', sa.String(length=100), server_default='Operations', nullable=False),
-        sa.Column('employee_id', sa.String(length=50), nullable=True),
-        sa.Column('is_superadmin', sa.Boolean(), server_default=sa.text('0'), nullable=False),
-        sa.Column('access_level', sa.Integer(), server_default='1', nullable=False),
+        sa.Column('company_name', sa.String(length=120), nullable=True),
+        sa.Column('category', sa.String(length=100), server_default='General Rental', nullable=False),
+        sa.Column('is_verified', sa.Boolean(), server_default=sa.text('0'), nullable=False),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('user_id'),
-        sa.UniqueConstraint('employee_id')
+        sa.UniqueConstraint('user_id')
     )
-    op.create_index(op.f('ix_admin_profiles_id'), 'admin_profiles', ['id'], unique=False)
+    op.create_index(op.f('ix_vendor_profiles_id'), 'vendor_profiles', ['id'], unique=False)
 
     # 4. Create properties table
     op.create_table(
@@ -106,6 +104,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table('rental_bookings')
     op.drop_table('properties')
-    op.drop_table('admin_profiles')
+    op.drop_table('vendor_profiles')
     op.drop_table('customer_profiles')
     op.drop_table('users')

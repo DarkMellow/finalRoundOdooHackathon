@@ -229,9 +229,9 @@ export function CustomerSignUp() {
 
           <div className="pt-2 flex items-center justify-center gap-1.5 text-muted-foreground">
             <ShieldCheck className="size-3.5 text-indigo-500" />
-            <span>Need administrator privileges?</span>
-            <Link to="/admin/signup" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-              Admin Register
+            <span>Are you a rental vendor?</span>
+            <Link to="/vendor/signup" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              Vendor Register
             </Link>
           </div>
         </div>

@@ -15,7 +15,7 @@ except Exception as e:
 
 app = FastAPI(
     title=settings.PROJECT_NAME + " API",
-    description="EasyRental Backend API connected to MariaDB / MySQL with Customer & Admin schemas",
+    description="EasyRental Backend API connected to MariaDB / MySQL with Customer & Vendor schemas",
     version=settings.VERSION,
 )
 
@@ -64,7 +64,6 @@ def db_status_endpoint():
     tags=["Customer Auth"],
 )
 def customer_signup(payload: schemas.CustomerSignUpSchema, db: Session = Depends(get_db)):
-    # Check existing user
     existing = db.query(models.User).filter(models.User.email == payload.email).first()
     if existing:
         raise HTTPException(
@@ -72,11 +71,10 @@ def customer_signup(payload: schemas.CustomerSignUpSchema, db: Session = Depends
             detail="A user with this email address already exists.",
         )
 
-    # Create new customer user
     user = models.User(
         full_name=payload.full_name,
         email=payload.email,
-        hashed_password=f"hashed_{payload.password}",  # Placeholder hashing
+        hashed_password=f"hashed_{payload.password}",
         phone_number=payload.phone_number,
         role="customer",
         is_active=True,
@@ -85,7 +83,6 @@ def customer_signup(payload: schemas.CustomerSignUpSchema, db: Session = Depends
     db.commit()
     db.refresh(user)
 
-    # Create customer profile
     profile = models.CustomerProfile(user_id=user.id)
     db.add(profile)
     db.commit()
@@ -114,38 +111,39 @@ def customer_signin(payload: schemas.CustomerSignInSchema, db: Session = Depends
 
 
 # ==========================================
-# ADMIN AUTH ENDPOINTS
+# VENDOR AUTH ENDPOINTS
 # ==========================================
 
 @app.post(
-    "/api/v1/admin/signup",
-    response_model=schemas.AdminUserResponseSchema,
+    "/api/v1/vendor/signup",
+    response_model=schemas.VendorUserResponseSchema,
     status_code=status.HTTP_201_CREATED,
-    tags=["Admin Auth"],
+    tags=["Vendor Auth"],
 )
-def admin_signup(payload: schemas.AdminSignUpSchema, db: Session = Depends(get_db)):
+def vendor_signup(payload: schemas.VendorSignUpSchema, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == payload.email).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="An administrator with this email address already exists.",
+            detail="A vendor with this email address already exists.",
         )
 
     user = models.User(
         full_name=payload.full_name,
         email=payload.email,
         hashed_password=f"hashed_{payload.password}",
-        role="admin",
+        role="vendor",
         is_active=True,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    profile = models.AdminProfile(
+    profile = models.VendorProfile(
         user_id=user.id,
-        department=payload.department or "Operations",
-        is_superadmin=False,
+        company_name=payload.company_name,
+        category="General Rental",
+        is_verified=False,
     )
     db.add(profile)
     db.commit()
@@ -155,19 +153,19 @@ def admin_signup(payload: schemas.AdminSignUpSchema, db: Session = Depends(get_d
 
 
 @app.post(
-    "/api/v1/admin/signin",
-    response_model=schemas.AdminUserResponseSchema,
-    tags=["Admin Auth"],
+    "/api/v1/vendor/signin",
+    response_model=schemas.VendorUserResponseSchema,
+    tags=["Vendor Auth"],
 )
-def admin_signin(payload: schemas.AdminSignInSchema, db: Session = Depends(get_db)):
+def vendor_signin(payload: schemas.VendorSignInSchema, db: Session = Depends(get_db)):
     user = (
         db.query(models.User)
-        .filter(models.User.email == payload.email, models.User.role == "admin")
+        .filter(models.User.email == payload.email, models.User.role == "vendor")
         .first()
     )
     if not user or user.hashed_password != f"hashed_{payload.password}":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin credentials.",
+            detail="Invalid vendor credentials.",
         )
     return user

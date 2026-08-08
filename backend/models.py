@@ -12,14 +12,14 @@ class User(Base):
     email = Column(String(120), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     phone_number = Column(String(30), nullable=True)
-    role = Column(String(20), default="customer", nullable=False)  # 'customer' or 'admin'
+    role = Column(String(20), default="customer", nullable=False)  # 'customer' or 'vendor'
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     customer_profile = relationship("CustomerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    admin_profile = relationship("AdminProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    vendor_profile = relationship("VendorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     properties = relationship("Property", back_populates="owner")
     bookings = relationship("RentalBooking", back_populates="customer")
 
@@ -39,17 +39,16 @@ class CustomerProfile(Base):
     user = relationship("User", back_populates="customer_profile")
 
 
-class AdminProfile(Base):
-    __tablename__ = "admin_profiles"
+class VendorProfile(Base):
+    __tablename__ = "vendor_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
-    department = Column(String(100), default="Operations", nullable=False)
-    employee_id = Column(String(50), nullable=True, unique=True)
-    is_superadmin = Column(Boolean, default=False, nullable=False)
-    access_level = Column(Integer, default=1, nullable=False)
+    company_name = Column(String(120), nullable=True)
+    category = Column(String(100), default="General Rental", nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
 
-    user = relationship("User", back_populates="admin_profile")
+    user = relationship("User", back_populates="vendor_profile")
 
 
 class Property(Base):

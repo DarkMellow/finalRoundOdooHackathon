@@ -1416,3 +1416,56 @@ def get_vendor_orders(
             })
 
     return vendor_orders
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+class TargetUpdatePayload(BaseModel):
+    targetValue: float
+    vendor_id: Optional[int] = None
+
+@app.get(
+    "/api/v1/vendor/target",
+    tags=["Vendor"],
+)
+def get_vendor_target(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return {"targetValue": 10000.0}
+        vendor_id = vendor.id
+
+    target = db.query(models.MonthlyStoreTarget).filter(models.MonthlyStoreTarget.user_id == vendor_id).first()
+    if not target:
+        return {"targetValue": 10000.0}
+    return {"targetValue": target.target_value}
+
+
+@app.put(
+    "/api/v1/vendor/target",
+    tags=["Vendor"],
+)
+def update_vendor_target(
+    payload: TargetUpdatePayload,
+    db: Session = Depends(get_db),
+):
+    vendor_id = payload.vendor_id
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_id = vendor.id
+
+    target = db.query(models.MonthlyStoreTarget).filter(models.MonthlyStoreTarget.user_id == vendor_id).first()
+    if not target:
+        target = models.MonthlyStoreTarget(user_id=vendor_id, target_value=payload.targetValue)
+        db.add(target)
+    else:
+        target.target_value = payload.targetValue
+
+    db.commit()
+    return {"targetValue": target.target_value}

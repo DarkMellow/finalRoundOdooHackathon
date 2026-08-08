@@ -18,6 +18,9 @@ import {
   Award,
   ShoppingBag,
   DollarSign,
+  Edit2,
+  Check,
+  X,
 } from "lucide-react"
 
 // Types
@@ -139,6 +142,25 @@ export function VendorDashboard() {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [dateRange, setDateRange] = useState("Last 7 Days")
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [storeTarget, setStoreTarget] = useState<number>(10000)
+
+  const fetchStoreTarget = async (vendorId?: number) => {
+    const API_BASE_URL =
+      import.meta.env.VITE_SERVER_URL ||
+      (typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? `http://${window.location.hostname}:8000`
+        : "http://127.0.0.1:8000")
+    try {
+      const param = vendorId ? `?vendor_id=${vendorId}` : ""
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/target${param}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStoreTarget(data.targetValue)
+      }
+    } catch (err) {
+      console.warn("Failed to fetch store target:", err)
+    }
+  }
 
   const fetchOrders = async (vendorId?: number) => {
     const API_BASE_URL =
@@ -167,6 +189,7 @@ export function VendorDashboard() {
     }
     setLoggedVendor(vendor)
     fetchOrders(vendor.id)
+    fetchStoreTarget(vendor.id)
   }, [navigate])
 
   // Filter orders by status & search query
@@ -363,7 +386,34 @@ export function VendorDashboard() {
       {/* ========================================================================= */}
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-6 space-y-6">
         {activeNavTab === "reports" ? (
-          <VendorReportsView orders={orders} sales={sales} />
+          <VendorReportsView
+            orders={orders}
+            sales={sales}
+            storeTarget={storeTarget}
+            onTargetUpdate={async (newVal) => {
+              const API_BASE_URL =
+                import.meta.env.VITE_SERVER_URL ||
+                (typeof window !== "undefined" && window.location.hostname !== "localhost"
+                  ? `http://${window.location.hostname}:8000`
+                  : "http://127.0.0.1:8000")
+              try {
+                const res = await fetch(`${API_BASE_URL}/api/v1/vendor/target`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    targetValue: newVal,
+                    vendor_id: loggedVendor?.id,
+                  }),
+                })
+                if (res.ok) {
+                  const data = await res.json()
+                  setStoreTarget(data.targetValue)
+                }
+              } catch (err) {
+                console.error("Failed to update target:", err)
+              }
+            }}
+          />
         ) : (
           <>
             {/* Top Control Bar: Title + Actions + Search & View Switcher */}
@@ -717,9 +767,36 @@ export function VendorDashboard() {
   )
 }
 
-function VendorReportsView({ orders, sales }: { orders: any[]; sales: number }) {
+function VendorReportsView({
+  orders,
+  sales,
+  storeTarget,
+  onTargetUpdate,
+}: {
+  orders: any[]
+  sales: number
+  storeTarget: number
+  onTargetUpdate: (newVal: number) => Promise<void>
+}) {
   const [barTimeframe, setBarTimeframe] = useState<"weekly" | "monthly" | "yearly">("weekly")
   const [pieTimeframe, setPieTimeframe] = useState<"weekly" | "monthly" | "yearly">("weekly")
+
+  const [isEditingTarget, setIsEditingTarget] = useState(false)
+  const [targetInput, setTargetInput] = useState(String(storeTarget))
+
+  useEffect(() => {
+    setTargetInput(String(storeTarget))
+  }, [storeTarget])
+
+  const handleSaveTarget = async () => {
+    const val = parseFloat(targetInput)
+    if (isNaN(val) || val < 0) {
+      alert("Please enter a valid target amount")
+      return
+    }
+    await onTargetUpdate(val)
+    setIsEditingTarget(false)
+  }
 
   const totalOrders = orders.length
   const avgOrderValue = totalOrders ? Math.round(sales / totalOrders) : 0
@@ -742,7 +819,7 @@ function VendorReportsView({ orders, sales }: { orders: any[]; sales: number }) 
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
 
-  const targetRevenue = 10000
+  const targetRevenue = storeTarget || 10000
   const progressPercent = Math.min(100, Math.round((sales / targetRevenue) * 100))
 
   // BAR CHART DYNAMIC DATA (COUNT OF PRODUCTS ORDERED)
@@ -1100,9 +1177,48 @@ function VendorReportsView({ orders, sales }: { orders: any[]; sales: number }) 
 
         {/* Monthly target progress card */}
         <div className="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4 flex flex-col justify-between">
-          <div>
-            <h4 className="text-sm font-extrabold text-slate-900">Monthly Store Target</h4>
-            <p className="text-xs text-slate-500 mt-1">Goal tracking toward local target margins</p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-extrabold text-slate-900">Monthly Store Target</h4>
+              <p className="text-xs text-slate-500 mt-1">Goal tracking toward local target margins</p>
+            </div>
+            {isEditingTarget ? (
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  type="number"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  className="w-16 rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-xs text-right font-bold text-slate-800 outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveTarget}
+                  className="p-1 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+                  title="Save Target"
+                >
+                  <Check className="size-3" />
+                </button>
+                <button
+                  onClick={() => setIsEditingTarget(false)}
+                  className="p-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+                  title="Cancel"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setTargetInput(String(storeTarget))
+                  setIsEditingTarget(true)
+                }}
+                className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors shrink-0"
+                title="Edit target value"
+              >
+                <Edit2 className="size-3" />
+                <span>Edit</span>
+              </button>
+            )}
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-700">

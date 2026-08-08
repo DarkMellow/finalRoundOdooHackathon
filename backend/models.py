@@ -28,6 +28,7 @@ class User(Base):
     addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
     cards = relationship("UserCard", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
+    store_target = relationship("MonthlyStoreTarget", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
 class CustomerProfile(Base):
@@ -213,6 +214,18 @@ class Order(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="orders")
+
+
+class MonthlyStoreTarget(Base):
+    __tablename__ = "monthly_store_targets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    target_value = Column(Float, default=10000.0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="store_target")
 
 
 

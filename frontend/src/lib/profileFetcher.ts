@@ -1,4 +1,6 @@
 import { API_BASE_URL } from "@/lib/api"
+import { fetchSavedAddresses, fetchSavedCards } from "@/lib/cartCheckoutApi"
+import { fetchCustomerOrders } from "@/lib/customerOrdersApi"
 
 // ---------------------------------------------------------------------------
 // Types — aligned with backend models where possible; extended for UI needs.
@@ -58,118 +60,23 @@ export interface CustomerProfileData {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data — replace via fetchCustomerProfile() when backend is ready.
+// Mock data — fallback if backend fails.
 // ---------------------------------------------------------------------------
 
 export const mockCustomerProfile: CustomerProfileData = {
   user: {
     id: 1,
-    username: "Username",
-    fullName: "Jane Doe",
-    email: "dummy123@gmail.com",
-    phone: "+91-9999999999",
+    username: "customer",
+    fullName: "Customer",
+    email: "customer@example.com",
+    phone: "",
     avatarUrl: undefined,
   },
-  addresses: [
-    {
-      id: "addr-1",
-      label: "home",
-      addressLine: "Ball Streets",
-      city: "London",
-      state: "UK",
-      zipCode: "99999",
-    },
-    {
-      id: "addr-2",
-      label: "work",
-      addressLine: "Ball Streets",
-      city: "London",
-      state: "UK",
-      zipCode: "99999",
-    },
-  ],
-  paymentMethods: [
-    {
-      id: "pm-1",
-      type: "VISA",
-      lastFour: "8549",
-      maskedNumber: "xxxx xxxx 8549",
-    },
-    {
-      id: "pm-2",
-      type: "MASTER CARD",
-      lastFour: "8549",
-      maskedNumber: "xxxx xxxx 8549",
-    },
-  ],
-  currentlyRented: [
-    {
-      id: "rent-1",
-      name: "Sony 55\" 4K Smart TV",
-      image: "https://images.unsplash.com/photo-15933596723-61b019a0a2bd?auto=format&fit=crop&w=400&q=80",
-      rentedFrom: "2026-07-01",
-      rentedUntil: "2026-08-01",
-      status: "active",
-    },
-    {
-      id: "rent-2",
-      name: "Dell XPS 15 Laptop",
-      image: "https://images.unsplash.com/photo-1541807084-5c52b6b3c7b5?auto=format&fit=crop&w=400&q=80",
-      rentedFrom: "2026-07-10",
-      rentedUntil: "2026-09-10",
-      status: "active",
-    },
-    {
-      id: "rent-3",
-      name: "Canon EOS DSLR Camera",
-      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=400&q=80",
-      rentedFrom: "2026-06-15",
-      rentedUntil: "2026-07-15",
-      status: "active",
-    },
-    {
-      id: "rent-4",
-      name: "Herman Miller Office Chair",
-      image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80",
-      rentedFrom: "2026-05-01",
-      rentedUntil: "2026-11-01",
-      status: "active",
-    },
-  ],
-  rentingHistory: [
-    {
-      id: "hist-1",
-      name: "JBL Portable Speaker",
-      image: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=400&q=80",
-      rentedFrom: "2026-03-01",
-      rentedUntil: "2026-04-01",
-      status: "returned",
-    },
-    {
-      id: "hist-2",
-      name: "GoPro Action Camera",
-      image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80",
-      rentedFrom: "2026-01-15",
-      rentedUntil: "2026-02-15",
-      status: "returned",
-    },
-  ],
-  invoices: [
-    {
-      id: "inv-1",
-      invoiceNumber: "INV-2026-0042",
-      amount: 4999,
-      date: "2026-07-01",
-      status: "paid",
-    },
-    {
-      id: "inv-2",
-      invoiceNumber: "INV-2026-0038",
-      amount: 2499,
-      date: "2026-06-15",
-      status: "paid",
-    },
-  ],
+  addresses: [],
+  paymentMethods: [],
+  currentlyRented: [],
+  rentingHistory: [],
+  invoices: [],
 }
 
 function formatAddress(address: UserAddress): string {
@@ -193,60 +100,130 @@ export function getAddressDisplay(address: UserAddress): string {
  * Expected response shape: CustomerProfileData
  */
 export async function fetchCustomerProfile(): Promise<CustomerProfileData> {
-  // Uncomment when backend is ready:
-  // const res = await fetch(`${API_BASE_URL}/api/v1/customer/profile`, {
-  //   headers: { Authorization: `Bearer ${localStorage.getItem("customer_token")}` },
-  // })
-  // if (!res.ok) throw new Error("Failed to fetch profile")
-  // return res.json()
+  const stored = localStorage.getItem("user") || localStorage.getItem("customer_user")
+  const user = stored ? JSON.parse(stored) : null
 
-  void API_BASE_URL
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockCustomerProfile), 350)
-  })
+  if (!user) {
+    throw new Error("No logged in user found")
+  }
+
+  // 1. Fetch addresses
+  let addresses: UserAddress[] = []
+  try {
+    const fetchedAddresses = await fetchSavedAddresses()
+    addresses = fetchedAddresses.map((a) => ({
+      id: a.id,
+      label: a.label.toLowerCase(),
+      addressLine: a.street,
+      city: a.city,
+      state: a.state,
+      zipCode: a.zipCode,
+    }))
+  } catch (err) {
+    console.warn("Failed to fetch addresses for profile:", err)
+  }
+
+  // 2. Fetch payment methods
+  let paymentMethods: PaymentMethod[] = []
+  try {
+    const fetchedCards = await fetchSavedCards()
+    paymentMethods = fetchedCards.map((c) => ({
+      id: c.id,
+      type: c.brand.toUpperCase(),
+      lastFour: c.cardNumberLast4,
+      maskedNumber: `xxxx xxxx ${c.cardNumberLast4}`,
+    }))
+  } catch (err) {
+    console.warn("Failed to fetch cards for profile:", err)
+  }
+
+  // 3. Fetch orders & map to rentals, history, invoices
+  let currentlyRented: ProfileRentalItem[] = []
+  let rentingHistory: ProfileRentalItem[] = []
+  let invoices: ProfileInvoice[] = []
+
+  try {
+    const orders = await fetchCustomerOrders()
+    for (const order of orders) {
+      const isRented = order.status === "Active" || order.status === "Pending Pickup"
+      for (const item of order.items) {
+        const itemObj: ProfileRentalItem = {
+          id: `${order.id}-${item.id}`,
+          name: item.title,
+          image: item.image,
+          rentedFrom: order.startDate.replace("T", " "),
+          rentedUntil: order.endDate.replace("T", " "),
+          status: isRented ? "active" : "returned",
+        }
+        if (isRented) {
+          currentlyRented.push(itemObj)
+        } else {
+          rentingHistory.push(itemObj)
+        }
+      }
+
+      // Invoices
+      invoices.push({
+        id: `inv-${order.id}`,
+        invoiceNumber: `INV-${order.reference.replace("ORD-", "")}`,
+        amount: order.total,
+        date: order.orderDate.split("T")[0],
+        status: order.status === "Cancelled" ? "pending" : "paid",
+      })
+    }
+  } catch (err) {
+    console.warn("Failed to fetch orders for profile:", err)
+  }
+
+  const profileUser: CustomerProfileUser = {
+    id: user.id || 1,
+    username: user.email ? user.email.split("@")[0] : "customer",
+    fullName: user.full_name || "Customer Account",
+    email: user.email || "",
+    phone: user.phone || "",
+    avatarUrl: undefined,
+  }
+
+  return {
+    user: profileUser,
+    addresses,
+    paymentMethods,
+    currentlyRented,
+    rentingHistory,
+    invoices,
+  }
 }
 
 /**
  * Fetch paginated currently rented items.
- *
- * Backend endpoint (suggested): GET /api/v1/customer/rentals/active?offset=&limit=
  */
 export async function fetchCurrentlyRentedItems(
   offset = 0,
   limit = 4
 ): Promise<ProfileRentalItem[]> {
   void offset
-  void limit
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockCustomerProfile.currentlyRented.slice(0, limit)), 200)
-  })
+  const profile = await fetchCustomerProfile()
+  return profile.currentlyRented.slice(0, limit)
 }
 
 /**
  * Fetch paginated rental history.
- *
- * Backend endpoint (suggested): GET /api/v1/customer/rentals/history?offset=&limit=
  */
 export async function fetchRentingHistory(
   offset = 0,
   limit = 2
 ): Promise<ProfileRentalItem[]> {
   void offset
-  void limit
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockCustomerProfile.rentingHistory.slice(0, limit)), 200)
-  })
+  const profile = await fetchCustomerProfile()
+  return profile.rentingHistory.slice(0, limit)
 }
 
 /**
  * Fetch paginated invoices.
- *
- * Backend endpoint (suggested): GET /api/v1/customer/invoices?offset=&limit=
  */
 export async function fetchInvoices(offset = 0, limit = 2): Promise<ProfileInvoice[]> {
   void offset
-  void limit
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockCustomerProfile.invoices.slice(0, limit)), 200)
-  })
+  const profile = await fetchCustomerProfile()
+  return profile.invoices.slice(0, limit)
 }
+

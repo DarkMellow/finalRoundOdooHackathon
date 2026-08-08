@@ -108,12 +108,12 @@ export function ProductExpansionView({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md transition-opacity duration-200 animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-900/50 backdrop-blur-md transition-opacity duration-200 animate-in fade-in"
       onClick={onClose}
     >
       {/* Modal Container (Discord Settings / Notion Design System inspired) */}
       <div
-        className="relative flex flex-col w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-border/60 bg-card text-card-foreground shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative flex flex-col w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar with Close Button */}
@@ -169,8 +169,8 @@ export function ProductExpansionView({
                     onClick={handleWishlistClick}
                     className={`absolute top-4 right-4 flex size-11 items-center justify-center rounded-full border shadow-md backdrop-blur-md transition-all ${
                       localWishlist
-                        ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/80 dark:border-rose-800"
-                        : "bg-white/80 border-slate-200/80 text-slate-700 hover:bg-white hover:text-rose-600 dark:bg-slate-900/80 dark:border-slate-700 dark:text-slate-200"
+                        ? "bg-rose-50 border-rose-200 text-rose-600"
+                        : "bg-white/90 border-slate-200 text-slate-700 hover:bg-white hover:text-rose-600"
                     }`}
                     title={localWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
                   >
@@ -234,7 +234,7 @@ export function ProductExpansionView({
                     </span>
                     <span className="text-border">•</span>
                     {product.inStock ? (
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
                         <CheckCircle2 className="size-3.5" /> In Stock ({product.stockQuantity} available)
                       </span>
                     ) : (
@@ -385,8 +385,8 @@ export function ProductExpansionView({
 
                 {/* Toast Notification */}
                 {addedToast && (
-                  <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-                    <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                    <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
                     <span>Item added to cart successfully!</span>
                   </div>
                 )}

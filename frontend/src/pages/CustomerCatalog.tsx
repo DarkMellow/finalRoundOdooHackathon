@@ -2,6 +2,8 @@ import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { fetchProducts } from "@/lib/api"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
+import { CartCheckout } from "@/pages/CartCheckout"
+import { Wishlist } from "@/pages/Wishlist"
 import { Input } from "@/components/ui/input"
 import {
   Building2,
@@ -16,7 +18,6 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
-  Check,
   Star,
   Tag,
 } from "lucide-react"
@@ -30,7 +31,6 @@ interface Product {
   image: string
   price: number
   billingPeriod: "per Month" | "per day" | "per hour"
-  colorVariants?: string[] // hex values
   sizeVariants?: string[] // e.g. ["43\"", "55\"", "65\""]
   tags: string[]
   inStock: boolean
@@ -46,22 +46,11 @@ const ALL_CATALOG_TAGS = [
   "Audio",
   "Photography",
 ]
-
-const COLOR_OPTIONS = [
-  { name: "Teal", hex: "#0d9488" },
-  { name: "Purple", hex: "#a855f7" },
-  { name: "Brown", hex: "#78350f" },
-  { name: "Orange", hex: "#ea580c" },
-  { name: "Blue", hex: "#2563eb" },
-  { name: "Black", hex: "#0f172a" },
-]
-
 export function CustomerCatalog() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTag, setSelectedTag] = useState<string>("All Tags")
   const [selectedBrand, setSelectedBrand] = useState<string>("all")
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [priceMax, setPriceMax] = useState<number>(2000)
 
   const [wishlist, setWishlist] = useState<string[]>([])
@@ -74,6 +63,8 @@ export function CustomerCatalog() {
   const [dbProducts, setDbProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
+  const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false)
+  const [isWishlistModalOpen, setIsWishlistModalOpen] = useState<boolean>(false)
 
   // Load live database products from all vendors
   useEffect(() => {
@@ -187,8 +178,8 @@ export function CustomerCatalog() {
           <div className="flex items-center gap-3">
             {/* Wishlist Button */}
             <button
-              onClick={() => alert(`Wishlist contains ${wishlist.length} saved items`)}
-              className="relative p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-xs"
+              onClick={() => setIsWishlistModalOpen(true)}
+              className="relative p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-xs cursor-pointer"
               title="Wishlist"
             >
               <Heart className={`size-4 ${wishlist.length > 0 ? "fill-rose-500 text-rose-500" : ""}`} />
@@ -201,8 +192,8 @@ export function CustomerCatalog() {
 
             {/* Cart Button */}
             <button
-              onClick={() => alert(`Cart contains ${cart.reduce((a, b) => a + b.quantity, 0)} items`)}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-blue-300 transition-colors shadow-xs"
+              onClick={() => setIsCartModalOpen(true)}
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-blue-300 transition-colors shadow-xs cursor-pointer"
               title="Cart"
             >
               <ShoppingCart className="size-4 text-blue-600" />
@@ -300,7 +291,6 @@ export function CustomerCatalog() {
               onClick={() => {
                 setSelectedTag("All Tags")
                 setSelectedBrand("all")
-                setSelectedColor(null)
                 setPriceMax(100)
                 setSearchQuery("")
               }}
@@ -365,31 +355,6 @@ export function CustomerCatalog() {
               <option value="Bose">Bose</option>
               <option value="Herman Miller">Herman Miller</option>
             </select>
-          </div>
-
-          {/* 2. Color Swatches Filter */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-              Color
-            </label>
-            <div className="flex items-center gap-2 flex-wrap">
-              {COLOR_OPTIONS.map((color) => {
-                const isSelected = selectedColor === color.hex
-                return (
-                  <button
-                    key={color.name}
-                    onClick={() => setSelectedColor(isSelected ? null : color.hex)}
-                    style={{ backgroundColor: color.hex }}
-                    className={`size-7 rounded-full transition-transform flex items-center justify-center shadow-xs ${
-                      isSelected ? "ring-2 ring-blue-600 ring-offset-2 scale-110" : "hover:scale-105"
-                    }`}
-                    title={color.name}
-                  >
-                    {isSelected && <Check className="size-3.5 text-white drop-shadow-md" />}
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
           {/* 3. Price Range Filter */}
@@ -539,19 +504,6 @@ export function CustomerCatalog() {
                             / {product.billingPeriod}
                           </span>
                         </div>
-
-                        {/* Color Swatches */}
-                        {product.colorVariants && (
-                          <div className="flex items-center gap-1">
-                            {product.colorVariants.map((hex, idx) => (
-                              <div
-                                key={idx}
-                                style={{ backgroundColor: hex }}
-                                className="size-3.5 rounded-full border border-slate-300"
-                              />
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -620,6 +572,19 @@ export function CustomerCatalog() {
           }}
         />
       )}
+
+      {/* Cart Checkout Modal */}
+      <CartCheckout
+        isOpen={isCartModalOpen}
+        onClose={() => setIsCartModalOpen(false)}
+      />
+
+      {/* Wishlist Modal */}
+      <Wishlist
+        isOpen={isWishlistModalOpen}
+        onClose={() => setIsWishlistModalOpen(false)}
+        onSelectProduct={(id) => setSelectedProductIdForModal(id)}
+      />
     </div>
   )
 }

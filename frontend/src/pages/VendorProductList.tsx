@@ -356,15 +356,6 @@ export function VendorProductList() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleSeedDemoProducts}
-              disabled={isSeeding}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs disabled:opacity-50"
-              title="Populate demo products into database"
-            >
-              {isSeeding ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 text-amber-500" />}
-              <span>{isSeeding ? "Seeding..." : "Seed Products"}</span>
-            </button>
 
             <button
               onClick={loadProducts}
@@ -428,34 +419,6 @@ export function VendorProductList() {
               </button>
             </div>
 
-            {/* Status Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs font-medium">
-              <span className="text-[10px] text-slate-500 px-2 uppercase font-semibold">Status</span>
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === "all" ? "bg-white text-slate-900 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setStatusFilter("published")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === "published" ? "bg-white text-emerald-700 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Published
-              </button>
-              <button
-                onClick={() => setStatusFilter("draft")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === "draft" ? "bg-white text-slate-700 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Draft
-              </button>
-            </div>
 
             {/* View Switcher */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">

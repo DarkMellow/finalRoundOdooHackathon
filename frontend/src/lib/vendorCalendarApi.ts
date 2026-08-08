@@ -32,7 +32,7 @@ async function loadVendorOrders(): Promise<any[]> {
   if (!vendor) return []
 
   const API_BASE_URL =
-    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_SERVER_URL ||
     (typeof window !== "undefined" && window.location.hostname !== "localhost"
       ? `http://${window.location.hostname}:8000`
       : "http://127.0.0.1:8000")

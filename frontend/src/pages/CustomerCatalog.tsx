@@ -16,7 +16,6 @@ import {
   ChevronDown,
   User,
   Package,
-  Settings as SettingsIcon,
   LogOut,
   SlidersHorizontal,
   ChevronLeft,
@@ -343,17 +342,6 @@ export function CustomerCatalog() {
                     >
                       <Package className="size-4 text-purple-600" />
                       <span>My Orders</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false)
-                        alert("Settings clicked")
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
-                    >
-                      <SettingsIcon className="size-4 text-slate-500" />
-                      <span>Settings</span>
                     </button>
                   </div>
 

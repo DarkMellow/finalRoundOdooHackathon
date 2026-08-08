@@ -1,7 +1,14 @@
-export const API_BASE_URL =
-  import.meta.env.VITE_SERVER_URL ||
-  import.meta.env.VITE_API_URL ||
-  "http://10.119.37.110:8000"
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_SERVER_URL) {
+    return import.meta.env.VITE_SERVER_URL
+  }
+  if (typeof window !== "undefined" && window.location.hostname) {
+    return `http://${window.location.hostname}:8000`
+  }
+  return "http://localhost:8000"
+}
+
+export const API_BASE_URL = getApiBaseUrl()
 
 export interface ApiError {
   detail: string

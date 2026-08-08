@@ -160,12 +160,23 @@ def vendor_signup(payload: schemas.VendorSignUpSchema, db: Session = Depends(get
 def vendor_signin(payload: schemas.VendorSignInSchema, db: Session = Depends(get_db)):
     user = (
         db.query(models.User)
-        .filter(models.User.email == payload.email, models.User.role == "vendor")
+        .filter(
+            models.User.email == payload.email,
+            models.User.role.in_(["vendor", "admin"]),
+        )
         .first()
     )
     if not user or user.hashed_password != f"hashed_{payload.password}":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid vendor credentials.",
+            detail="Invalid vendor credentials. Please check your email and password.",
         )
+
+    # Auto-migrate legacy 'admin' role to 'vendor'
+    if user.role == "admin":
+        user.role = "vendor"
+        db.commit()
+        db.refresh(user)
+
     return user
+

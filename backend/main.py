@@ -1173,6 +1173,47 @@ def create_customer_order(
     )
     db.add(new_order)
 
+    # 4.5. Deduct stock quantity of ordered variants
+    for it in items_list:
+        prod_id_str = str(it.get("productId") or "")
+        clean_prod_id = None
+        if prod_id_str.startswith("db-"):
+            try:
+                clean_prod_id = int(prod_id_str.replace("db-", ""))
+            except ValueError:
+                pass
+        else:
+            try:
+                clean_prod_id = int(prod_id_str)
+            except ValueError:
+                pass
+
+        if clean_prod_id:
+            product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+            if product and product.attributes_json:
+                try:
+                    attr_data = json.loads(product.attributes_json)
+                except Exception:
+                    attr_data = {}
+
+                variants = attr_data.get("variants", [])
+                variant_name = it.get("variantName")
+                qty_ordered = int(it.get("quantity") or 1)
+
+                modified = False
+                for variant in variants:
+                    if variant.get("name") == variant_name:
+                        try:
+                            curr_stock = int(variant.get("stockQuantity") or "0")
+                            new_stock = max(0, curr_stock - qty_ordered)
+                            variant["stockQuantity"] = str(new_stock)
+                            modified = True
+                        except ValueError:
+                            pass
+
+                if modified:
+                    product.attributes_json = json.dumps(attr_data)
+
     # 5. Clear User Cart
     cart = db.query(models.Cart).filter(models.Cart.user_id == target_user_id).first()
     if cart:
@@ -1207,6 +1248,53 @@ def cancel_customer_order_endpoint(
 
     order.status = "Cancelled"
     order.total = 0.0
+
+    # 4.6. Return stock quantity of cancelled items
+    try:
+        items_data = json.loads(order.items_json or "[]")
+    except Exception:
+        items_data = []
+
+    for it in items_data:
+        prod_id_str = str(it.get("productId") or "")
+        clean_prod_id = None
+        if prod_id_str.startswith("db-"):
+            try:
+                clean_prod_id = int(prod_id_str.replace("db-", ""))
+            except ValueError:
+                pass
+        else:
+            try:
+                clean_prod_id = int(prod_id_str)
+            except ValueError:
+                pass
+
+        if clean_prod_id:
+            product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+            if product and product.attributes_json:
+                try:
+                    attr_data = json.loads(product.attributes_json)
+                except Exception:
+                    attr_data = {}
+
+                variants = attr_data.get("variants", [])
+                variant_name = it.get("variantName")
+                qty_ordered = int(it.get("quantity") or 1)
+
+                modified = False
+                for variant in variants:
+                    if variant.get("name") == variant_name:
+                        try:
+                            curr_stock = int(variant.get("stockQuantity") or "0")
+                            new_stock = curr_stock + qty_ordered
+                            variant["stockQuantity"] = str(new_stock)
+                            modified = True
+                        except ValueError:
+                            pass
+
+                if modified:
+                    product.attributes_json = json.dumps(attr_data)
+
     db.commit()
 
     all_orders = (

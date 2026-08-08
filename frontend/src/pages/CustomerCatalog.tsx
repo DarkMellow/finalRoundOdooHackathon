@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { fetchProducts } from "@/lib/api"
+import { ProductExpansionView } from "@/pages/ProductExpansionView"
 import { Input } from "@/components/ui/input"
 import {
   Building2,
@@ -72,6 +73,7 @@ export function CustomerCatalog() {
 
   const [dbProducts, setDbProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
 
   // Load live database products from all vendors
   useEffect(() => {
@@ -449,7 +451,8 @@ export function CustomerCatalog() {
                 return (
                   <div
                     key={product.id}
-                    className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group"
+                    onClick={() => setSelectedProductIdForModal(product.id)}
+                    className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer"
                   >
                     {/* Image Container */}
                     <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
@@ -602,6 +605,21 @@ export function CustomerCatalog() {
           </div>
         </section>
       </main>
+
+      {/* Product Expansion View Modal */}
+      {selectedProductIdForModal && (
+        <ProductExpansionView
+          productId={selectedProductIdForModal}
+          isOpen={Boolean(selectedProductIdForModal)}
+          onClose={() => setSelectedProductIdForModal(null)}
+          isWishlisted={wishlist.includes(selectedProductIdForModal)}
+          onToggleWishlist={(id) => {
+            setWishlist((prev) =>
+              prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+            )
+          }}
+        />
+      )}
     </div>
   )
 }

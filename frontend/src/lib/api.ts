@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+export const API_BASE_URL =
+  import.meta.env.VITE_SERVER_URL ||
+  import.meta.env.VITE_API_URL ||
+  "http://10.1.25.112:8000"
 
 export interface ApiError {
   detail: string
@@ -6,7 +9,7 @@ export interface ApiError {
 
 export interface CustomerUser {
   id: number
-  full_name: str
+  full_name: string
   email: string
   phone_number?: string
   role: "customer"

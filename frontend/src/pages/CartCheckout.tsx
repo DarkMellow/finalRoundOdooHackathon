@@ -117,7 +117,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
           const defaultCard = cardData.find((c) => c.isDefault) || cardData[0]
           setSelectedCardId(defaultCard.id)
         } else {
-          setShowNewCardForm(true)
+          setSelectedCardId("")
         }
       })
       .catch((err) => {
@@ -858,16 +858,16 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left Column: Payment Options & Selectable Saved Cards */}
               <div className="lg:col-span-7 flex flex-col space-y-6">
-                <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                  <h2 className="text-xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-                    <CreditCard className="size-5 text-primary" />
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+                    <CreditCard className="size-5 text-slate-900" />
                     <span>Select Payment Method</span>
                   </h2>
 
                   {paymentMethod === "card" && (
                     <button
                       onClick={() => setShowNewCardForm(!showNewCardForm)}
-                      className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                      className="text-xs font-bold text-slate-900 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Plus className="size-3.5" />
                       <span>{showNewCardForm ? "Cancel Form" : "Add New Card"}</span>
@@ -879,10 +879,10 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                 <div className="grid grid-cols-3 gap-3">
                   <button
                     onClick={() => setPaymentMethod("card")}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-xs font-bold gap-2 ${
+                    className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all text-xs font-bold gap-2 cursor-pointer ${
                       paymentMethod === "card"
-                        ? "border-primary bg-primary/10 text-primary shadow-xs"
-                        : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                        ? "border-2 border-slate-900 bg-slate-100/90 text-slate-900 shadow-xs"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     <CreditCard className="size-5" />
@@ -891,10 +891,10 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
                   <button
                     onClick={() => setPaymentMethod("upi")}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-xs font-bold gap-2 ${
+                    className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all text-xs font-bold gap-2 cursor-pointer ${
                       paymentMethod === "upi"
-                        ? "border-primary bg-primary/10 text-primary shadow-xs"
-                        : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                        ? "border-2 border-slate-900 bg-slate-100/90 text-slate-900 shadow-xs"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     <QrCode className="size-5" />
@@ -903,10 +903,10 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
                   <button
                     onClick={() => setPaymentMethod("cod")}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all text-xs font-bold gap-2 ${
+                    className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all text-xs font-bold gap-2 cursor-pointer ${
                       paymentMethod === "cod"
-                        ? "border-primary bg-primary/10 text-primary shadow-xs"
-                        : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
+                        ? "border-2 border-slate-900 bg-slate-100/90 text-slate-900 shadow-xs"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                     }`}
                   >
                     <Banknote className="size-5" />
@@ -922,14 +922,14 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                       {showNewCardForm ? (
                         <form
                           onSubmit={handleAddNewCard}
-                          className="p-4 rounded-xl border border-primary/40 bg-primary/5 space-y-3"
+                          className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3"
                         >
-                          <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                             Add New Card Information
                           </h3>
 
                           <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted-foreground">
+                            <label className="text-xs font-semibold text-slate-600">
                               Cardholder Name *
                             </label>
                             <input
@@ -938,12 +938,12 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                               value={newCardName}
                               onChange={(e) => setNewCardName(e.target.value)}
                               required
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground outline-none focus:border-primary"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                             />
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted-foreground">
+                            <label className="text-xs font-semibold text-slate-600">
                               Card Number *
                             </label>
                             <input
@@ -952,13 +952,13 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                               value={newCardNumber}
                               onChange={(e) => setNewCardNumber(e.target.value)}
                               required
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:border-blue-500"
                             />
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground">
+                              <label className="text-xs font-semibold text-slate-600">
                                 Expiry (MM/YY) *
                               </label>
                               <input
@@ -966,11 +966,11 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                                 placeholder="12/28"
                                 value={newCardExpiry}
                                 onChange={(e) => setNewCardExpiry(e.target.value)}
-                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:border-blue-500"
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground">
+                              <label className="text-xs font-semibold text-slate-600">
                                 CVV *
                               </label>
                               <input
@@ -978,7 +978,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                                 placeholder="123"
                                 value={newCardCvv}
                                 onChange={(e) => setNewCardCvv(e.target.value)}
-                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:border-blue-500"
                               />
                             </div>
                           </div>
@@ -992,16 +992,40 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                             >
                               Cancel
                             </Button>
-                            <Button type="submit" size="sm" className="rounded-lg font-bold">
+                            <button
+                              type="submit"
+                              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-xs cursor-pointer"
+                            >
                               Save & Select Card
-                            </Button>
+                            </button>
                           </div>
                         </form>
+                      ) : savedCards.length === 0 ? (
+                        /* Empty state when user has no saved cards */
+                        <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-3">
+                          <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mx-auto">
+                            <CreditCard className="size-6" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-slate-800">No saved cards found</p>
+                            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                              You haven't saved any credit or debit cards yet. Add a card to pay for your rental.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewCardForm(true)}
+                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Plus className="size-3.5" />
+                            <span>Add New Card</span>
+                          </button>
+                        </div>
                       ) : (
                         /* Selectable Saved Cards Grid */
                         <div className="space-y-3">
-                          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            Saved Cards
+                          <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                            SAVED CARDS
                           </h3>
                           {savedCards.map((card) => {
                             const isSelected = selectedCardId === card.id
@@ -1009,33 +1033,33 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                               <div
                                 key={card.id}
                                 onClick={() => setSelectedCardId(card.id)}
-                                className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
+                                className={`flex items-center justify-between p-4.5 rounded-2xl cursor-pointer transition-all ${
                                   isSelected
-                                    ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
-                                    : "border-border/60 bg-card hover:border-border"
+                                    ? "border-2 border-slate-900 bg-white shadow-xs"
+                                    : "border border-slate-200 bg-white hover:border-slate-300"
                                 }`}
                               >
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3.5">
                                   <div
-                                    className={`flex size-5 items-center justify-center rounded-full border text-[10px] ${
+                                    className={`flex size-5 items-center justify-center rounded-full transition-colors ${
                                       isSelected
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "border-muted-foreground/40 text-transparent"
+                                        ? "bg-slate-900 text-white"
+                                        : "border border-slate-300 text-transparent"
                                     }`}
                                   >
-                                    <Check className="size-3" />
+                                    <Check className="size-3 stroke-[3]" />
                                   </div>
 
                                   <div className="space-y-0.5">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-sm font-bold text-foreground">
+                                      <span className="text-sm font-bold text-slate-900 tracking-wide">
                                         •••• •••• •••• {card.cardNumberLast4}
                                       </span>
-                                      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                                         {card.brand}
                                       </span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground font-medium">
+                                    <p className="text-xs text-slate-500 font-medium">
                                       {card.cardholderName} • Expires {card.expiry}
                                     </p>
                                   </div>
@@ -1049,8 +1073,8 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                   )}
 
                   {paymentMethod === "upi" && (
-                    <div className="p-4 rounded-xl border border-border/80 bg-card space-y-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-xs">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                         UPI ID / VPA
                       </h3>
                       <input
@@ -1058,14 +1082,14 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                         placeholder="username@bank"
                         value={upiId}
                         onChange={(e) => setUpiId(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-primary"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono outline-none focus:border-blue-500"
                       />
                     </div>
                   )}
 
                   {paymentMethod === "cod" && (
-                    <div className="p-4 rounded-xl border border-border/80 bg-card space-y-1 text-xs text-muted-foreground">
-                      <p className="font-bold text-foreground">Pay on Pickup / Cash on Delivery</p>
+                    <div className="p-5 rounded-2xl border border-slate-200 bg-white space-y-1 text-xs text-slate-600 shadow-xs">
+                      <p className="font-bold text-slate-900">Pay on Pickup / Cash on Delivery</p>
                       <p>You can pay via Cash, Card, or UPI upon receiving or picking up your equipment.</p>
                     </div>
                   )}
@@ -1073,50 +1097,48 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
                 {/* Back to Address Button on the Bottom Left */}
                 <div className="pt-2">
-                  <Button
+                  <button
                     onClick={() => setActiveStep("address")}
-                    variant="outline"
-                    className="rounded-xl font-bold text-xs"
+                    className="px-4 py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <ArrowLeft className="size-4 mr-1.5" />
-                    Back to Address
-                  </Button>
+                    <ArrowLeft className="size-3.5" />
+                    <span>Back to Address</span>
+                  </button>
                 </div>
               </div>
 
               {/* Right Column: Final Order Details & Confirm Button */}
               <div className="lg:col-span-5 flex flex-col space-y-4">
-                <div className="rounded-xl border border-border/80 bg-card p-5 space-y-3 shadow-xs">
-                  <h3 className="text-sm font-bold text-foreground border-b border-border/40 pb-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">
+                  <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2.5">
                     Final Order Details
                   </h3>
 
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-500 font-medium">
                       <span>Items Count</span>
-                      <span className="font-bold text-foreground">{cartSummary.items.length} items</span>
+                      <span className="font-bold text-slate-900">{cartSummary.items.length} items</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-slate-500 font-medium">
                       <span>Rental Duration</span>
-                      <span className="font-mono font-bold text-foreground">{cartSummary.totalHours} Hours</span>
+                      <span className="font-mono font-bold text-slate-900">{cartSummary.totalHours} Hours</span>
                     </div>
-                    <div className="flex justify-between border-t border-border/40 pt-2 font-bold text-foreground text-sm">
+                    <div className="flex justify-between border-t border-slate-100 pt-3 font-bold text-slate-900 text-sm">
                       <span>Total Amount</span>
-                      <span className="font-mono text-primary text-base">${cartSummary.total.toFixed(2)}</span>
+                      <span className="font-mono text-base font-extrabold text-slate-900">${cartSummary.total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Confirm & Pay Button Repositioned Under Final Order Details */}
-                <Button
+                <button
                   onClick={handleFinalOrderSubmit}
                   disabled={actionLoading || (paymentMethod === "card" && !selectedCardId && !showNewCardForm)}
-                  size="lg"
-                  className="w-full py-6 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-black text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShieldCheck className="size-5" />
+                  <ShieldCheck className="size-4" />
                   <span>Confirm & Pay ${cartSummary.total.toFixed(2)}</span>
-                </Button>
+                </button>
               </div>
             </div>
           )}

@@ -216,3 +216,28 @@ class SaveAddressSchema(BaseModel):
     isDefault: Optional[bool] = False
 
 
+# ==========================================
+# CARD SCHEMAS
+# ==========================================
+
+class SavedCardSchema(BaseModel):
+    id: str
+    cardholderName: str
+    cardNumberLast4: str
+    expiry: str
+    brand: str = "Visa"
+    isDefault: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SaveCardSchema(BaseModel):
+    user_id: Optional[int] = None
+    cardholderName: str
+    cardNumber: str
+    expiry: Optional[str] = "12/28"
+    brand: Optional[str] = "Visa"
+    isDefault: Optional[bool] = False
+
+
+

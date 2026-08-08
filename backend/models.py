@@ -25,6 +25,7 @@ class User(Base):
     products = relationship("Product", back_populates="vendor")
     cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
     addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
+    cards = relationship("UserCard", back_populates="user", cascade="all, delete-orphan")
 
 
 class CustomerProfile(Base):
@@ -159,5 +160,22 @@ class UserAddress(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="addresses")
+
+
+class UserCard(Base):
+    __tablename__ = "user_cards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cardholder_name = Column(String(120), nullable=False)
+    card_number_last4 = Column(String(10), nullable=False)
+    expiry = Column(String(20), nullable=False)
+    brand = Column(String(50), default="Visa", nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="cards")
+
 
 

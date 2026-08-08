@@ -334,25 +334,7 @@ export async function applyCouponCode(
 }
 
 let cachedAddresses: DeliveryAddress[] = []
-
-let mockSavedCards: SavedCard[] = [
-  {
-    id: "card-1",
-    cardholderName: "Jane Doe",
-    cardNumberLast4: "4242",
-    expiry: "12/28",
-    brand: "Visa",
-    isDefault: true,
-  },
-  {
-    id: "card-2",
-    cardholderName: "Jane Doe",
-    cardNumberLast4: "8899",
-    expiry: "09/27",
-    brand: "Mastercard",
-    isDefault: false,
-  },
-]
+let cachedCards: SavedCard[] = []
 
 export async function fetchSavedAddresses(): Promise<DeliveryAddress[]> {
   const user = getLoggedCustomer()
@@ -428,26 +410,79 @@ export async function deleteDeliveryAddress(addressId: string): Promise<Delivery
 }
 
 export async function fetchSavedCards(): Promise<SavedCard[]> {
-  return [...mockSavedCards]
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/cards${userParam}`)
+    if (res.ok) {
+      const cards: SavedCard[] = await res.json()
+      cachedCards = cards
+      return cards
+    }
+  } catch (err) {
+    console.warn("Failed to fetch cards from backend:", err)
+  }
+  return [...cachedCards]
 }
 
 export async function saveNewCard(
   cardData: Omit<SavedCard, "id" | "cardNumberLast4"> & { cardNumber: string }
 ): Promise<SavedCard[]> {
+  const user = getLoggedCustomer()
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/cards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user?.id,
+        cardholderName: cardData.cardholderName,
+        cardNumber: cardData.cardNumber,
+        expiry: cardData.expiry || "12/28",
+        brand: cardData.brand || "Visa",
+        isDefault: Boolean(cardData.isDefault),
+      }),
+    })
+    if (res.ok) {
+      const cards: SavedCard[] = await res.json()
+      cachedCards = cards
+      return cards
+    }
+  } catch (err) {
+    console.warn("Failed to save card to backend:", err)
+  }
+
   const rawNum = cardData.cardNumber.replace(/\s+/g, "")
   const last4 = rawNum.slice(-4) || "0000"
-
   const newCard: SavedCard = {
     id: `card-${Date.now()}`,
     cardholderName: cardData.cardholderName,
     cardNumberLast4: last4,
     expiry: cardData.expiry || "12/28",
     brand: cardData.brand || "Visa",
-    isDefault: false,
+    isDefault: Boolean(cardData.isDefault),
+  }
+  cachedCards = [newCard, ...cachedCards]
+  return [...cachedCards]
+}
+
+export async function deleteSavedCard(cardId: string): Promise<SavedCard[]> {
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/cards/${cardId}${userParam}`, {
+      method: "DELETE",
+    })
+    if (res.ok) {
+      const cards: SavedCard[] = await res.json()
+      cachedCards = cards
+      return cards
+    }
+  } catch (err) {
+    console.warn("Failed to delete card on backend:", err)
   }
 
-  mockSavedCards = [newCard, ...mockSavedCards]
-  return [...mockSavedCards]
+  cachedCards = cachedCards.filter((c) => c.id !== cardId)
+  return [...cachedCards]
 }
 
 export async function processFinalOrder(

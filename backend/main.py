@@ -663,6 +663,129 @@ def delete_address(
     ]
 
 
+# ==========================================
+# CARD ENDPOINTS
+# ==========================================
+
+@app.get(
+    "/api/v1/cards",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def get_cards(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(user_id, db)
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.post(
+    "/api/v1/cards",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def save_card(payload: schemas.SaveCardSchema, db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+
+    raw_num = payload.cardNumber.replace(" ", "").replace("-", "")
+    last4 = raw_num[-4:] if len(raw_num) >= 4 else "4242"
+
+    # Infer brand if simple detection possible
+    brand = payload.brand or "Visa"
+    if raw_num.startswith("5"):
+        brand = "Mastercard"
+    elif raw_num.startswith("3"):
+        brand = "Amex"
+
+    if payload.isDefault:
+        db.query(models.UserCard).filter(models.UserCard.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+
+    new_card = models.UserCard(
+        user_id=target_user_id,
+        cardholder_name=payload.cardholderName,
+        card_number_last4=last4,
+        expiry=payload.expiry or "12/28",
+        brand=brand,
+        is_default=bool(payload.isDefault),
+    )
+    db.add(new_card)
+    db.commit()
+    db.refresh(new_card)
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.delete(
+    "/api/v1/cards/{card_id}",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def delete_card(
+    card_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    card_query = db.query(models.UserCard).filter(models.UserCard.id == card_id)
+    if user_id:
+        card_query = card_query.filter(models.UserCard.user_id == target_user_id)
+    card = card_query.first()
+    if card:
+        db.delete(card)
+        db.commit()
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+
 
 
 

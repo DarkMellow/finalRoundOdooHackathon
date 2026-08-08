@@ -258,23 +258,23 @@ Data from FastAPI endpoints are stored globally and synchronized using query key
 #### Frontend (React + Vite)
 *   **Install dependencies**:
     ```bash
-    pnpm install
+    npm install
     ```
 *   **Start local development server**:
     ```bash
-    pnpm dev
+    npm run dev
     ```
 *   **Compile TypeScript and build production assets**:
     ```bash
-    pnpm build
+    npm run build
     ```
 *   **Run linter check**:
     ```bash
-    pnpm lint
+    npm run lint
     ```
 *   **Apply automatic prettier formatting**:
     ```bash
-    pnpm format
+    npm run format
     ```
 
 ### 6.2 Key Configuration Files

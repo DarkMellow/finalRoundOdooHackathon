@@ -1,212 +1,235 @@
-# Multi-Developer Team Implementation Plan — Rental Management System MVP
+# Multi-Developer Team Implementation Plan
 
-This document outlines the engineering plan, team distribution, Git workflow, and phase-by-phase execution timeline for a **6-hour build** of the Rental Management System MVP.
+This document details the multi-developer team implementation plan to build the Rental Management System (RMS) from scratch. The plan is designed to deliver a working version as fast as possible, incrementally building features and complexity.
 
-Refer to the project's foundational documents for details:
-*   [PRD.md](PRD.md) — Product Scope and Core Features
-*   [TRD.md](TRD.md) — Technical Stack, Schemas, and Pessimistic Locking
-*   [DESIGN.md](DESIGN.md) — Notion-Inspired Design System, Colors, and Typography
-*   [FLOW.md](FLOW.md) — Navigation and Screen-by-Screen Flow Specifications
+## Developer Team Structure & Roles
 
----
-
-## 1. Team Structure & Work Allocation
-
-The team consists of three developers with specialized roles and explicit front-end work ratios:
-
-| Developer | Assigned Roles | Core Domain | Front-End Work Ratio | Estimated Frontend Effort |
-| :--- | :--- | :--- | :--- | :--- |
-| **Aditya** | Full-Stack Developer & Backend Lead | 100% Backend Architecture, Auth API, and Database Layer. Frontend Service Layer & API integration client. | **2/8 (25%)** | 2 hours |
-| **Ankan** | Lead Frontend Developer | Core Layouts, Routing, Styling, and major UI screens (Dashboard, Rentals Catalog, Rental Details). | **5/8 (62.5%)** | 5 hours |
-| **Ayaan** | UI Developer / Frontend Support | Login screen UI, Modals (Add/Edit Product, Return Settlement, Confirm Delete). | **1/8 (12.5%)** | 1 hour |
-
-### Team Resource Distribution:
-*   **Total Project Duration:** 6 Hours
-*   **Aditya:** 6 hours Backend + 2 hours equivalent of Frontend integration tasks.
-*   **Ankan:** 6 hours dedicated to Frontend UI structure and core screen rendering.
-*   **Ayaan:** 6 hours dedicated to Frontend UI components, validation states, and modal overlays.
+The team consists of three developers with the following role assignments:
+- **Developer 1 (Aditya) - Full Backend + Admin settings / configurations (Backend-Adjacent Frontend)**:
+  Responsible for the database schema, migration scripts, authentication API, catalog API, order checkout APIs, operations/returns API, and the admin business settings frontend panels.
+- **Developer 2 (Ankan) - Frontend Developer (Client Portal Experience)**:
+  Responsible for client authentication UI, product catalog browser, period selection, shopping cart, checkout forms, success page, and customer profile management.
+- **Developer 3 (Ayan) - Frontend Developer (Admin Dashboard & Operations Experience)**:
+  Responsible for the Admin UI layout, order monitor panel, walk-in quotation builder, daily pickup/return lists, checklist forms, and the operations dashboard widgets.
 
 ---
 
-## 2. High-Level Project Timeline (6-Hour Build)
+## Phase 1: Foundation, Basic Auth & Catalog CRUD
+*Deliverable: Working database, cookie-based JWT authentication, Client homepage product list, and Admin tables to create products.*
 
-To prevent code integration bottlenecks and maintain parallel progress, the timeline is divided into 4 execution phases of **1.5 hours each**:
+### Parallel Workstreams & Explicit Tasks
 
-| Phase | Duration | Aditya (Backend + 25% FE) | Ankan (62.5% FE) | Ayaan (12.5% FE) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Phase 1: Setup & Foundations** | Hour 0.0 – 1.5 | DB Schema & Auth API Setup | App Layouts & Page Routing | Login UI Screen |
-| **Phase 2: Product Catalog** | Hour 1.5 – 3.0 | Product CRUD API & Services | Products Catalog Screen | Product CRUD Modals |
-| **Phase 3: Rental Flow** | Hour 3.0 – 4.5 | Rentals CRUD API & Services | New Rental Form & Details | Return Settlement Modal |
-| **Phase 4: Operations & Polish** | Hour 4.5 – 6.0 | Pessimistic Lock & Stats API | Dashboard UI & Stats Connect | Responsive Audit & Polish |
+#### 1. Aditya (Backend)
+- **Branch**: `feature/foundation-auth-catalog-backend`
+- **Tasks**:
+  1. Initialize database configurations and models matching the version 2.0 schema in [database.py](../backend/app/core/database.py) and [SCHEMA.md](SCHEMA.md).
+  2. Implement backend models for users/admins, products, product variants, rental periods, pricelists, and default settings:
+     - [models.py (auth)](../backend/app/features/auth/models.py)
+     - [models.py (catalog)](../backend/app/features/catalog/models.py)
+  3. Create alembic migration configuration and run first migration:
+     - `alembic revision --autogenerate -m "Initial schema setup"`
+     - `alembic upgrade head`
+  4. Write JWT authentication routes in [router.py (auth)](../backend/app/features/auth/router.py) with endpoints:
+     - `POST /api/auth/register` (Portal user signup)
+     - `POST /api/auth/login` (Portal user login, setting `client_session` cookie)
+     - `POST /api/auth/admin/login` (Admin login, setting `admin_session` cookie)
+     - `GET /api/auth/me` (Profile recovery)
+     - `POST /api/auth/logout` (Cookie clearing)
+  5. Implement CRUD routers and helper databases functions for products, variants, periods, and pricelists:
+     - [router.py (catalog)](../backend/app/features/catalog/router.py)
+     - [crud.py (catalog)](../backend/app/features/catalog/crud.py)
 
----
+#### 2. Ankan (Client Frontend)
+- **Branch**: `feature/catalog-admin-views`
+- **Tasks**:
+  1. Build `/admin/login` page for administrators.
+  2. Implement admin shell navigation wrapping in [AdminLayout.tsx](../frontend/src/layouts/AdminLayout.tsx) (collapsible sidebar, login status details).
+  3. Construct catalog configuration pages:
+     - `/admin/products` containing product variants list and item creation drawer: [ProductAdminPage.tsx](../frontend/src/pages/admin/ProductAdminPage.tsx), [ProductTable.tsx](../frontend/src/features/catalog/components/ProductTable.tsx)
+     - `/admin/pricelists` showing rate rules mapping: [PricelistAdminPage.tsx](../frontend/src/pages/admin/PricelistAdminPage.tsx)
+     - `/admin/rental-periods`: [RentalPeriodsAdminPage.tsx](../frontend/src/pages/admin/RentalPeriodsAdminPage.tsx)
+  4. Create client browse index `/` displaying catalog grids:
+     - [BrowsePage.tsx](../frontend/src/pages/client/BrowsePage.tsx)
+     - [ProductGrid.tsx](../frontend/src/features/catalog/components/ProductGrid.tsx)
+     - [ProductCard.tsx](../frontend/src/features/catalog/components/ProductCard.tsx)
 
-## 3. Detailed Execution Phases
 
-### Phase 1: Setup & Foundations (Hour 0.0 – Hour 1.5)
-**Goal:** Initialize databases, configure security, set up navigation layout structure, routing, and basic login screens.
-
-#### Git Feature Branches
-*   **Aditya:** `feature/db-auth-setup`
-*   **Ankan:** `feature/fe-layout-routing`
-*   **Ayaan:** `feature/fe-login-ui`
-
-#### Parallel Tasks & Workstreams
-*   **Aditya (Backend & Setup):**
-    *   Initialize MySQL / MariaDB connection pool and model database tables (`admins`, `products`, `rentals`) using SQLModel.
-    *   Set up Alembic migrations and write initial schema migrations.
-    *   Implement stateless JWT creation, password hashing (bcrypt), and cookie-delivery logic in [security.py](../backend/app/core/security.py).
-    *   Create base endpoints: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`.
-*   **Ankan (Frontend Core Layout):**
-    *   Configure Vite configuration, Tailwind CSS variables, and import Inter/Outfit fonts in [index.css](../frontend/src/index.css) using design specs from [DESIGN.md](DESIGN.md).
-    *   Initialize React Router v6 structure with path routing rules: `/login` (public), `/dashboard` (protected), `/products` (protected), `/rentals` (protected).
-    *   Build persistent left sidebar (`AppLayout` shell) with admin details and a responsive top header.
-*   **Ayaan (Login UI):**
-    *   Create static UI for the `/login` screen (centered form card, paper-soft canvas, inputs for username and password).
-    *   Include visibility toggle icon for password and inline error validation states (required checks).
-
-#### Integration Checkpoint & Merge Plan (At Hour 1.5)
-1.  **Ayaan** merges `feature/fe-login-ui` into Ankan's branch `feature/fe-layout-routing` after code review.
-2.  **Aditya** verifies auth endpoints run correctly and deploys backend locally.
-3.  **Ankan** merges `feature/fe-layout-routing` into the integration branch `develop`.
-4.  **Aditya** pulls `develop`, hooks up the frontend cookie auth store (`Zustand`) to `/api/auth/login` and `/api/auth/me`. Verify user can login, see sidebar, and refresh page while retaining session.
-
----
-
-### Phase 2: Product Catalog & Catalog Modals (Hour 1.5 – Hour 3.0)
-**Goal:** Build product catalog administration tools including product lists, add modals, edit modals, and soft-delete restrictions.
-
-#### Git Feature Branches
-*   **Aditya:** `feature/api-products`
-*   **Ankan:** `feature/fe-products-view`
-*   **Ayaan:** `feature/fe-product-modals`
-
-#### Parallel Tasks & Workstreams
-*   **Aditya (Backend & Frontend Integrations):**
-    *   **Backend:** Write REST endpoints:
-        *   `GET /api/products` (list all products, sorted alphabetically).
-        *   `POST /api/products` (create new product with quantity and rate).
-        *   `PUT /api/products/{id}` (update product fields).
-        *   `DELETE /api/products/{id}` (fails if active rentals reference this product).
-    *   **Frontend (25% Ratio):** Setup Axios service clients (`ProductService`) and initialize React Query hooks for `useProducts`, `useCreateProduct`, `useUpdateProduct`, and `useDeleteProduct`.
-*   **Ankan (Frontend Catalog View):**
-    *   Create `/products` page with responsive list table columns: `Product Name`, `Daily Rate`, `Deposit`, and `Qty Available`.
-    *   Add empty-state screen if the product list is empty (illustrative placeholder + "+ New Product" CTA).
-    *   Style edit/delete icon button columns inside table rows.
-*   **Ayaan (Product Management Modals):**
-    *   Develop **Add Product Modal** and **Edit Product Modal** using Shadcn UI dialog primitives (fields: name, daily rate, deposit amount, qty).
-    *   Create **Delete Product Confirmation Modal** supporting standard warning prompts.
-    *   Implement client validation rules (rates $> 0$, integer quantities $\ge 1$).
-
-#### Integration Checkpoint & Merge Plan (At Hour 3.0)
-1.  **Ayaan** integrates modals into the `/products` page table controls, passing the target product data hooks down.
-2.  **Aditya** links React Query mutations directly to these modals.
-3.  Merge both frontend branches (`feature/fe-products-view` and `feature/fe-product-modals`) into `develop` after testing.
-4.  Verify end-to-end: Admin can create a new product, edit its quantity, and see the table auto-update silently via React Query cache invalidation.
+#### 3. Ayan (Admin Frontend)
+- **Branch**: `feature/foundation-auth-catalog-client`
+- **Tasks**:
+  1. Configure `react-router-dom` routes and add guards in [App.tsx](../frontend/src/App.tsx).
+  2. Add [authStore.ts](../frontend/src/store/authStore.ts) using Zustand to track current authenticated client details.
+  3. Design `/splash`, `/login`, and `/signup` views using Shadcn components:
+     - [LoginForm.tsx](../frontend/src/features/auth/components/LoginForm.tsx)
+     - [SignupForm.tsx](../frontend/src/features/auth/components/SignupForm.tsx)
+  
+### Merge & Integration Checkpoint 1
+- **Target Branches**: Merge all branches into `develop` or `main`.
+- **Conflicts Prevention**: Ensure [App.tsx](../frontend/src/App.tsx) and main configurations are merged carefully.
+- **Verification Tests**:
+  - Log in as Admin -> Create products, variants, and rental rates.
+  - Log in as Client -> Verify catalog browse page displays the products created by Admin.
+  - Check HTTP responses to confirm cookies `client_session` and `admin_session` are set with `HttpOnly` and `SameSite=Strict`.
 
 ---
 
-### Phase 3: Rentals Creation & Details (Hour 3.0 – Hour 4.5)
-**Goal:** Implement manual rental booking forms and individual rental detail sheets.
+## Phase 2: Client Booking Flow & Cart Checkout (Standard Rental Flow)
+*Deliverable: Client interactive booking pages, shopping cart, checkout forms, invoice generation, and Admin order manager panel.*
 
-#### Git Feature Branches
-*   **Aditya:** `feature/api-rentals`
-*   **Ankan:** `feature/fe-new-rental`
-*   **Ayaan:** `feature/fe-return-modal`
+### Parallel Workstreams & Explicit Tasks
 
-#### Parallel Tasks & Workstreams
-*   **Aditya (Backend & Frontend Integrations):**
-    *   **Backend:** Develop CRUD routes:
-        *   `POST /api/rentals` (creates rental record, fetches product defaults, checks availability).
-        *   `GET /api/rentals/{id}` (fetches details, calculates live status).
-    *   **Frontend (25% Ratio):** Create `RentalService` and React Query hooks (`useRentals`, `useRentalDetail`, `useCreateRental`, `useReturnRental`). Write computed date-difference functions for late fees.
-*   **Ankan (Frontend Rental Creation & Details Screen):**
-    *   Build `/rentals/new` page (single-column form: Product dropdown, Customer Name, Phone, Start/Due Date selection).
-    *   Add computed label showing "Rental Duration: X days" instantly upon date updates.
-    *   Build the `/rentals/:id` detailed view screen (top summary card, overdue warning banner, bottom action segment).
-*   **Ayaan (Return Settlement Modal):**
-    *   Design the **Mark as Returned Modal** popup.
-    *   Integrate client-side math update logic: as the Actual Return Date updates, calculate and display live return statistics (Days late, Cap fee deducts, Net refund due).
+#### 1. Aditya (Backend)
+- **Branch**: `feature/orders-checkout-backend`
+- **Tasks**:
+  1. Declare database models for `Order`, `OrderItem`, `Invoice`, and `DepositLedgerEntry` matching the schema.
+  2. Create checkout routing in [router.py (orders)](../backend/app/features/orders/router.py):
+     - `POST /api/orders` (Reserve order items checkout)
+     - `GET /api/orders` and `GET /api/orders/{id}`
+  3. Implement transaction safety with pessimistic row locking (`SELECT ... FOR UPDATE` on `Product` and `ProductVariant` tables) in [crud.py (orders)](../backend/app/features/orders/crud.py) to prevent double bookings.
+  4. Write PDF/file download endpoint `/api/invoices/{id}/download` representing order invoices.
 
-#### Integration Checkpoint & Merge Plan (At Hour 4.5)
-1.  **Ayaan** merges the return modal into the `/rentals/:id` action section.
-2.  **Aditya** wires the confirm action button to the `POST /api/rentals/{id}/return` backend mutation.
-3.  Merge all features to `develop`.
-4.  Verify that creating a new rental deducts the product availability counter by 1, redirects to the detail page, and correctly formats customer information.
+#### 2. Ankan (Client Frontend)
+- **Branch**: `feature/orders-checkout-client`
+- **Tasks**:
+  1. Complete `/products/:id` details view with interactive date/period selector: [DetailPage.tsx](../frontend/src/pages/client/DetailPage.tsx), [PeriodPicker.tsx](../frontend/src/features/catalog/components/PeriodPicker.tsx).
+  2. Implement Zustand [cartStore.ts](../frontend/src/store/cartStore.ts) handling multiple products, date durations, and pricing sum calculations.
+  3. Build `/cart` page with line item breakdowns: [CartPage.tsx](../frontend/src/pages/client/CartPage.tsx), [CartList.tsx](../frontend/src/features/orders/components/CartList.tsx).
+  4. Implement checkout screens `/checkout/fulfillment` (Store Pickup vs Delivery shipping details form) and `/checkout/payment`: [CheckoutPage.tsx](../frontend/src/pages/client/CheckoutPage.tsx), [FulfillmentForm.tsx](../frontend/src/features/orders/components/FulfillmentForm.tsx), [PaymentForm.tsx](../frontend/src/features/orders/components/PaymentForm.tsx).
+  5. Build success view `/checkout/success/:orderId` with a working invoice download link: [SuccessPage.tsx](../frontend/src/pages/client/SuccessPage.tsx).
 
----
+#### 3. Ayan (Admin Frontend)
+- **Branch**: `feature/orders-management-admin`
+- **Tasks**:
+  1. Build Order listings overview `/admin/orders` showing all rental status summaries.
+  2. Build detailed order page `/admin/orders/:id` displaying client information, items booked, dates, payment flags, and invoice details.
+  - Target files: [OrdersAdminPage.tsx](../frontend/src/pages/admin/OrdersAdminPage.tsx), [OrderDetailPage.tsx](../frontend/src/pages/admin/OrderDetailPage.tsx).
 
-### Phase 4: Operations Dashboard, Returns & Settlement (Hour 4.5 – Hour 6.0)
-**Goal:** Implement Pessimistic Locking database guards, build the dashboard cards, filterable rental tables, and finalize integration polishing.
-
-#### Git Feature Branches
-*   **Aditya:** `feature/api-dashboard-locking`
-*   **Ankan:** `feature/fe-dashboard-details`
-*   **Ayaan:** `feature/fe-polishing-tests`
-
-#### Parallel Tasks & Workstreams
-*   **Aditya (Concurrency & Core Stats API):**
-    *   **Backend:** Secure the creation database transactions using SQLAlchemy's `.with_for_update()` pessimistic lock queries to prevent inventory race conditions.
-    *   Write `GET /api/dashboard/stats` aggregating dashboard status counters (`Active`, `Due Today`, `Overdue`, and total `Deposits Held`).
-    *   Implement backend test suite validations verifying calculated refund logic and database schema models.
-*   **Ankan (Operations Dashboard UI):**
-    *   Create `/dashboard` layout page (4 statistics summary cards at the top, scrollable).
-    *   Integrate global Zustand state/URL filter chips on table rows (e.g. clicking the "Overdue" stat card filters the table list).
-    *   Build the rentals overview table below the stat cards with colored state badges.
-*   **Ayaan (System Polishing, Edge Cases, and Manual Walkthrough):**
-    *   Build error-boundary fallbacks if API fetches fail.
-    *   Audit global responsive breakpoint layouts across mobile and tablet dimensions.
-    *   Verify input element focus shadows and transitions match the visual tokens in [DESIGN.md](DESIGN.md).
-
-#### Integration Checkpoint & Merge Plan (At Hour 6.0)
-1.  Verify dashboard API integration with front-end React Query poll cycles.
-2.  Run full regression sweeps across all 5 user screens.
-3.  Merge `develop` into `main` and execute the walkthrough validation demo checklist.
+### Merge & Integration Checkpoint 2
+- **Target Branches**: Merge feature branches into `develop`.
+- **Verification Tests**:
+  - Add multiple products with variants to the client cart. Specify rental start and due dates.
+  - Complete payment checkout. Verify database inserts entries into `orders`, `order_items`, `invoices`, and `deposit_ledger_entries` (entry_type = 'COLLECTED').
+  - Ensure quantity available decrements. Attempts to overbook must fail with status code `409 Conflict`.
+  - Confirm Admin orders list updates showing the new order as UPCOMING.
 
 ---
 
-## 4. Git Workflow & Conflict Resolution Guidelines
+## Phase 3: Admin Operations (Pickups, Returns & Late Fee Settlement)
+*Deliverable: Daily pickup/return schedules, returned items checklists, late return calculations, deposit refunds, and client rentals log.*
 
-To keep the development speed high and eliminate code overrides, the team will adhere to the following Git policies:
+### Parallel Workstreams & Explicit Tasks
 
-### Branch Structure
-*   `main` — Production branch. Only contains thoroughly tested code. No direct pushes.
-*   `develop` — Integration branch. All features merge here for validation before merging to `main`.
-*   `feature/*` — Topic branches worked on by individual developers.
+#### 1. Aditya (Backend)
+- **Branch**: `feature/pickups-returns-backend`
+- **Tasks**:
+  1. Build pickup API routing `/api/orders/{id}/pickup` verifying items checkouts and checklists.
+  2. Create return API routing `/api/orders/{id}/return` implementing the late fee reconciliation engine:
+     - Check if return date exceeds due date.
+     - Calculate units late (rounding up based on configuration, e.g. daily/weekly).
+     - Calculate gross penalty: $\text{Units Late} \times \text{Late Rate}$.
+     - Apply maximum penalty caps and grace periods.
+     - Deduct penalty from deposit collected.
+     - Settle refund amount or generate penalty invoice for outstanding debt.
+     - Return item to stock (+1 available quantity).
+     - Update deposit ledger entry ('DEDUCTION' or 'REFUNDED').
+  - Target files: [router.py (operations)](../backend/app/features/operations/router.py), [crud.py (operations)](../backend/app/features/operations/crud.py).
 
-```
-       [feature/db-auth-setup] ---------\
-      /                                  \
-[main] ------------ [develop] ------------ [develop] ------------ [main] (v1.0.0 Release)
-      \                                  /
-       [feature/fe-layout-routing] -----/
-```
+#### 2. Ankan (Client Frontend)
+- **Branch**: `feature/myrentals-client-views`
+- **Tasks**:
+  1. Build `/my-rentals` and detailed view `/my-rentals/:orderId` page for Portal Clients.
+  2. Display active, overdue, and returned item statuses.
+  3. Render deposit tracking grids showing held deposit amount, late deductions, and refund histories.
+  - Target files: [MyRentalsPage.tsx](../frontend/src/pages/client/MyRentalsPage.tsx), [MyRentalDetailPage.tsx](../frontend/src/pages/client/MyRentalDetailPage.tsx).
 
-### Strategic Guidelines to Prevent Conflicts
-1.  **Strict Component Decoupling:**
-    *   Ankan and Ayaan must not edit the same page code simultaneously.
-    *   Ayaan will build modals inside isolated components (e.g. `src/components/modals/ProductAddModal.tsx`), and Ankan will reference these custom tags from the primary layout.
-2.  **Shared Types & Schemas:**
-    *   Any changes to TypeScript interfaces must be created in a central folder (`src/types/`) before UI integration.
-3.  **Database Migrations:**
-    *   Only Aditya executes Alembic revision scripts. Other developers must run `alembic upgrade head` after pulling changes.
+#### 3. Ayan (Admin Frontend)
+- **Branch**: `feature/operations-admin-views`
+- **Tasks**:
+  1. Build calendar schedule list `/admin/pickups` for today's pick actions.
+  2. Build daily return calendar list `/admin/returns`.
+  3. Create return inspections modal: [ReturnChecklistModal.tsx](../frontend/src/features/operations/components/ReturnChecklistModal.tsx) which allows Admin to select actual return date, record checklists, inspect calculated charges, and trigger settlement.
+
+### Merge & Integration Checkpoint 3
+- **Target Branches**: Merge features into `develop`.
+- **Verification Tests**:
+  - Book a product. Go to Admin Portal -> Confirm Pickup -> Check status shifts to ACTIVE.
+  - Trigger Return after due date. Verify late fee calculations match expectations (e.g. grace period checking, maximum caps).
+  - Verify deposit is refunded (or penalty invoice generated). Confirm database records update.
+  - Verify Client Portal `/my-rentals` details matches return states.
 
 ---
 
-## 5. Verification & Testing Matrix
+## Phase 4: Walk-in Quotations & Settings
+*Deliverable: walk-in templates/quotation workflow, settings rules configurations, and client profile controls.*
 
-### Automated Testing (Aditya)
-*   Unit tests in backend verifying late-fee automation cases:
-    *   *Case A:* On-time returns (refund = 100% deposit, late fee = 0).
-    *   *Case B:* Late return with fee below cap (late fee = days late × rate).
-    *   *Case C:* Late return exceeding cap (late fee = deposit amount, refund = 0).
-*   API integration tests verifying concurrent rental bookings are blocked if product quantity drops to 0.
+### Parallel Workstreams & Explicit Tasks
 
-### Manual Verification Checklist (Whole Team)
-- [ ] Admin can log in successfully and redirect to `/dashboard`.
-- [ ] Adding a new product registers it in the catalog and renders instantly in the table.
-- [ ] Booking form lists only available products and auto-suggests rate and deposit.
-- [ ] Overdue items display a red warning card in the details page.
-- [ ] Settle modal correctly outputs late-fee refund math dynamically.
-- [ ] Clicking stat cards filters table lists cleanly.
-- [ ] Log out invalidates cookies and returns client back to `/login`.
+#### 1. Aditya (Backend)
+- **Branch**: `feature/quotations-settings-backend`
+- **Tasks**:
+  1. Declare backend models for `Quotation` and `QuotationItem`.
+  2. Write quotations CRUD endpoints: `POST /api/quotations`, `GET /api/quotations`, `GET /api/quotations/{id}`.
+  3. Write quotation confirmation endpoint `/api/quotations/{id}/confirm` which locks stock, converts quotation to Order, creates Invoice, and marks payment status.
+  4. Write configuration API endpoints `/api/settings/deposit-latefee` (retrieve and update settings).
+  - Target files: [router.py (quotations)](../backend/app/features/quotations/router.py), [crud.py (quotations)](../backend/app/features/quotations/crud.py).
+
+#### 2. Ankan (Client Frontend)
+- **Branch**: `feature/profile-customization-client`
+- **Tasks**:
+  1. Build `/profile` pages for managing user profile.
+  2. Implement profile image uploading, shipping addresses CRUD forms, and checkout address selectors.
+  - Target files: [ProfilePage.tsx](../frontend/src/pages/client/ProfilePage.tsx), [AddressEditor.tsx](../frontend/src/features/auth/components/AddressEditor.tsx).
+
+#### 3. Ayan (Admin Frontend)
+- **Branch**: `feature/quotations-admin-views`
+- **Tasks**:
+  1. Build Walk-in Quotation creator view `/admin/quotations/new` allowing Admin to choose walk-in clients, rental items, template header/footers, durations, and customize rates.
+  2. Build quotation details viewer with an instant "Confirm & Settle" checkout action converting the quote to a rental order.
+  - Target files: [QuotationAdminPage.tsx](../frontend/src/pages/admin/QuotationAdminPage.tsx), [QuotationCreatorPage.tsx](../frontend/src/pages/admin/QuotationCreatorPage.tsx).
+
+#### 4. Aditya (1/8 Frontend Task)
+- **Branch**: `feature/settings-admin-views`
+- **Tasks**:
+  1. Build `/admin/settings` configurations panel for managing grace periods, late-fee charging unit intervals (Hourly, Daily, Weekly, Monthly), and default deposit rates (fixed vs percentage).
+  - Target files: [SettingsPage.tsx](../frontend/src/pages/admin/SettingsPage.tsx), [SettingsForm.tsx](../frontend/src/features/operations/components/SettingsForm.tsx).
+
+### Merge & Integration Checkpoint 4
+- **Target Branches**: Merge features into `develop`.
+- **Verification Tests**:
+  - Admin creates walk-in client quotation. Selects custom template. Confirms quotation on-the-spot. Verify it creates a PAID Order instantly and decrements stock.
+  - Change default late fees grace period or max limits in Settings. Verify returning items conforms to updated rules immediately.
+
+---
+
+## Phase 5: Operations Dashboard & Final Polish
+*Deliverable: Real-time Admin dashboard with 8 KPI widgets, data-seeding tools, and high-fidelity styling polish.*
+
+### Parallel Workstreams & Explicit Tasks
+
+#### 1. Aditya (Backend)
+- **Branch**: `feature/dashboard-backend-stats`
+- **Tasks**:
+  1. Implement aggregated dashboard data in [router.py (operations)](../backend/app/features/operations/router.py): `GET /api/dashboard/stats` querying metrics: Active Rentals, Due Today, Upcoming Pickups/Returns, Overdue Rentals, Revenue, Deposits Held, and Late Fee Collections.
+  2. Write automated data-seeding script `backend/app/core/seed.py` that pre-populates database with mock users, products, variants, rates, and historical/overdue orders for dashboard display.
+
+#### 2. Ankan (Client Frontend)
+- **Branch**: `feature/theme-polish-client`
+- **Tasks**:
+  1. Refine global Tailwind design matching [DESIGN.md](DESIGN.md) (Notion off-white typography, Outfit/Inter fonts, blue links `#0075de`, custom styled scrollbars).
+  2. Set up smooth scroll reveals, micro-animations on hover, and global toast feedback events.
+  - Target files: [index.css](../frontend/src/index.css), UI layout files.
+
+#### 3. Ayan (Admin Frontend)
+- **Branch**: `feature/dashboard-admin-views`
+- **Tasks**:
+  1. Build `/admin/dashboard` showing the 8 widgets:
+     - Active Rentals, Due Today, Upcoming Pickups, Upcoming Returns, Overdue Rentals, Revenue, Deposits Held, and Late Fee Collection.
+  2. Implement date-range filters (day/week/month intervals) updating the TanStack queries.
+  - Target files: [DashboardPage.tsx](../frontend/src/pages/admin/DashboardPage.tsx), [StatCard.tsx](../frontend/src/features/dashboard/components/StatCard.tsx).
+
+### Merge & Integration Checkpoint 5
+- **Target Branches**: Merge final branches into `develop`, and merge `develop` into `main`.
+- **Verification Tests**:
+  - Execute `python -m app.core.seed` database seed script.
+  - Log in as Admin and verify the Operations Dashboard displays values matching seeded database states.
+  - Validate responsive layout behavior down to mobile screens.

@@ -15,6 +15,9 @@ import {
   RefreshCw,
   Sparkles,
   Layers,
+  ChevronDown,
+  LogOut,
+  Settings as SettingsIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { fetchProducts, deleteProduct, createProduct, getLoggedVendor, type ApiProduct, type VendorUser } from "@/lib/api"
@@ -22,6 +25,7 @@ import { fetchProducts, deleteProduct, createProduct, getLoggedVendor, type ApiP
 export function VendorProductList() {
   const navigate = useNavigate()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -263,39 +267,74 @@ export function VendorProductList() {
             <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-medium">
               <button
                 onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-colors"
               >
-                Orders
-              </button>
-              <button
-                onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              >
-                Schedule
+                Dashboard
               </button>
               <Link
                 to="/vendor/products"
-                className="px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 font-bold transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-900 font-bold transition-colors"
               >
                 Products
               </Link>
+              <button
+                onClick={() => navigate("/vendor/dashboard")}
+                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-colors"
+              >
+                Reports
+              </button>
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600 font-medium">
-              <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>
-                Vendor: <strong className="text-slate-900 font-bold">{loggedVendor?.full_name || "Vendor Direct"}</strong>
-              </span>
-            </div>
-
+          {/* Right Profile Dropdown Menu */}
+          <div className="relative">
             <button
-              onClick={() => navigate("/customer/catalog")}
-              className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 pr-2.5 hover:bg-slate-50 transition-colors shadow-xs"
             >
-              Customer View
+              <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs">
+                {loggedVendor?.full_name ? loggedVendor.full_name.slice(0, 2).toUpperCase() : "VD"}
+              </div>
+              <span className="text-xs font-semibold text-slate-800 hidden sm:inline">
+                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Vendor Admin"}
+              </span>
+              <ChevronDown className="size-3.5 text-slate-500" />
             </button>
+
+            {profileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl p-2 text-xs z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                  <p className="font-bold text-slate-900">{loggedVendor?.full_name || "Vendor Admin"}</p>
+                  <p className="text-[11px] text-slate-500">{loggedVendor?.email || "vendor@easyrental.com"}</p>
+                </div>
+
+                <div className="space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false)
+                      alert("Vendor settings page")
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors font-medium text-left"
+                  >
+                    <SettingsIcon className="size-4 text-slate-500" />
+                    <span>Store Settings</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false)
+                      navigate("/vendor/signin")
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-medium text-left"
+                  >
+                    <LogOut className="size-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>

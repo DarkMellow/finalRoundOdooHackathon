@@ -2,23 +2,22 @@ import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Input } from "@/components/ui/input"
 import { getLoggedVendor, type VendorUser } from "@/lib/api"
+import { VendorCalendar } from "@/components/vendor/VendorCalendar"
 import {
   Building2,
   Search,
   List,
   LayoutGrid,
   ChevronDown,
-  User,
   LogOut,
   Settings as SettingsIcon,
   Plus,
   Calendar,
   Package,
-  Clock,
 } from "lucide-react"
 
 // Types
-type ViewMode = "list" | "kanban"
+type ViewMode = "list" | "kanban" | "calendar"
 type StatusFilter = "all" | "today" | "pickup" | "return" | "late"
 
 interface Order {
@@ -118,9 +117,9 @@ const INITIAL_ORDERS: Order[] = [
     customer: "Smith",
     item: "Console Gaming Set",
     status: "Late Return",
-    pickupDate: "Jul 4, 1:00pm",
-    returnDate: "Jul 7, 1:00pm",
-    total: 50,
+    pickupDate: "Jul 4, 11:00am",
+    returnDate: "Jul 8, 11:00am",
+    total: 340,
     invoiceStatus: "Invoiced",
   },
 ]
@@ -128,20 +127,23 @@ const INITIAL_ORDERS: Order[] = [
 export function VendorDashboard() {
   const navigate = useNavigate()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
+  const [orders] = useState<Order[]>(INITIAL_ORDERS)
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all")
+  const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "products" | "reports">("dashboard")
   const [searchQuery, setSearchQuery] = useState("")
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
-  const [activeNavTab, setActiveNavTab] = useState<"orders" | "schedule" | "products" | "reports" | "settings">("orders")
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [dateRange, setDateRange] = useState("Last 7 Days")
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
 
+  // Load logged vendor profile
   useEffect(() => {
-    setLoggedVendor(getLoggedVendor())
+    const vendor = getLoggedVendor()
+    setLoggedVendor(vendor)
   }, [])
 
-  // Filtered Orders
-  const filteredOrders = INITIAL_ORDERS.filter((order) => {
+  // Filter orders by status & search query
+  const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -149,15 +151,15 @@ export function VendorDashboard() {
 
     if (!matchesSearch) return false
 
-    if (activeFilter === "today") return order.status === "Reserved" || order.status === "Picked Up"
-    if (activeFilter === "pickup") return order.status === "Picked Up" || order.status === "Late pickup"
-    if (activeFilter === "return") return order.status === "Late Return" || order.status === "Reserved"
+    if (activeFilter === "today") return order.pickupDate.includes("Jul 10")
+    if (activeFilter === "pickup") return order.status === "Reserved" || order.status === "Late pickup"
+    if (activeFilter === "return") return order.status === "Picked Up"
     if (activeFilter === "late") return order.status === "Late pickup" || order.status === "Late Return"
 
     return true
   })
 
-  // Select all handler
+  // Select all checkbox handler
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedOrders(filteredOrders.map((o) => o.id))
@@ -166,6 +168,7 @@ export function VendorDashboard() {
     }
   }
 
+  // Select individual row checkbox handler
   const handleSelectOne = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedOrders([...selectedOrders, id])
@@ -218,7 +221,14 @@ export function VendorDashboard() {
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between">
           {/* Left Brand + Navigation Links */}
           <div className="flex items-center gap-6">
-            <Link to="/vendor/dashboard" className="flex items-center gap-2 group">
+            <Link
+              to="/vendor/dashboard"
+              onClick={() => {
+                setActiveNavTab("dashboard")
+                setViewMode("list")
+              }}
+              className="flex items-center gap-2 group"
+            >
               <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
                 <Building2 className="size-4" />
               </div>
@@ -227,17 +237,18 @@ export function VendorDashboard() {
 
             <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-medium">
               {[
-                { id: "orders", label: "Orders" },
-                { id: "schedule", label: "Schedule" },
+                { id: "dashboard", label: "Dashboard" },
                 { id: "products", label: "Products" },
                 { id: "reports", label: "Reports" },
-                { id: "settings", label: "Settings" },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => {
                     if (tab.id === "products") {
                       navigate("/vendor/products")
+                    } else if (tab.id === "dashboard") {
+                      setActiveNavTab("dashboard")
+                      setViewMode("list")
                     } else {
                       setActiveNavTab(tab.id as any)
                     }
@@ -258,48 +269,49 @@ export function VendorDashboard() {
           <div className="relative">
             <button
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 pr-2.5 hover:bg-slate-50 transition-colors shadow-xs"
             >
-              <span className="font-semibold text-slate-900">
-                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Vendor Profile"}
-              </span>
-              <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs uppercase">
-                {(loggedVendor?.full_name || "V").charAt(0)}
+              <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs">
+                {loggedVendor?.full_name ? loggedVendor.full_name.slice(0, 2).toUpperCase() : "VD"}
               </div>
-              <ChevronDown className="size-3.5 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-800 hidden sm:inline">
+                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Vendor Admin"}
+              </span>
+              <ChevronDown className="size-3.5 text-slate-500" />
             </button>
 
-            {/* Profile Dropdown Popup */}
             {profileDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 text-xs z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl p-2 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                  <p className="font-semibold text-slate-900">
-                    {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Apex Rentals"}
-                  </p>
-                  <p className="text-[10px] text-slate-500">
-                    {loggedVendor?.email || "vendor@company.com"}
-                  </p>
+                  <p className="font-bold text-slate-900">{loggedVendor?.full_name || "Vendor Admin"}</p>
+                  <p className="text-[11px] text-slate-500">{loggedVendor?.email || "vendor@easyrental.com"}</p>
                 </div>
-                <button
-                  onClick={() => {
-                    setProfileDropdownOpen(false)
-                    alert("Vendor Profile Settings Opened")
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                >
-                  <User className="size-3.5 text-indigo-600" />
-                  <span>Profile</span>
-                </button>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem("vendor_user")
-                    navigate("/vendor/signin")
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-medium"
-                >
-                  <LogOut className="size-3.5" />
-                  <span>Logout</span>
-                </button>
+
+                <div className="space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false)
+                      alert("Vendor settings page")
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors font-medium text-left"
+                  >
+                    <SettingsIcon className="size-4 text-slate-500" />
+                    <span>Store Settings</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false)
+                      navigate("/vendor/signin")
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-medium text-left"
+                  >
+                    <LogOut className="size-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -307,27 +319,21 @@ export function VendorDashboard() {
       </header>
 
       {/* ========================================================================= */}
-      {/* MAIN DASHBOARD CONTENT CONTAINER */}
+      {/* MAIN DASHBOARD CONTENT */}
       {/* ========================================================================= */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
-        {/* Title + Action Button + Search + View Switcher Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-6 space-y-6">
+        {/* Top Control Bar: Title + Actions + Search & View Switcher */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Rental Order</span>
-              <button className="text-slate-400 hover:text-slate-600 transition-colors">
-                <SettingsIcon className="size-4" />
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+              <span>Rental Sales Orders</span>
+              <button
+                onClick={() => setActiveFilter("all")}
+                className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700"
+              >
+                {orders.length}
               </button>
             </h1>
-
-            {/* New Button (Purple pill) */}
-            <button
-              onClick={() => alert("New Rental Order Modal Triggered")}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-sm transition-all transform active:scale-95"
-            >
-              <Plus className="size-3.5" />
-              <span>New</span>
-            </button>
 
             {/* Add Product Button */}
             <button
@@ -355,30 +361,44 @@ export function VendorDashboard() {
               </div>
             </div>
 
-            {/* View Switcher Bar */}
+            {/* View Switcher Bar (3 Views: List, Kanban, Calendar) */}
             <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-lg text-xs shadow-xs">
-              <span className="text-[10px] text-slate-500 font-medium px-2 hidden md:inline">View Switcher</span>
+              
               <button
                 onClick={() => setViewMode("list")}
                 title="List View"
-                className={`p-1.5 rounded-md transition-colors ${
+                className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
                   viewMode === "list"
                     ? "bg-indigo-600 text-white font-semibold shadow-xs"
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                 }`}
               >
                 <List className="size-4" />
+                <span className="text-xs font-semibold hidden sm:inline">List</span>
               </button>
               <button
                 onClick={() => setViewMode("kanban")}
                 title="Kanban View"
-                className={`p-1.5 rounded-md transition-colors ${
+                className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
                   viewMode === "kanban"
                     ? "bg-indigo-600 text-white font-semibold shadow-xs"
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                 }`}
               >
                 <LayoutGrid className="size-4" />
+                <span className="text-xs font-semibold hidden sm:inline">Kanban</span>
+              </button>
+              <button
+                onClick={() => setViewMode("calendar")}
+                title="Calendar View"
+                className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
+                  viewMode === "calendar"
+                    ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+              >
+                <Calendar className="size-4" />
+                <span className="text-xs font-semibold hidden sm:inline">Calendar</span>
               </button>
             </div>
           </div>
@@ -398,49 +418,45 @@ export function VendorDashboard() {
             >
               All ({INITIAL_ORDERS.length})
             </button>
-
             <button
               onClick={() => setActiveFilter(activeFilter === "today" ? "all" : "today")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
                 activeFilter === "today"
-                  ? "bg-amber-500 text-white border-amber-600 shadow-xs"
+                  ? "bg-amber-600 text-white border-amber-700 shadow-xs"
                   : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
               }`}
             >
-              <span className="flex size-4 items-center justify-center rounded-full bg-amber-600 text-white font-bold text-[10px]">
+              <span className="flex size-4 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-[10px]">
                 2
               </span>
               <span>Today</span>
             </button>
-
             <button
               onClick={() => setActiveFilter(activeFilter === "pickup" ? "all" : "pickup")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
                 activeFilter === "pickup"
-                  ? "bg-purple-600 text-white border-purple-700 shadow-xs"
-                  : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
+                  ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                  : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
               }`}
             >
-              <span className="flex size-4 items-center justify-center rounded-full bg-purple-600 text-white font-bold text-[10px]">
+              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
                 3
               </span>
-              <span>Pickup</span>
+              <span>To Pickup</span>
             </button>
-
             <button
               onClick={() => setActiveFilter(activeFilter === "return" ? "all" : "return")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
                 activeFilter === "return"
-                  ? "bg-purple-600 text-white border-purple-700 shadow-xs"
-                  : "bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100"
+                  ? "bg-sky-600 text-white border-sky-700 shadow-xs"
+                  : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
               }`}
             >
-              <span className="flex size-4 items-center justify-center rounded-full bg-purple-600 text-white font-bold text-[10px]">
-                3
+              <span className="flex size-4 items-center justify-center rounded-full bg-sky-600 text-white font-bold text-[10px]">
+                1
               </span>
-              <span>Return</span>
+              <span>To Return</span>
             </button>
-
             <button
               onClick={() => setActiveFilter(activeFilter === "late" ? "all" : "late")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
@@ -596,7 +612,7 @@ export function VendorDashboard() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : viewMode === "kanban" ? (
           /* ========================================================================= */
           /* VIEW MODE 2: KANBAN VIEW GRID */
           /* ========================================================================= */
@@ -644,19 +660,26 @@ export function VendorDashboard() {
                   {/* Card Bottom: Rental Duration */}
                   <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
                     <div className="flex items-center gap-1">
-                      <Clock className="size-3 text-slate-400" />
-                      <span>Rental Duration</span>
+                      <Calendar className="size-3 text-slate-400" />
+                      <span>Pickup:</span>
                     </div>
-                    <span className="font-mono text-slate-600 text-[10px]">
-                      {order.pickupDate.split(",")[0]} - {order.returnDate.split(",")[0]}
-                    </span>
+                    <span className="font-mono text-slate-700">{order.pickupDate}</span>
                   </div>
                 </div>
               ))
             )}
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* VIEW MODE 3: RENTAL SCHEDULER CALENDAR VIEW */
+          /* ========================================================================= */
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+            <VendorCalendar />
           </div>
         )}
       </main>
     </div>
   )
 }
+
+export default VendorDashboard

@@ -33,6 +33,9 @@ export function CustomerSignIn() {
       setLoading(false)
       setSuccess(true)
       localStorage.setItem("user", JSON.stringify(user))
+      setTimeout(() => {
+        navigate("/customer/catalog")
+      }, 500)
     } catch (err: any) {
       setLoading(false)
       setError(err.message || "Failed to sign in. Please check your credentials.")

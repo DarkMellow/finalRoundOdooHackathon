@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { User, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react"
 import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { adminSignUp } from "@/lib/api"
 
 export function AdminSignUp() {
+  const navigate = useNavigate()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -46,6 +47,9 @@ export function AdminSignUp() {
       })
       setLoading(false)
       setSuccess(true)
+      setTimeout(() => {
+        navigate("/admin/dashboard")
+      }, 600)
     } catch (err: any) {
       setLoading(false)
       setError(err.message || "Failed to register administrator. Please try again.")

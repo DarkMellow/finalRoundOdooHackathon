@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from "lucide-react"
 import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { adminSignIn } from "@/lib/api"
 
 export function AdminSignIn() {
+  const navigate = useNavigate()
   const [adminId, setAdminId] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -31,6 +32,7 @@ export function AdminSignIn() {
       setLoading(false)
       setSuccess(true)
       localStorage.setItem("admin_user", JSON.stringify(admin))
+      navigate("/admin/dashboard")
     } catch (err: any) {
       setLoading(false)
       setError(err.message || "Failed to authenticate admin. Please check your credentials.")
@@ -53,7 +55,7 @@ export function AdminSignIn() {
 
         {success && (
           <div className="rounded-lg bg-indigo-500/10 p-3 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            Admin authentication successful! Accessing control panel...
+            Admin authentication successful! Redirecting...
           </div>
         )}
 

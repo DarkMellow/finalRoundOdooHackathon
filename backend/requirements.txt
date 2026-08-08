@@ -6,3 +6,4 @@ pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 cryptography>=41.0.0
 alembic>=1.11.0
+email-validator>=2.0.0

@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react"
 import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { customerSignUp } from "@/lib/api"
 
 export function CustomerSignUp() {
+  const navigate = useNavigate()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -54,6 +55,9 @@ export function CustomerSignUp() {
       })
       setLoading(false)
       setSuccess(true)
+      setTimeout(() => {
+        navigate("/customer/catalog")
+      }, 500)
     } catch (err: any) {
       setLoading(false)
       setError(err.message || "Failed to create account. Please try again.")

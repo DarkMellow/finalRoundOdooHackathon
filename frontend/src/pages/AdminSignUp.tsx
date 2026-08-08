@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { adminSignUp } from "@/lib/api"
 
 export function AdminSignUp() {
   const [fullName, setFullName] = useState("")
@@ -16,9 +17,10 @@ export function AdminSignUp() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
 
     if (!fullName || !email || !password || !confirmPassword) {
       setError("Please fill in all required fields.")
@@ -36,10 +38,18 @@ export function AdminSignUp() {
     }
 
     setLoading(true)
-    setTimeout(() => {
+    try {
+      await adminSignUp({
+        full_name: fullName,
+        email,
+        password,
+      })
       setLoading(false)
       setSuccess(true)
-    }, 1000)
+    } catch (err: any) {
+      setLoading(false)
+      setError(err.message || "Failed to register administrator. Please try again.")
+    }
   }
 
   return (
@@ -58,7 +68,11 @@ export function AdminSignUp() {
 
         {success && (
           <div className="rounded-lg bg-indigo-500/10 p-3 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            Registration request submitted! Awaiting super-admin approval.
+            Registration successful! You can now{" "}
+            <Link to="/admin/signin" className="underline font-bold">
+              Sign In as Admin
+            </Link>
+            .
           </div>
         )}
 

@@ -1,28 +1,39 @@
-# RMS Backend API
+# EasyRental Backend API
 
-Simple FastAPI backend service for the Rental Management System.
+FastAPI backend service for the **EasyRental** project, connected to a local MySQL / MariaDB database (`easy-rental`).
 
-## Requirements
-- Python 3.9+
+## Database Configuration
 
-## Setup & Running
+- **Database Engine:** MySQL / MariaDB
+- **Database Name:** `easy-rental`
+- **User:** `root`
+- **Password:** `32`
+- **Host:** `localhost:3306`
 
-1. **Create and activate a virtual environment (optional but recommended):**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Linux/macOS
-   # venv\Scripts\activate   # On Windows
-   ```
+## Setup & Execution
 
-2. **Install dependencies:**
+1. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Start the server:**
+2. **Environment Variables:**
+   The connection URL is stored in `.env`:
+   ```env
+   DB_USER=root
+   DB_PASSWORD=32
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_NAME=easy-rental
+   DATABASE_URL=mysql+pymysql://root:32@localhost:3306/easy-rental
+   ```
+
+3. **Start FastAPI Server:**
    ```bash
    uvicorn main:app --reload
    ```
 
-The API will be available at `http://127.0.0.1:8000`.
-Interactive API documentation will be available at `http://127.0.0.1:8000/docs`.
+4. **Verify Health & Database Connection:**
+   - App API: `http://127.0.0.1:8000`
+   - Database Status: `http://127.0.0.1:8000/db-status`
+   - Interactive Swagger Docs: `http://127.0.0.1:8000/docs`

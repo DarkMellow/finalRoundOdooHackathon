@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { customerSignIn } from "@/lib/api"
 
 export function CustomerSignIn() {
   const navigate = useNavigate()
@@ -16,9 +17,10 @@ export function CustomerSignIn() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
 
     if (!email || !password) {
       setError("Please fill in all required fields.")
@@ -26,12 +28,15 @@ export function CustomerSignIn() {
     }
 
     setLoading(true)
-    // Simulate authentication call
-    setTimeout(() => {
+    try {
+      const user = await customerSignIn({ email, password })
       setLoading(false)
       setSuccess(true)
-      // Reset form or navigate after success feedback
-    }, 1000)
+      localStorage.setItem("user", JSON.stringify(user))
+    } catch (err: any) {
+      setLoading(false)
+      setError(err.message || "Failed to sign in. Please check your credentials.")
+    }
   }
 
   return (
@@ -50,7 +55,7 @@ export function CustomerSignIn() {
 
         {success && (
           <div className="rounded-lg bg-emerald-500/10 p-3 text-xs font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            Sign in successful! Redirecting to customer dashboard...
+            Sign in successful! Welcome back.
           </div>
         )}
 

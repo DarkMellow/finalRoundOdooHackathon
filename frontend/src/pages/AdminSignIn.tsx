@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/AuthLayout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { adminSignIn } from "@/lib/api"
 
 export function AdminSignIn() {
   const [adminId, setAdminId] = useState("")
@@ -14,20 +15,26 @@ export function AdminSignIn() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccess(false)
 
     if (!adminId || !password) {
-      setError("Please provide your admin email/ID and security password.")
+      setError("Please provide your admin email and password.")
       return
     }
 
     setLoading(true)
-    setTimeout(() => {
+    try {
+      const admin = await adminSignIn({ email: adminId, password })
       setLoading(false)
       setSuccess(true)
-    }, 1000)
+      localStorage.setItem("admin_user", JSON.stringify(admin))
+    } catch (err: any) {
+      setLoading(false)
+      setError(err.message || "Failed to authenticate admin. Please check your credentials.")
+    }
   }
 
   return (
@@ -50,14 +57,14 @@ export function AdminSignIn() {
           </div>
         )}
 
-        {/* Admin ID / Email */}
+        {/* Admin Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="admin-email">Admin Email or ID</Label>
+          <Label htmlFor="admin-email">Admin Email Address</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
               id="admin-email"
-              type="text"
+              type="email"
               placeholder="admin@rentalsuite.com"
               value={adminId}
               onChange={(e) => setAdminId(e.target.value)}

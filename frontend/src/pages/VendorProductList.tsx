@@ -14,6 +14,7 @@ import {
   Loader2,
   RefreshCw,
   Sparkles,
+  Layers,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { fetchProducts, deleteProduct, createProduct, getLoggedVendor, type ApiProduct, type VendorUser } from "@/lib/api"
@@ -74,6 +75,31 @@ export function VendorProductList() {
     }
   }
 
+  // Extract list of individual variants with stock quantities
+  const getProductVariantsList = (product: ApiProduct): { id?: string; name: string; stockQuantity: number }[] => {
+    if (product.attributes_json) {
+      try {
+        const parsed = JSON.parse(product.attributes_json)
+        if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
+          return parsed.variants.map((v: any, idx: number) => ({
+            id: v.id || `v_${idx}`,
+            name: v.name || `Variant #${idx + 1}`,
+            stockQuantity: parseInt(v.stockQuantity || "0", 10) || 0,
+          }))
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return []
+  }
+
+  // Calculate total variant stock for a product
+  const getProductTotalStock = (product: ApiProduct): number => {
+    const list = getProductVariantsList(product)
+    return list.reduce((sum, v) => sum + v.stockQuantity, 0)
+  }
+
   // Seed demo products if database is empty for this vendor
   const handleSeedDemoProducts = async () => {
     setIsSeeding(true)
@@ -84,59 +110,78 @@ export function VendorProductList() {
         name: "Computers (Desktop Workstation)",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 100,
         rent_price: 1200.0,
         sales_price: 1200.0,
         cost_price: 0.0,
         is_published: true,
-        periodicity: "Hours",
         padding_time: "2:00 H",
         pickup_time: "10:00 H",
         return_time: "19:00 H",
         late_fees: 45.0,
         security_deposit: 150.0,
-        attributes_json: JSON.stringify([
-          { id: "1", name: "Brand", values: "Apple, Dell, HP" },
-          { id: "2", name: "RAM", values: "32GB, 64GB" },
-        ]),
+        attributes_json: JSON.stringify({
+          variants: [
+            {
+              id: "v1",
+              name: "MacBook Pro 16\" M3 Max",
+              price: "1250.00",
+              stockQuantity: "25",
+              imageUrl: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
+              features: "Apple M3 Max • 32GB RAM • 1TB SSD • Space Gray",
+            },
+            {
+              id: "v2",
+              name: "Dell XPS 15 Silver",
+              price: "1100.00",
+              stockQuantity: "30",
+              imageUrl: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=400&q=80",
+              features: "Intel i9 13th Gen • 16GB DDR5 RAM • 512GB SSD",
+            },
+          ],
+        }),
       },
       {
         vendor_id: vendorId,
         name: "Smart TV 65\" 4K OLED",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 45,
         rent_price: 650.0,
         sales_price: 650.0,
         cost_price: 0.0,
         is_published: true,
-        periodicity: "Day",
         padding_time: "1:00 H",
         pickup_time: "10:00 H",
         return_time: "18:00 H",
         late_fees: 25.0,
         security_deposit: 100.0,
-        attributes_json: JSON.stringify([
-          { id: "1", name: "Brand", values: "Sony, LG, Samsung" },
-        ]),
+        attributes_json: JSON.stringify({
+          variants: [
+            {
+              id: "v2",
+              name: "Sony 65\" Bravia XR",
+              price: "650.00",
+              stockQuantity: "20",
+              imageUrl: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80",
+              features: "4K HDR OLED • Google TV • 120Hz Refresh Rate",
+            },
+          ],
+        }),
       },
       {
         vendor_id: vendorId,
         name: "Security Deposit / Downpayment",
         product_type: "Service",
         image_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 0,
         rent_price: 200.0,
         sales_price: 200.0,
         cost_price: 0.0,
         is_published: true,
-        periodicity: "Day",
         padding_time: "0:00 H",
         pickup_time: "09:00 H",
         return_time: "18:00 H",
         late_fees: 0.0,
         security_deposit: 0.0,
-        attributes_json: JSON.stringify([]),
+        attributes_json: JSON.stringify({ variants: [] }),
       },
     ]
 
@@ -199,100 +244,93 @@ export function VendorProductList() {
               >
                 Schedule
               </button>
-              <button className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-900 font-bold transition-colors">
+              <Link
+                to="/vendor/products"
+                className="px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 font-bold transition-colors"
+              >
                 Products
-              </button>
-              <button
-                onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              >
-                Reports
-              </button>
-              <button
-                onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              >
-                Settings
-              </button>
+              </Link>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={loadProducts}
-              title="Refresh Products from DB"
-              className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 transition-colors font-medium p-1.5 rounded-lg hover:bg-slate-100"
-            >
-              <RefreshCw className={`size-3.5 ${loading ? "animate-spin text-purple-600" : ""}`} />
-              <span>Refresh</span>
-            </button>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs">
-              <span className="font-semibold text-slate-900">
-                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Apex Rentals"}
+            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600 font-medium">
+              <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>
+                Vendor: <strong className="text-slate-900 font-bold">{loggedVendor?.full_name || "Vendor Direct"}</strong>
               </span>
-              <div className="flex size-6 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs uppercase">
-                {(loggedVendor?.full_name || "A").charAt(0)}
-              </div>
             </div>
+
+            <button
+              onClick={() => navigate("/customer/catalog")}
+              className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              Customer View
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Title + Add Product Button + Search Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        {/* Page Title & Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Package className="size-6 text-purple-600" />
-              <span>Database Products Catalog</span>
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">Products & Rental Catalog</h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-extrabold text-xs">
+                {products.length} Items
+              </span>
+            </div>
             <p className="text-xs text-slate-500 mt-1">
-              Manage live rental products stored in your MariaDB database.
+              Create, view, edit, or publish rental products and equipment for your vendor store.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {products.length === 0 && (
-              <button
-                onClick={handleSeedDemoProducts}
-                disabled={isSeeding}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold text-xs shadow-xs transition-all"
-              >
-                <Sparkles className="size-3.5 text-purple-600" />
-                <span>{isSeeding ? "Seeding..." : "Seed Demo Products"}</span>
-              </button>
-            )}
-
-            {/* Primary CTA: Add New Product */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate("/vendor/products/new")}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all transform active:scale-95 shrink-0"
+              onClick={handleSeedDemoProducts}
+              disabled={isSeeding}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs disabled:opacity-50"
+              title="Populate demo products into database"
+            >
+              {isSeeding ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 text-amber-500" />}
+              <span>{isSeeding ? "Seeding..." : "Seed Products"}</span>
+            </button>
+
+            <button
+              onClick={loadProducts}
+              className="p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
+              title="Refresh Products"
+            >
+              <RefreshCw className="size-4" />
+            </button>
+
+            <Link
+              to="/vendor/products/new"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95"
             >
               <Plus className="size-4" />
-              <span>Add New Product</span>
-            </button>
+              <span>New Product</span>
+            </Link>
           </div>
         </div>
 
-        {/* Filter Controls & View Switcher Toolbar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          {/* Search Bar */}
-          <div className="relative flex-1 max-w-md">
+        {/* Toolbar & Filter Options */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
             <Input
               type="text"
-              placeholder="Search database products by name..."
+              placeholder="Search product name, category, or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-9 pl-3 h-9 bg-slate-50 border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-purple-500 shadow-xs"
+              className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-purple-500 font-medium"
             />
-            <div className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-md text-slate-400">
-              <Search className="size-3.5" />
-            </div>
           </div>
 
-          {/* Filters & View Switches */}
-          <div className="flex items-center gap-3 flex-wrap justify-between md:justify-end">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Product Type Filter */}
             <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs font-medium">
               <span className="text-[10px] text-slate-500 px-2 uppercase font-semibold">Type</span>
@@ -396,9 +434,8 @@ export function VendorProductList() {
                       <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
                         <th className="p-3.5">Product</th>
                         <th className="p-3.5">Type</th>
-                        <th className="p-3.5">Quantity (Units)</th>
+                        <th className="p-3.5">Variant Quantities</th>
                         <th className="p-3.5">Rent Price</th>
-                        <th className="p-3.5">Periodicity</th>
                         <th className="p-3.5 text-center">Status</th>
                         <th className="p-3.5 text-right">Actions</th>
                       </tr>
@@ -406,7 +443,7 @@ export function VendorProductList() {
                     <tbody className="divide-y divide-slate-200">
                       {filteredProducts.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-slate-500 font-sans space-y-2">
+                          <td colSpan={6} className="p-8 text-center text-slate-500 font-sans space-y-2">
                             <p>No products found in database matching your query.</p>
                             {products.length === 0 && (
                               <button
@@ -421,7 +458,8 @@ export function VendorProductList() {
                       ) : (
                         filteredProducts.map((product) => {
                           const displayRentPrice = product.rent_price || product.sales_price || 0
-                          const displayQty = Math.round(product.quantity_on_hand || 0)
+                          const variantsList = getProductVariantsList(product)
+                          const totalStock = getProductTotalStock(product)
                           return (
                             <tr key={product.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="p-3.5">
@@ -460,14 +498,41 @@ export function VendorProductList() {
                                   {product.product_type}
                                 </span>
                               </td>
-                              <td className="p-3.5 font-mono font-bold text-slate-800">
-                                {displayQty}
+
+                              {/* VARIANT INDIVIDUAL QUANTITIES CELL */}
+                              <td className="p-3.5">
+                                {variantsList.length > 0 ? (
+                                  <div className="space-y-1.5 max-w-[220px]">
+                                    {variantsList.map((v, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between gap-2 text-[11px] bg-slate-50 px-2 py-1 rounded-md border border-slate-200"
+                                      >
+                                        <span className="font-medium text-slate-800 truncate" title={v.name}>
+                                          {v.name}
+                                        </span>
+                                        <span
+                                          className={`font-mono font-bold px-1.5 py-0.5 rounded text-[10px] shrink-0 ${
+                                            v.stockQuantity > 0
+                                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                              : "bg-rose-100 text-rose-800 border border-rose-200"
+                                          }`}
+                                        >
+                                          {v.stockQuantity} Qty
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                    <Layers className="size-3 text-slate-400" />
+                                    <span>Total: <strong className="font-mono text-slate-800">{totalStock} units</strong></span>
+                                  </div>
+                                )}
                               </td>
+
                               <td className="p-3.5 font-mono font-extrabold text-slate-900">
                                 ${displayRentPrice.toFixed(2)}
-                              </td>
-                              <td className="p-3.5 text-slate-600 font-medium">
-                                {product.periodicity}
                               </td>
                               <td className="p-3.5 text-center">
                                 {product.is_published ? (
@@ -512,7 +577,8 @@ export function VendorProductList() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredProducts.map((product) => {
                   const displayRentPrice = product.rent_price || product.sales_price || 0
-                  const displayQty = Math.round(product.quantity_on_hand || 0)
+                  const variantsList = getProductVariantsList(product)
+                  const totalStock = getProductTotalStock(product)
                   return (
                     <div
                       key={product.id}
@@ -558,9 +624,37 @@ export function VendorProductList() {
                         <h3 className="font-bold text-slate-900 text-sm group-hover:text-purple-600 transition-colors">
                           {product.name}
                         </h3>
-                        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-                          <span>Stock: <strong className="font-mono text-slate-800">{displayQty} units</strong></span>
-                          <span>Rate: <strong className="font-semibold text-slate-800">{product.periodicity}</strong></span>
+
+                        {/* GRID VIEW INDIVIDUAL VARIANT STOCKS */}
+                        <div className="space-y-1.5 mt-2.5 pt-2 border-t border-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Variant Stock Quantities
+                          </span>
+                          {variantsList.length > 0 ? (
+                            <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                              {variantsList.map((v, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between text-[11px] bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                                >
+                                  <span className="text-slate-700 truncate font-medium max-w-[150px]" title={v.name}>
+                                    {v.name}
+                                  </span>
+                                  <span
+                                    className={`font-mono font-bold text-[10px] ${
+                                      v.stockQuantity > 0 ? "text-emerald-700" : "text-rose-600"
+                                    }`}
+                                  >
+                                    {v.stockQuantity} Qty
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              Total Stock: <strong>{totalStock} units</strong>
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -579,9 +673,10 @@ export function VendorProductList() {
                           <button
                             onClick={() => handleDeleteProduct(product.id, product.name)}
                             disabled={deletingId === product.id}
-                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200"
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200 disabled:opacity-50"
+                            title="Delete Product"
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       </div>

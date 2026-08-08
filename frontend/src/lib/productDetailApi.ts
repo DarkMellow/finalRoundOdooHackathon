@@ -7,6 +7,8 @@ export interface ProductVariant {
   rentPrice: number
   billingPeriod: "per day" | "per hour" | "per Month" | "per week"
   inStock: boolean
+  stockQuantity: number
+  imageUrl?: string
 }
 
 export interface ProductDetail {
@@ -64,6 +66,7 @@ const MOCK_PRODUCT_DETAILS_MAP: Record<string, ProductDetail> = {
         rentPrice: 45,
         billingPeriod: "per Month",
         inStock: true,
+        stockQuantity: 8,
       },
       {
         id: "v2",
@@ -72,6 +75,7 @@ const MOCK_PRODUCT_DETAILS_MAP: Record<string, ProductDetail> = {
         rentPrice: 55,
         billingPeriod: "per Month",
         inStock: true,
+        stockQuantity: 4,
       },
       {
         id: "v3",
@@ -80,6 +84,7 @@ const MOCK_PRODUCT_DETAILS_MAP: Record<string, ProductDetail> = {
         rentPrice: 65,
         billingPeriod: "per Month",
         inStock: false,
+        stockQuantity: 0,
       },
     ],
   },
@@ -93,7 +98,7 @@ const MOCK_PRODUCT_DETAILS_MAP: Record<string, ProductDetail> = {
  * this function to fetch from the actual API endpoint without breaking the frontend components.
  */
 export async function fetchProductDetails(productId: string): Promise<ProductDetail> {
-  // Simulate network latency (300ms)
+  // Simulate network latency (250ms)
   await new Promise((resolve) => setTimeout(resolve, 250))
 
   // If productId starts with "db-", it originated from backend products API
@@ -101,13 +106,22 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
     const rawId = productId.replace("db-", "")
     try {
       const realProduct = await fetchProductById(rawId)
-      let parsedAttr: { variants?: ProductVariant[] } = {}
+      let parsedAttr: { variants?: any[] } = {}
       if (realProduct.attributes_json) {
         try {
           parsedAttr = JSON.parse(realProduct.attributes_json)
         } catch {
           // Ignore JSON parse error if invalid
         }
+      }
+
+      const variantImages: string[] = []
+      if (Array.isArray(parsedAttr.variants)) {
+        parsedAttr.variants.forEach((v) => {
+          if (v.imageUrl && !variantImages.includes(v.imageUrl)) {
+            variantImages.push(v.imageUrl)
+          }
+        })
       }
 
       return {
@@ -119,57 +133,66 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
         images: [
           realProduct.image_url ||
             "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=1000&q=80",
-          "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=1000&q=80",
+          ...variantImages,
         ],
         tags: [
           realProduct.category || "Rental",
           realProduct.product_type,
-          realProduct.periodicity,
         ],
         rentPrice: realProduct.rent_price || 0,
-        billingPeriod:
-          realProduct.periodicity === "Day"
-            ? "per day"
-            : realProduct.periodicity === "Hours"
-            ? "per hour"
-            : "per Month",
+        billingPeriod: "per Month",
         salesPrice: realProduct.sales_price,
         securityDeposit: realProduct.security_deposit || 0,
         lateFees: realProduct.late_fees || 0,
-        inStock: (realProduct.quantity_on_hand || 0) > 0,
-        stockQuantity: realProduct.quantity_on_hand || 0,
+        inStock: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
+          ? parsedAttr.variants.some((v: any) => (parseInt(v.stockQuantity || "0", 10) || 0) > 0)
+          : true,
+        stockQuantity: Array.isArray(parsedAttr.variants)
+          ? parsedAttr.variants.reduce((sum: number, v: any) => sum + (parseInt(v.stockQuantity || "0", 10) || 0), 0)
+          : 10,
         rating: 4.9,
         reviewCount: 18,
         vendorName: `Vendor Partner #${realProduct.vendor_id}`,
         vendorId: realProduct.vendor_id,
-        variants: parsedAttr.variants || [
-          {
-            id: `v-${realProduct.id}-1`,
-            name: `${realProduct.name} - Standard Package`,
-            specifications: `${realProduct.periodicity} rate option`,
-            rentPrice: realProduct.rent_price || 0,
-            billingPeriod:
-              realProduct.periodicity === "Day"
-                ? "per day"
-                : realProduct.periodicity === "Hours"
-                ? "per hour"
-                : "per Month",
-            inStock: true,
-          },
-          {
-            id: `v-${realProduct.id}-2`,
-            name: `${realProduct.name} - Deluxe Package`,
-            specifications: `Includes priority maintenance & extra accessories`,
-            rentPrice: Math.round((realProduct.rent_price || 10) * 1.25),
-            billingPeriod:
-              realProduct.periodicity === "Day"
-                ? "per day"
-                : realProduct.periodicity === "Hours"
-                ? "per hour"
-                : "per Month",
-            inStock: true,
-          },
-        ],
+        variants: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
+          ? parsedAttr.variants.map((v: any, idx: number) => {
+              const qty = parseInt(v.stockQuantity || "10", 10) || 0
+              return {
+                id: v.id || `v-${realProduct.id}-${idx}`,
+                name: v.name || `${realProduct.name} Variant ${idx + 1}`,
+                specifications:
+                  v.features ||
+                  v.specifications ||
+                  (Array.isArray(v.attributes)
+                    ? v.attributes.map((a: any) => `${a.name}: ${a.value}`).join(" • ")
+                    : "Standard rental configuration"),
+                rentPrice: parseFloat(v.price) || realProduct.rent_price || 0,
+                billingPeriod: "per Month",
+                inStock: qty > 0,
+                stockQuantity: qty,
+                imageUrl: v.imageUrl || "",
+              }
+            })
+          : [
+              {
+                id: `v-${realProduct.id}-1`,
+                name: `${realProduct.name} - Standard Package`,
+                specifications: "Standard rental configuration",
+                rentPrice: realProduct.rent_price || 0,
+                billingPeriod: "per Month",
+                inStock: true,
+                stockQuantity: 15,
+              },
+              {
+                id: `v-${realProduct.id}-2`,
+                name: `${realProduct.name} - Deluxe Package`,
+                specifications: `Includes priority maintenance & extra accessories`,
+                rentPrice: Math.round((realProduct.rent_price || 10) * 1.25),
+                billingPeriod: "per Month",
+                inStock: true,
+                stockQuantity: 10,
+              },
+            ],
       }
     } catch (err) {
       console.warn("Could not fetch real product, falling back to mock:", err)
@@ -181,7 +204,6 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
     return MOCK_PRODUCT_DETAILS_MAP[productId]
   }
 
-  // Rich fallback structure for any mock items (p1, p2, p3, etc.)
   return {
     id: productId,
     title: `Premium Rental Unit (${productId.toUpperCase()})`,
@@ -213,6 +235,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
         rentPrice: 65,
         billingPeriod: "per Month",
         inStock: true,
+        stockQuantity: 5,
       },
       {
         id: "v-def-2",
@@ -221,14 +244,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
         rentPrice: 85,
         billingPeriod: "per Month",
         inStock: true,
-      },
-      {
-        id: "v-def-3",
-        name: "Enterprise Studio Kit",
-        specifications: "Dual set + 24/7 priority support",
-        rentPrice: 120,
-        billingPeriod: "per Month",
-        inStock: true,
+        stockQuantity: 3,
       },
     ],
   }

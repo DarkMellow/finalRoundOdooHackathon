@@ -73,19 +73,32 @@ export function CustomerCatalog() {
       .then((items) => {
         // Filter only published products for customer catalog
         const publishedItems = items.filter((item) => item.is_published !== false)
-        const mapped: Product[] = publishedItems.map((item) => ({
-          id: `db-${item.id}`,
-          title: item.name,
-          description: `Vendor Product #${item.id} • ${item.product_type} (${item.periodicity} rental rate)`,
-          category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
-          brand: `Vendor #${item.vendor_id}`,
-          image: item.image_url || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
-          price: item.rent_price || item.sales_price || 0,
-          billingPeriod: item.periodicity === "Day" ? "per day" : item.periodicity === "Hours" ? "per hour" : "per Month",
-          tags: [item.category || "Electronics", item.product_type, item.periodicity, `Vendor #${item.vendor_id}`],
-          inStock: (item.quantity_on_hand || 0) > 0,
-          rating: 5.0,
-        }))
+        const mapped: Product[] = publishedItems.map((item) => {
+          let hasStock = true
+          if (item.attributes_json) {
+            try {
+              const parsed = JSON.parse(item.attributes_json)
+              if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
+                hasStock = parsed.variants.some((v: any) => (parseInt(v.stockQuantity || "0", 10) || 0) > 0)
+              }
+            } catch {
+              // Ignore
+            }
+          }
+          return {
+            id: `db-${item.id}`,
+            title: item.name,
+            description: `Vendor Product #${item.id} • ${item.product_type}`,
+            category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
+            brand: `Vendor #${item.vendor_id}`,
+            image: item.image_url || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
+            price: item.rent_price || item.sales_price || 0,
+            billingPeriod: "per Month",
+            tags: [item.category || "Electronics", item.product_type, `Vendor #${item.vendor_id}`],
+            inStock: hasStock,
+            rating: 5.0,
+          }
+        })
         setDbProducts(mapped)
       })
       .catch((err) => {

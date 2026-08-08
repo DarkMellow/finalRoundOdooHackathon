@@ -107,8 +107,21 @@ export async function vendorSignIn(data: {
 }
 
 // ==========================================
-// PRODUCT API FUNCTIONS
+// PRODUCT API FUNCTIONS & VARIANTS SCHEMA
 // ==========================================
+
+export interface ProductVariantItem {
+  id: string
+  name: string
+  price: string
+  stockQuantity: string
+  imageUrl: string
+  features: string
+}
+
+export interface ProductAttributesJson {
+  variants?: ProductVariantItem[]
+}
 
 export interface ApiProduct {
   id: number
@@ -117,12 +130,10 @@ export interface ApiProduct {
   category?: string
   product_type: "Goods" | "Service"
   image_url?: string
-  quantity_on_hand: number
   rent_price: number
   sales_price?: number
   cost_price?: number
   is_published: boolean
-  periodicity: "Hours" | "Day" | "Night" | "Weekly"
   padding_time?: string
   pickup_time?: string
   return_time?: string
@@ -181,4 +192,3 @@ export async function deleteProduct(id: number | string): Promise<{ status: stri
   })
   return handleResponse<{ status: string; message: string }>(res)
 }
-

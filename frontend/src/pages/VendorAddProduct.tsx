@@ -17,6 +17,7 @@ import {
   Search,
   ChevronDown,
   Tag,
+  Image as ImageIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -36,10 +37,13 @@ const AVAILABLE_TAGS = [
   "Services",
 ]
 
-interface AttributeRow {
+export interface VariantItem {
   id: string
   name: string
-  values: string
+  price: string
+  stockQuantity: string
+  imageUrl: string
+  features: string
 }
 
 export function VendorAddProduct() {
@@ -60,18 +64,30 @@ export function VendorAddProduct() {
   const [productType, setProductType] = useState<"Goods" | "Service">("Goods")
   const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80")
   const [showImageUrlModal, setShowImageUrlModal] = useState(false)
-  const [quantityOnHand, setQuantityOnHand] = useState("100")
   const [rentPrice, setRentPrice] = useState("1200.00")
   const [isPublished, setIsPublished] = useState(true)
 
-  // Tab 2: Attributes & Variants State
-  const [attributes, setAttributes] = useState<AttributeRow[]>([
-    { id: "1", name: "Brand", values: "Apple, Dell, HP" },
-    { id: "2", name: "Color", values: "Black, Silver, Space Gray" },
+  // Tab 2: Variants State
+  const [variants, setVariants] = useState<VariantItem[]>([
+    {
+      id: "v1",
+      name: "Apple MacBook Pro 16\" - Space Gray",
+      price: "1250.00",
+      stockQuantity: "25",
+      imageUrl: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
+      features: "Apple M3 Max • 32GB Unified Memory • 1TB SSD • Space Gray",
+    },
+    {
+      id: "v2",
+      name: "Dell XPS 15 - Silver",
+      price: "1100.00",
+      stockQuantity: "30",
+      imageUrl: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=400&q=80",
+      features: "Intel i9 13th Gen • 16GB DDR5 RAM • 512GB NVMe SSD • Silver Finish",
+    },
   ])
 
   // Tab 3: Sales & Rental State
-  const [periodicity, setPeriodicity] = useState<"Hours" | "Day" | "Night" | "Weekly">("Hours")
   const [paddingTime, setPaddingTime] = useState("2:00 H")
   const [pickupTime, setPickupTime] = useState("10:00 H")
   const [returnTime, setReturnTime] = useState("19:00 H")
@@ -89,11 +105,9 @@ export function VendorAddProduct() {
           setCategory(product.category || "Electronics")
           setProductType(product.product_type || "Goods")
           setImageUrl(product.image_url || "")
-          setQuantityOnHand(product.quantity_on_hand !== undefined ? String(Math.round(product.quantity_on_hand)) : "0")
           const price = product.rent_price || product.sales_price || 0
           setRentPrice(String(price))
           setIsPublished(product.is_published ?? true)
-          setPeriodicity(product.periodicity || "Hours")
           setPaddingTime(product.padding_time || "2:00 H")
           setPickupTime(product.pickup_time || "10:00 H")
           setReturnTime(product.return_time || "19:00 H")
@@ -104,7 +118,31 @@ export function VendorAddProduct() {
           if (product.attributes_json) {
             try {
               const parsed = JSON.parse(product.attributes_json)
-              if (Array.isArray(parsed)) setAttributes(parsed)
+              if (Array.isArray(parsed)) {
+                setVariants(
+                  parsed.map((a: any, idx: number) => ({
+                    id: a.id || `v_${idx}`,
+                    name: a.name || `Variant ${idx + 1}`,
+                    price: String(product.rent_price || 0),
+                    stockQuantity: "10",
+                    imageUrl: "",
+                    features: a.values || "",
+                  }))
+                )
+              } else if (parsed && typeof parsed === "object") {
+                if (Array.isArray(parsed.variants)) {
+                  setVariants(
+                    parsed.variants.map((v: any) => ({
+                      ...v,
+                      features:
+                        v.features ||
+                        (Array.isArray(v.attributes)
+                          ? v.attributes.map((att: any) => `${att.name}: ${att.value}`).join(" • ")
+                          : ""),
+                    }))
+                  )
+                }
+              }
             } catch {
               console.warn("Failed to parse attributes_json")
             }
@@ -117,20 +155,40 @@ export function VendorAddProduct() {
     }
   }, [id])
 
-  // Handlers for dynamic attributes
-  const handleAddAttribute = () => {
-    const newId = Date.now().toString()
-    setAttributes([...attributes, { id: newId, name: "", values: "" }])
+  // Handlers for product variants
+  const handleAddVariant = () => {
+    const newVariantId = "v_" + Date.now()
+    const newVariant: VariantItem = {
+      id: newVariantId,
+      name: `${name || "Product"} Variant #${variants.length + 1}`,
+      price: rentPrice || "0.00",
+      stockQuantity: "10",
+      imageUrl: imageUrl || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80",
+      features: "Standard configuration & accessories included",
+    }
+    setVariants([...variants, newVariant])
   }
 
-  const handleRemoveAttribute = (attrId: string) => {
-    setAttributes(attributes.filter((attr) => attr.id !== attrId))
+  const handleRemoveVariant = (variantId: string) => {
+    setVariants(variants.filter((v) => v.id !== variantId))
   }
 
-  const handleAttributeChange = (attrId: string, field: "name" | "values", value: string) => {
-    setAttributes(
-      attributes.map((attr) => (attr.id === attrId ? { ...attr, [field]: value } : attr))
+  const handleUpdateVariant = (variantId: string, field: keyof VariantItem, value: any) => {
+    setVariants(
+      variants.map((v) => (v.id === variantId ? { ...v, [field]: value } : v))
     )
+  }
+
+  const handleVariantImageUpload = (variantId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        handleUpdateVariant(variantId, "imageUrl", event.target.result as string)
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   // Handle Form Submission (Create or Update)
@@ -150,18 +208,18 @@ export function VendorAddProduct() {
       category,
       product_type: productType,
       image_url: imageUrl,
-      quantity_on_hand: parseInt(quantityOnHand, 10) || 0,
       rent_price: parsedRent,
       sales_price: parsedRent,
       cost_price: 0,
       is_published: isPublished,
-      periodicity,
       padding_time: paddingTime,
       pickup_time: pickupTime,
       return_time: returnTime,
       late_fees: enableLateFees ? parseFloat(lateFees) || 0 : 0,
       security_deposit: parseFloat(securityDeposit) || 0,
-      attributes_json: JSON.stringify(attributes),
+      attributes_json: JSON.stringify({
+        variants,
+      }),
     }
 
     try {
@@ -221,11 +279,12 @@ export function VendorAddProduct() {
             </Link>
             <div className="h-4 w-px bg-slate-200" />
             <div className="flex items-center gap-2">
-              <span className={`px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                isEditMode
+              <span
+                className={`px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${isEditMode
                   ? "bg-sky-100 text-sky-800 border border-sky-200"
                   : "bg-purple-100 text-purple-800 border border-purple-200"
-              }`}>
+                  }`}
+              >
                 {isEditMode ? "Edit" : "New"}
               </span>
               <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
@@ -234,7 +293,7 @@ export function VendorAddProduct() {
             </div>
           </div>
 
-          {/* Action Buttons: Checkmark (Save) and X (Cancel) */}
+          {/* Action Buttons */}
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => navigate("/vendor/products")}
@@ -324,7 +383,7 @@ export function VendorAddProduct() {
         <div className="flex items-center gap-2 border-b border-slate-200 pb-1 overflow-x-auto">
           {[
             { id: "general", label: "General Information", icon: Package },
-            { id: "attributes", label: "Attributes & Variants", icon: Layers },
+            { id: "attributes", label: `Product Variants (${variants.length})`, icon: Layers },
             { id: "sales", label: "Sales & Rental", icon: DollarSign },
           ].map((tab) => {
             const Icon = tab.icon
@@ -334,11 +393,10 @@ export function VendorAddProduct() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition-all ${
-                  isActive
-                    ? "bg-purple-600 text-white shadow-xs"
-                    : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs transition-all ${isActive
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
+                  }`}
               >
                 <Icon className="size-4" />
                 <span>{tab.label}</span>
@@ -350,27 +408,17 @@ export function VendorAddProduct() {
         {/* TAB 1: GENERAL INFORMATION */}
         {activeTab === "general" && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6 shadow-xs animate-in fade-in">
-            {/* Service & Deposit Informational Callout matching wireframe note */}
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
-              <Info className="size-5 text-amber-600 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">
-                <strong className="font-semibold text-amber-900">Deposit & Warranty Note:</strong> If the vendor wants to add a deposit or downpayment with the product, the vendor needs to create a product (type <span className="underline decoration-amber-500 font-bold">Service</span>) named <span className="font-bold">deposit/downpayment</span> and add it in the invoice. The same rules apply to warranties.
-              </p>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Product Category Tag Searchable Dropdown */}
+              {/* Product Category Tag Dropdown */}
               <div className="col-span-full space-y-2">
                 <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Tag className="size-3.5 text-purple-600" />
                     <span>Product Category Tag</span>
                   </span>
-                  <span className="text-[11px] text-purple-600 font-medium">Searchable tag dropdown for catalog filtering</span>
                 </label>
 
                 <div className="relative max-w-md">
-                  {/* Trigger Button / Input Bar */}
                   <div
                     onClick={() => setTagDropdownOpen(!tagDropdownOpen)}
                     className="flex items-center justify-between gap-2 h-10 px-3 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 cursor-pointer hover:border-purple-400 focus-within:ring-2 focus-within:ring-purple-500/20 shadow-xs transition-all"
@@ -386,17 +434,14 @@ export function VendorAddProduct() {
                     <ChevronDown className={`size-4 text-slate-400 transition-transform ${tagDropdownOpen ? "rotate-180 text-purple-600" : ""}`} />
                   </div>
 
-                  {/* Dropdown Menu */}
                   {tagDropdownOpen && (
                     <>
-                      {/* Backdrop click outside detector */}
                       <div
                         className="fixed inset-0 z-20"
                         onClick={() => setTagDropdownOpen(false)}
                       />
 
                       <div className="absolute left-0 right-0 top-11 z-30 rounded-xl border border-slate-200 bg-white p-2 shadow-xl space-y-2 animate-in fade-in slide-in-from-top-2">
-                        {/* Search Bar Input inside Dropdown */}
                         <div className="relative">
                           <Search className="absolute left-2.5 top-2.5 size-3.5 text-slate-400" />
                           <Input
@@ -409,7 +454,6 @@ export function VendorAddProduct() {
                           />
                         </div>
 
-                        {/* Tag Options List */}
                         <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
                           {AVAILABLE_TAGS.filter((t) =>
                             t.toLowerCase().includes(tagSearchQuery.toLowerCase())
@@ -424,11 +468,10 @@ export function VendorAddProduct() {
                                   setTagDropdownOpen(false)
                                   setTagSearchQuery("")
                                 }}
-                                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${
-                                  isSelected
-                                    ? "bg-purple-600 text-white font-bold"
-                                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                                }`}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${isSelected
+                                  ? "bg-purple-600 text-white font-bold"
+                                  : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                  }`}
                               >
                                 <span>{tag}</span>
                                 {isSelected && <Check className="size-3.5" />}
@@ -436,7 +479,6 @@ export function VendorAddProduct() {
                             )
                           })}
 
-                          {/* Custom Tag Option if search query is not exact match */}
                           {tagSearchQuery.trim() !== "" &&
                             !AVAILABLE_TAGS.some((t) => t.toLowerCase() === tagSearchQuery.trim().toLowerCase()) && (
                               <button
@@ -452,21 +494,13 @@ export function VendorAddProduct() {
                                 <span>Use custom tag "{tagSearchQuery.trim()}"</span>
                               </button>
                             )}
-
-                          {AVAILABLE_TAGS.filter((t) =>
-                            t.toLowerCase().includes(tagSearchQuery.toLowerCase())
-                          ).length === 0 &&
-                            tagSearchQuery.trim() === "" && (
-                              <div className="p-3 text-center text-slate-400 text-xs font-medium">
-                                No matching tags found.
-                              </div>
-                            )}
                         </div>
                       </div>
                     </>
                   )}
                 </div>
               </div>
+
               {/* Product Type (Goods vs Service) */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-700 block">Product Type</label>
@@ -496,20 +530,6 @@ export function VendorAddProduct() {
                 </div>
               </div>
 
-              {/* Quantity on Hand */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-700 block">Quantity on Hand (Units)</label>
-                <Input
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="e.g. 100"
-                  value={quantityOnHand}
-                  onChange={(e) => setQuantityOnHand(e.target.value)}
-                  className="h-10 bg-white border-slate-300 text-xs text-slate-900 font-mono"
-                />
-              </div>
-
               {/* Rent Price */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-700 block">Rent Price ($)</label>
@@ -527,7 +547,7 @@ export function VendorAddProduct() {
               </div>
             </div>
 
-            {/* Publish Toggle with Admin Permission Note matching wireframe */}
+            {/* Publish Toggle */}
             <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -554,79 +574,191 @@ export function VendorAddProduct() {
           </div>
         )}
 
-        {/* TAB 2: ATTRIBUTES & VARIANTS */}
+        {/* TAB 2: PRODUCT VARIANTS */}
         {activeTab === "attributes" && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6 shadow-xs animate-in fade-in">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">Attributes & Variant Options</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Add attributes like Brand, Color, or Size along with possible value options.
-              </p>
-            </div>
+          <div className="space-y-6 animate-in fade-in">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-slate-900">Product Variants Manager</h2>
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-extrabold text-[11px] border border-purple-200">
+                      {variants.length} {variants.length === 1 ? "Variant" : "Variants"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Manage individual variants. Set variant images via file upload or URL, price, stock quantity, and feature statement.
+                  </p>
+                </div>
 
-            {/* Attributes Table */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-100/80 text-slate-700 font-semibold border-b border-slate-200">
-                    <th className="p-3 w-1/3">Attributes</th>
-                    <th className="p-3">Values</th>
-                    <th className="p-3 w-16 text-center">Configure</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
-                  {attributes.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="p-6 text-center text-slate-500">
-                        No attributes added yet. Click &quot;Add a line&quot; below to add your first variant attribute.
-                      </td>
-                    </tr>
-                  ) : (
-                    attributes.map((attr) => (
-                      <tr key={attr.id} className="hover:bg-slate-50">
-                        <td className="p-3">
+                <button
+                  type="button"
+                  onClick={handleAddVariant}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95 shrink-0"
+                >
+                  <Plus className="size-4" />
+                  <span>Add Variant</span>
+                </button>
+              </div>
+
+              {variants.length === 0 ? (
+                <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl space-y-3 bg-slate-50/50">
+                  <Package className="size-8 text-slate-400 mx-auto" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-slate-700">No variants added yet</p>
+                    <p className="text-[11px] text-slate-500">
+                      Click &quot;+ Add Variant&quot; to create product variant options.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddVariant}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-purple-300 bg-white text-purple-700 font-bold text-xs hover:bg-purple-50"
+                  >
+                    <Plus className="size-4" />
+                    <span>Create First Variant</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {variants.map((variant, index) => (
+                    <div
+                      key={variant.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5 space-y-4 hover:border-purple-300 transition-all shadow-2xs"
+                    >
+                      {/* Variant Top Bar */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="flex size-6 items-center justify-center rounded-lg bg-purple-600 text-white font-bold text-xs shrink-0">
+                            #{index + 1}
+                          </span>
                           <Input
                             type="text"
-                            placeholder="Name of the Attribute (Brand, Color, Size...)"
-                            value={attr.name}
-                            onChange={(e) => handleAttributeChange(attr.id, "name", e.target.value)}
-                            className="h-9 bg-white border-slate-300 text-xs text-slate-900"
+                            placeholder="Variant Name (e.g. Space Gray 1TB)"
+                            value={variant.name}
+                            onChange={(e) => handleUpdateVariant(variant.id, "name", e.target.value)}
+                            className="h-9 bg-white border-slate-300 font-bold text-xs text-slate-900 flex-1 max-w-md"
                           />
-                        </td>
-                        <td className="p-3">
-                          <Input
-                            type="text"
-                            placeholder="List of possible values (e.g. Red, Green, Blue...)"
-                            value={attr.values}
-                            onChange={(e) => handleAttributeChange(attr.id, "values", e.target.value)}
-                            className="h-9 bg-white border-slate-300 text-xs text-slate-900"
-                          />
-                        </td>
-                        <td className="p-3 text-center">
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <span className="font-semibold text-[11px] text-slate-500">Price:</span>
+                            <div className="relative w-24">
+                              <span className="absolute left-2 top-2 text-[10px] text-slate-400 font-mono">$</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={variant.price}
+                                onChange={(e) => handleUpdateVariant(variant.id, "price", e.target.value)}
+                                className="h-8 pl-5 bg-white border-slate-300 font-mono text-xs font-bold text-slate-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                            <span className="font-semibold text-[11px] text-slate-500">Stock Qty:</span>
+                            <Input
+                              type="number"
+                              step="1"
+                              min="0"
+                              placeholder="10"
+                              value={variant.stockQuantity || "0"}
+                              onChange={(e) => handleUpdateVariant(variant.id, "stockQuantity", e.target.value)}
+                              className="h-8 w-20 bg-white border-slate-300 font-mono text-xs font-bold text-slate-900"
+                            />
+                          </div>
+
                           <button
                             type="button"
-                            onClick={() => handleRemoveAttribute(attr.id)}
+                            onClick={() => handleRemoveVariant(variant.id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Remove Variant"
                           >
                             <Trash2 className="size-4" />
                           </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
 
-            {/* Add a Line Button */}
-            <button
-              type="button"
-              onClick={handleAddAttribute}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors p-1"
-            >
-              <Plus className="size-4" />
-              <span>Add a line</span>
-            </button>
+                      {/* Variant Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                        {/* Left: Variant Image Box with File Upload */}
+                        <div className="md:col-span-5 space-y-3 bg-white p-3.5 rounded-xl border border-slate-200">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <ImageIcon className="size-3.5 text-purple-600" />
+                            <span>Variant Image Input</span>
+                          </label>
+
+                          <div className="flex items-center gap-3">
+                            <div className="size-20 rounded-xl border border-slate-200 bg-slate-100 overflow-hidden shrink-0 shadow-2xs relative">
+                              {variant.imageUrl ? (
+                                <img
+                                  src={variant.imageUrl}
+                                  alt={variant.name}
+                                  className="size-full object-cover"
+                                />
+                              ) : (
+                                <div className="size-full flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                                  <ImageIcon className="size-5" />
+                                  <span className="text-[9px] font-medium mt-0.5">No image</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 space-y-2">
+                              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-2xs transition-all active:scale-95">
+                                <Upload className="size-3.5" />
+                                <span>Upload Image File</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleVariantImageUpload(variant.id, e)}
+                                />
+                              </label>
+
+                              <div className="space-y-1">
+                                <span className="text-[10px] text-slate-400 font-medium block">Or image URL:</span>
+                                <Input
+                                  type="text"
+                                  placeholder="https://..."
+                                  value={variant.imageUrl}
+                                  onChange={(e) => handleUpdateVariant(variant.id, "imageUrl", e.target.value)}
+                                  className="h-7 bg-slate-50 border-slate-300 text-[11px] text-slate-800 font-mono"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Variant Single-Line Feature Statement */}
+                        <div className="md:col-span-7 space-y-3 bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between self-stretch">
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                              <Tag className="size-3.5 text-purple-600" />
+                              <span>Variant Feature Statement</span>
+                            </label>
+
+                            <Input
+                              type="text"
+                              placeholder="e.g. 32GB RAM • 1TB SSD • Space Gray • M3 Max Processor"
+                              value={variant.features}
+                              onChange={(e) => handleUpdateVariant(variant.id, "features", e.target.value)}
+                              className="h-10 bg-white border-slate-300 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus-visible:ring-purple-500"
+                            />
+
+                            <p className="text-[11px] text-slate-400 italic">
+                              Enter key specifications or feature highlights for this variant as a single line statement.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -641,38 +773,17 @@ export function VendorAddProduct() {
                   <span>Rental Configuration</span>
                 </h2>
 
-                {/* Periodicity Dropdown */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 block">Periodicity</label>
-                  <select
-                    value={periodicity}
-                    onChange={(e) => setPeriodicity(e.target.value as any)}
-                    className="w-full h-10 px-3 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-xs"
-                  >
-                    <option value="Hours">Hours</option>
-                    <option value="Day">Day</option>
-                    <option value="Night">Night</option>
-                    <option value="Weekly">Weekly</option>
-                  </select>
-                </div>
-
-                {/* Padding Time */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-700">Padding Time</label>
-                    <span className="text-[10px] text-amber-600 italic">(Only in case of Hours)</span>
-                  </div>
+                  <label className="text-xs font-semibold text-slate-700 block">Padding Time</label>
                   <Input
                     type="text"
                     value={paddingTime}
-                    disabled={periodicity !== "Hours"}
                     onChange={(e) => setPaddingTime(e.target.value)}
                     placeholder="2:00 H"
-                    className="h-10 bg-white border-slate-300 text-xs text-slate-900 disabled:opacity-50"
+                    className="h-10 bg-white border-slate-300 text-xs text-slate-900"
                   />
                 </div>
 
-                {/* Pickup & Return Schedule */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-slate-700 block">Pickup Time</label>
@@ -696,7 +807,6 @@ export function VendorAddProduct() {
                   </div>
                 </div>
 
-                {/* Late Fees */}
                 <div className="space-y-2 pt-2 border-t border-slate-200">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-slate-700 flex items-center gap-2">
@@ -736,7 +846,6 @@ export function VendorAddProduct() {
                   <span>Rental Deposit</span>
                 </h2>
 
-                {/* Security Deposit */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-700 block">Security Deposit ($)</label>
                   <div className="relative">

@@ -3,11 +3,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from config import settings
 
-# Create SQLAlchemy Engine for MySQL / MariaDB connection
+db_url = settings.database_url
+connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
+
+# Create SQLAlchemy Engine
 engine = create_engine(
-    settings.database_url,
+    db_url,
+    connect_args=connect_args,
     pool_pre_ping=True,
-    pool_recycle=3600,
     echo=False,
 )
 
@@ -25,14 +28,15 @@ def get_db():
 
 
 def test_db_connection() -> dict:
-    """Test connection to the MySQL/MariaDB database."""
+    """Test connection to the database."""
     try:
         with engine.connect() as connection:
-            result = connection.execute(text("SELECT 1"))
+            connection.execute(text("SELECT 1"))
             return {
                 "status": "connected",
                 "database": settings.DB_NAME,
                 "host": settings.DB_HOST,
+                "url": db_url,
             }
     except Exception as e:
         return {

@@ -94,14 +94,12 @@ class Product(Base):
     category = Column(String(100), default="Electronics", nullable=True)
     product_type = Column(String(50), default="Goods", nullable=False)  # 'Goods' or 'Service'
     image_url = Column(Text, nullable=True)
-    quantity_on_hand = Column(Integer, default=0, nullable=False)
     rent_price = Column(Float, default=0.0, nullable=False)
     sales_price = Column(Float, default=0.0, nullable=True)
     cost_price = Column(Float, default=0.0, nullable=True)
     is_published = Column(Boolean, default=False, nullable=False)
 
     # Sales / Rental parameters
-    periodicity = Column(String(50), default="Hours", nullable=False)  # 'Hours', 'Day', 'Night', 'Weekly'
     padding_time = Column(String(50), default="2:00 H", nullable=True)
     pickup_time = Column(String(50), default="10:00 H", nullable=True)
     return_time = Column(String(50), default="19:00 H", nullable=True)
@@ -115,4 +113,3 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     vendor = relationship("User", back_populates="products")
-

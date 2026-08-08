@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, ConfigDict
 
 
@@ -80,8 +80,21 @@ class VendorUserResponseSchema(BaseModel):
 
 
 # ==========================================
-# PRODUCT SCHEMAS
+# PRODUCT & VARIANT SCHEMAS
 # ==========================================
+
+class ProductVariantItemSchema(BaseModel):
+    id: str
+    name: str
+    price: str
+    stockQuantity: str
+    imageUrl: str
+    features: str
+
+
+class ProductAttributesJsonSchema(BaseModel):
+    variants: Optional[List[ProductVariantItemSchema]] = None
+
 
 class ProductCreateSchema(BaseModel):
     vendor_id: Optional[int] = 1
@@ -89,18 +102,16 @@ class ProductCreateSchema(BaseModel):
     category: Optional[str] = "Electronics"
     product_type: str = "Goods"  # 'Goods' or 'Service'
     image_url: Optional[str] = None
-    quantity_on_hand: int = 0
     rent_price: float = 0.0
     sales_price: Optional[float] = 0.0
     cost_price: Optional[float] = 0.0
     is_published: bool = False
-    periodicity: str = "Hours"
     padding_time: Optional[str] = "2:00 H"
     pickup_time: Optional[str] = "10:00 H"
     return_time: Optional[str] = "19:00 H"
     late_fees: Optional[float] = 0.0
     security_deposit: Optional[float] = 0.0
-    attributes_json: Optional[str] = None
+    attributes_json: Optional[str] = None  # Serialized ProductAttributesJsonSchema JSON string
 
 
 class ProductUpdateSchema(BaseModel):
@@ -108,12 +119,10 @@ class ProductUpdateSchema(BaseModel):
     category: Optional[str] = None
     product_type: Optional[str] = None
     image_url: Optional[str] = None
-    quantity_on_hand: Optional[int] = None
     rent_price: Optional[float] = None
     sales_price: Optional[float] = None
     cost_price: Optional[float] = None
     is_published: Optional[bool] = None
-    periodicity: Optional[str] = None
     padding_time: Optional[str] = None
     pickup_time: Optional[str] = None
     return_time: Optional[str] = None
@@ -129,12 +138,10 @@ class ProductResponseSchema(BaseModel):
     category: Optional[str] = "Electronics"
     product_type: str = "Goods"
     image_url: Optional[str] = None
-    quantity_on_hand: Optional[int] = 0
     rent_price: Optional[float] = 0.0
     sales_price: Optional[float] = 0.0
     cost_price: Optional[float] = 0.0
     is_published: Optional[bool] = True
-    periodicity: Optional[str] = "Hours"
     padding_time: Optional[str] = None
     pickup_time: Optional[str] = None
     return_time: Optional[str] = None
@@ -144,5 +151,3 @@ class ProductResponseSchema(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
-
-

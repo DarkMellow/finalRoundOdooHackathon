@@ -165,7 +165,6 @@ export function ProductExpansionView({
       {/* Light Theme Modal Container */}
       <div
         className="relative flex flex-col w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl animate-in zoom-in-95 duration-200"
-        className="relative flex flex-col w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
@@ -217,12 +216,11 @@ export function ProductExpansionView({
                   {/* WISHLIST BUTTON OVERLAY */}
                   <button
                     onClick={handleWishlistClick}
-                    className={`absolute top-4 right-4 flex size-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all ${localWishlist
+                    className={`absolute top-4 right-4 flex size-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all ${
+                      localWishlist
                         ? "bg-rose-50 border-rose-200 text-rose-600"
                         : "bg-white/90 border-slate-200 text-slate-700 hover:bg-white hover:text-rose-600"
-                          ? "bg-rose-50 border-rose-200 text-rose-600"
-                          : "bg-white/90 border-slate-200 text-slate-700 hover:bg-white hover:text-rose-600"
-                      }`}
+                    }`}
                     title={localWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
                   >
                     <Heart className={`size-5 transition-transform active:scale-125 ${localWishlist ? "fill-rose-500 text-rose-500" : ""}`} />
@@ -242,10 +240,11 @@ export function ProductExpansionView({
                       <button
                         key={idx}
                         onClick={() => handleImageSelect(idx)}
-                        className={`relative size-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${selectedImageIndex === idx
+                        className={`relative size-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                          selectedImageIndex === idx
                             ? "border-purple-600 ring-2 ring-purple-500/20 scale-105"
                             : "border-slate-200 opacity-75 hover:opacity-100"
-                          }`}
+                        }`}
                       >
                         <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="size-full object-cover" />
                       </button>
@@ -333,17 +332,19 @@ export function ProductExpansionView({
                           <div
                             key={v.id}
                             onClick={() => handleVariantSelect(v)}
-                            className={`flex items-center justify-between p-3.5 cursor-pointer transition-colors ${isSelected
+                            className={`flex items-center justify-between p-3.5 cursor-pointer transition-colors ${
+                              isSelected
                                 ? "bg-purple-50/80 font-semibold text-slate-900 border-l-4 border-l-purple-600"
                                 : "hover:bg-slate-50 text-slate-800"
-                              }`}
+                            }`}
                           >
                             <div className="flex items-center gap-3">
                               <div
-                                className={`flex size-5 items-center justify-center rounded-full border text-[11px] font-bold ${isSelected
+                                className={`flex size-5 items-center justify-center rounded-full border text-[11px] font-bold ${
+                                  isSelected
                                     ? "border-purple-600 bg-purple-600 text-white"
                                     : "border-slate-300 text-slate-400"
-                                  }`}
+                                }`}
                               >
                                 {index + 1}
                               </div>
@@ -351,10 +352,11 @@ export function ProductExpansionView({
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-bold text-slate-900">{v.name}</span>
                                   <span
-                                    className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${v.inStock
+                                    className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${
+                                      v.inStock
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                         : "bg-rose-50 text-rose-700 border-rose-200"
-                                      }`}
+                                    }`}
                                   >
                                     {v.inStock ? `${v.stockQuantity} in stock` : "Out of stock"}
                                   </span>
@@ -441,16 +443,14 @@ export function ProductExpansionView({
                 {addedToast && (
                   <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
                     <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-                      <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                      <span>Item added to cart successfully!</span>
-                    </div>
-                )}
+                    <span>Item added to cart successfully!</span>
                   </div>
+                )}
+              </div>
             </div>
           )}
-            </div>
+        </div>
       </div>
-      </div>
-      )
+    </div>
+  )
 }

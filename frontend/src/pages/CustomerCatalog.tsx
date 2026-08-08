@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { fetchProducts } from "@/lib/api"
+import { fetchProducts, getLoggedCustomer, type CustomerUser } from "@/lib/api"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
 import { CartCheckout } from "@/pages/CartCheckout"
 import { Wishlist } from "@/pages/Wishlist"
@@ -48,6 +48,7 @@ const ALL_CATALOG_TAGS = [
 ]
 export function CustomerCatalog() {
   const navigate = useNavigate()
+  const [loggedCustomer, setLoggedCustomer] = useState<CustomerUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTag, setSelectedTag] = useState<string>("All Tags")
   const [selectedBrand, setSelectedBrand] = useState<string>("all")
@@ -65,6 +66,22 @@ export function CustomerCatalog() {
   const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false)
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState<boolean>(false)
+
+  // Load logged customer user
+  useEffect(() => {
+    const user = getLoggedCustomer()
+    setLoggedCustomer(user)
+  }, [])
+
+  const userFullName = loggedCustomer?.full_name || "Jane Doe"
+  const userEmail = loggedCustomer?.email || "jane.doe@example.com"
+  const userInitials = userFullName
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "JD"
 
   // Load live database products from all vendors
   useEffect(() => {
@@ -222,63 +239,68 @@ export function CustomerCatalog() {
                 className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 pr-2.5 hover:bg-slate-50 transition-colors shadow-xs"
               >
                 <div className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-white font-bold text-xs">
-                  JD
+                  {userInitials}
                 </div>
                 <ChevronDown className="size-3.5 text-slate-500" />
               </button>
 
               {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 text-xs z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl p-2 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                    <p className="font-bold text-slate-900">Jane Doe</p>
-                    <p className="text-[10px] text-slate-500">jane.doe@example.com</p>
+                    <p className="font-bold text-slate-900 text-sm">{userFullName}</p>
+                    <p className="text-[11px] text-slate-500">{userEmail}</p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false)
-                      alert("My Profile clicked")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <User className="size-3.5 text-blue-600" />
-                    <span>My account / My Profile</span>
-                  </button>
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        alert(`Account / Profile for ${userFullName}`)
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
+                    >
+                      <User className="size-4 text-blue-600" />
+                      <span>My account / My Profile</span>
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false)
-                      alert("My Orders clicked")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <Package className="size-3.5 text-indigo-600" />
-                    <span>My Orders</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        alert("Navigating to My Orders")
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
+                    >
+                      <Package className="size-4 text-purple-600" />
+                      <span>My Orders</span>
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false)
-                      alert("Settings clicked")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <SettingsIcon className="size-3.5 text-slate-500" />
-                    <span>Settings</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        alert("Settings clicked")
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
+                    >
+                      <SettingsIcon className="size-4 text-slate-500" />
+                      <span>Settings</span>
+                    </button>
+                  </div>
 
-                  <div className="border-t border-slate-100 my-1" />
-
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem("user")
-                      navigate("/customer/signin")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-semibold"
-                  >
-                    <LogOut className="size-3.5" />
-                    <span>Logout</span>
-                  </button>
+                  <div className="pt-1 mt-1 border-t border-slate-100">
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem("user")
+                        localStorage.removeItem("customer_user")
+                        setLoggedCustomer(null)
+                        setUserDropdownOpen(false)
+                        navigate("/customer/signin")
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-rose-600 font-bold hover:bg-rose-50 transition-colors text-left"
+                    >
+                      <LogOut className="size-4 text-rose-600" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

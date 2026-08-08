@@ -155,6 +155,18 @@ export function getLoggedVendor(): VendorUser | null {
   return null
 }
 
+export function getLoggedCustomer(): CustomerUser | null {
+  try {
+    const data = localStorage.getItem("user") || localStorage.getItem("customer_user")
+    if (data) {
+      return JSON.parse(data)
+    }
+  } catch (err) {
+    console.warn("Failed to parse user from localStorage:", err)
+  }
+  return null
+}
+
 export async function fetchProducts(vendorId?: number): Promise<ApiProduct[]> {
   const url = vendorId
     ? `${API_BASE_URL}/api/v1/products?vendor_id=${vendorId}`

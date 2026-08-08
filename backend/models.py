@@ -27,6 +27,7 @@ class User(Base):
     wishlist = relationship("Wishlist", back_populates="user", uselist=False, cascade="all, delete-orphan")
     addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
     cards = relationship("UserCard", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
 
 
 class CustomerProfile(Base):
@@ -189,6 +190,30 @@ class Wishlist(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="wishlist")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    reference = Column(String(50), nullable=False, unique=True, index=True)
+    status = Column(String(50), default="Active", nullable=False)
+    order_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    start_date = Column(String(50), nullable=False)
+    end_date = Column(String(50), nullable=False)
+    total_hours = Column(Integer, default=24, nullable=False)
+    subtotal = Column(Float, default=0.0, nullable=False)
+    discount = Column(Float, default=0.0, nullable=False)
+    total = Column(Float, default=0.0, nullable=False)
+    delivery_address = Column(String(255), nullable=False)
+    payment_method = Column(String(100), nullable=False)
+    items_json = Column(Text, nullable=False)  # JSON serialized array of ordered items
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="orders")
+
 
 
 

@@ -21,6 +21,9 @@ const INVOICE_PREVIEW_SIZE = 2
 type ProfileModalType = "rented" | "history" | "invoices" | null
 
 function PaymentMethodsList({ methods }: { methods: PaymentMethod[] }) {
+  if (methods.length === 0) {
+    return <p className="text-xs text-slate-400 font-medium">No saved cards</p>
+  }
   return (
     <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
       {methods.map((method) => (

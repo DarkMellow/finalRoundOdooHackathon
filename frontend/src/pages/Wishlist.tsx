@@ -73,13 +73,14 @@ export function Wishlist({
     }
     try {
       await addItemToCart({
-        id: product.id,
-        name: product.title,
-        hourlyRate: Math.max(10, Math.round(product.price / 24)),
-        image: product.image,
+        productId: product.id,
         variantId: `${product.id}-default`,
-        variantTitle: "Standard",
-        durationHours: 24,
+        quantity: 1,
+        title: product.title,
+        brand: "Verified Equipment",
+        image: product.image,
+        hourlyRate: Math.max(1, Math.round(product.price / 24)),
+        variantName: "Standard",
       })
     } catch (err) {
       console.warn("Failed to add wishlisted item to cart:", err)

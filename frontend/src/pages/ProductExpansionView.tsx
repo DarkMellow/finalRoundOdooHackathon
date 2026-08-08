@@ -102,7 +102,7 @@ export function ProductExpansionView({
   const handleAddToCartClick = async () => {
     if (!product) return
 
-    const rentPrice = selectedVariant?.price || product.rentPrice || 60
+    const rentPrice = selectedVariant?.rentPrice || product.rentPrice || 60
     const hourlyRate = Math.max(1, Math.round((rentPrice / 24) * 10) / 10)
 
     try {

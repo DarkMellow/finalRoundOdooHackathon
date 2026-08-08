@@ -195,6 +195,8 @@ export function CustomerCatalog() {
       product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
 
+    if (!matchesSearch) return false
+
     // Primary tag / class filter matching
     if (selectedTag !== "All Tags") {
       const isMatch =
@@ -305,7 +307,13 @@ export function CustomerCatalog() {
 
               {userDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl p-2 text-xs z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                  <div
+                    onClick={() => {
+                      setUserDropdownOpen(false)
+                      navigate("/customer/profile")
+                    }}
+                    className="px-3 py-2 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 transition-colors rounded-t-xl"
+                  >
                     <p className="font-bold text-slate-900 text-sm">{userFullName}</p>
                     <p className="text-[11px] text-slate-500">{userEmail}</p>
                   </div>
@@ -314,9 +322,9 @@ export function CustomerCatalog() {
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false)
-                        alert(`Account / Profile for ${userFullName}`)
+                        navigate("/customer/profile")
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left cursor-pointer"
                     >
                       <User className="size-4 text-blue-600" />
                       <span>My account / My Profile</span>

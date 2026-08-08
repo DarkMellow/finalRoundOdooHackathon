@@ -16,50 +16,68 @@ import {
   ChevronRight,
   Check,
   Star,
+  Tag,
 } from "lucide-react"
 
 interface Product {
   id: string
   title: string
-  category: string
+  description: string
+  category: string // Primary Tag / Class
   brand: string
   image: string
   price: number
   billingPeriod: "per Month" | "per day" | "per hour"
   colorVariants?: string[] // hex values
   sizeVariants?: string[] // e.g. ["43\"", "55\"", "65\""]
+  tags: string[]
   inStock: boolean
   rating: number
 }
+
+const ALL_CATALOG_TAGS = [
+  "All Tags",
+  "Furniture",
+  "Electronics",
+  "Computers",
+  "Gaming",
+  "Audio",
+  "Photography",
+]
 
 const PRODUCTS: Product[] = [
   {
     id: "p1",
     title: "Nordic Fabric 3-Seater Sofa",
+    description: "Premium ergonomic linen upholstery with high-density foam cushioning for living spaces.",
     category: "Furniture",
     brand: "IKEA",
     image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80",
     price: 49,
     billingPeriod: "per Month",
     colorVariants: ["#3b82f6", "#eab308", "#64748b"],
+    tags: ["Furniture", "Living Room", "Sofa", "Luxury"],
     inStock: true,
     rating: 4.8,
   },
   {
     id: "p2",
     title: "Solid Teak Executive Workstation",
+    description: "Crafted solid hardwood desk featuring integrated cable management and dual drawer locks.",
     category: "Furniture",
     brand: "Herman Miller",
     image: "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=600&q=80",
     price: 35,
     billingPeriod: "per Month",
     colorVariants: ["#78350f", "#1e293b"],
+    tags: ["Furniture", "Office", "Desk", "Teak"],
     inStock: true,
     rating: 4.9,
   },
   {
     id: "p3",
     title: "Ultra HD 4K Smart OLED TV",
+    description: "Cinematic 120Hz OLED display with Dolby Atmos surround audio and native HDR10+ support.",
     category: "Electronics",
     brand: "Sony",
     image: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=600&q=80",
@@ -67,78 +85,91 @@ const PRODUCTS: Product[] = [
     billingPeriod: "per day",
     colorVariants: ["#0f172a"],
     sizeVariants: ["43\"", "55\"", "65\""],
+    tags: ["Electronics", "Entertainment", "Smart TV", "4K OLED"],
     inStock: true,
     rating: 4.7,
   },
   {
     id: "p4",
     title: "Pro Workstation Desktop PC",
+    description: "High-performance Intel i9 rig equipped with 64GB DDR5 RAM & RTX 4080 GPU for rendering.",
     category: "Computers",
     brand: "Dell",
     image: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
     price: 25,
     billingPeriod: "per day",
     colorVariants: ["#0f172a", "#475569"],
+    tags: ["Computers", "Workstation", "Office", "PC"],
     inStock: true,
     rating: 4.6,
   },
   {
     id: "p5",
     title: "High Performance Gaming Laptop",
+    description: "Portable powerhouse with QHD 240Hz screen, per-key RGB keyboard, and vapor cooling.",
     category: "Computers",
     brand: "ASUS",
     image: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=600&q=80",
     price: 18,
     billingPeriod: "per day",
     colorVariants: ["#111827"],
+    tags: ["Computers", "Gaming", "Laptop"],
     inStock: true,
     rating: 4.9,
   },
   {
     id: "p6",
     title: "Next-Gen Gaming Console",
+    description: "Ultra-fast custom SSD console bundled with 2 wireless haptic controllers & 4K Ray Tracing.",
     category: "Gaming",
     brand: "Sony",
     image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=600&q=80",
     price: 5,
     billingPeriod: "per hour",
     colorVariants: ["#ffffff", "#000000"],
+    tags: ["Gaming", "Entertainment", "Console"],
     inStock: true,
     rating: 4.9,
   },
   {
     id: "p7",
     title: "Luxury King Velvet Bed Set",
+    description: "Plush tufted velvet headboard frame paired with orthopedic memory foam mattress.",
     category: "Furniture",
     brand: "Ashley",
     image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80",
     price: 79,
     billingPeriod: "per Month",
     colorVariants: ["#6b7280", "#1e1b4b"],
+    tags: ["Furniture", "Luxury", "Bedroom", "Bed"],
     inStock: false,
     rating: 4.8,
   },
   {
     id: "p8",
     title: "Hi-Fi Studio Surround Sound",
+    description: "Active noise-calibrated 5.1 wireless surround sound monitors with deep bass subwoofer.",
     category: "Audio",
     brand: "Bose",
     image: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80",
     price: 12,
     billingPeriod: "per day",
     colorVariants: ["#18181b"],
+    tags: ["Audio", "Studio", "Speakers", "Entertainment"],
     inStock: true,
     rating: 4.7,
   },
   {
     id: "p9",
     title: "Professional DSLR Mirrorless Camera",
+    description: "Full-frame 45MP sensor with 8K RAW video recording and dual pixel autofocus system.",
     category: "Photography",
     brand: "Canon",
     image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
     price: 8,
     billingPeriod: "per hour",
     colorVariants: ["#09090b"],
+    tags: ["Photography", "Studio", "Camera"],
     inStock: true,
     rating: 4.9,
   },
@@ -156,13 +187,13 @@ const COLOR_OPTIONS = [
 export function CustomerCatalog() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedTag, setSelectedTag] = useState<string>("All Tags")
   const [selectedBrand, setSelectedBrand] = useState<string>("all")
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
-  const [selectedDuration, setSelectedDuration] = useState<string>("All Duration")
   const [priceMax, setPriceMax] = useState<number>(100)
 
   const [wishlist, setWishlist] = useState<string[]>([])
-  const [cart, setCart] = useState<{ id: string; quantity: number }[]>([
+  const [cart] = useState<{ id: string; quantity: number }[]>([
     { id: "p1", quantity: 1 },
   ])
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
@@ -177,24 +208,25 @@ export function CustomerCatalog() {
     }
   }
 
-  // Toggle cart
-  const addToCart = (id: string) => {
-    const existing = cart.find((item) => item.id === id)
-    if (existing) {
-      setCart(cart.map((item) => (item.id === id ? { ...item, quantity: item.quantity + 1 } : item)))
-    } else {
-      setCart([...cart, { id, quantity: 1 }])
-    }
-  }
-
-  // Filter products
+  // Filter products by search query, brand, price, AND primary tag / category
   const filteredProducts = PRODUCTS.filter((product) => {
     const matchesSearch =
       product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase())
+      product.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
 
     if (!matchesSearch) return false
+
+    // Primary tag / class filter matching
+    if (selectedTag !== "All Tags") {
+      const isMatch =
+        product.category.toLowerCase() === selectedTag.toLowerCase() ||
+        product.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
+      if (!isMatch) return false
+    }
+
     if (selectedBrand !== "all" && product.brand !== selectedBrand) return false
     if (product.price > priceMax) return false
 
@@ -214,16 +246,13 @@ export function CustomerCatalog() {
               <div className="flex size-9 items-center justify-center rounded-xl bg-blue-600 text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
                 <Building2 className="size-5" />
               </div>
-              <span className="font-bold text-base tracking-tight text-slate-900">Your Logo</span>
+              <span className="font-bold text-base tracking-tight text-slate-900">EasyRental</span>
             </Link>
 
             <nav className="hidden md:flex items-center space-x-1 text-xs font-semibold">
               <Link to="/customer/catalog" className="px-3 py-2 rounded-lg bg-slate-100 text-blue-600 font-bold">
                 Products
               </Link>
-              <a href="#terms" onClick={(e) => e.preventDefault()} className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
-                Terms & Condition
-              </a>
               <a href="#about" onClick={(e) => e.preventDefault()} className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
                 About us
               </a>
@@ -237,7 +266,7 @@ export function CustomerCatalog() {
           <div className="relative flex-1 max-w-md hidden sm:block">
             <Input
               type="text"
-              placeholder="Search products, brands..."
+              placeholder="Search products, catalog tags, brands..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pr-10 pl-3 h-9 bg-slate-100/70 border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-blue-500"
@@ -351,19 +380,20 @@ export function CustomerCatalog() {
       {/* ========================================================================= */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col md:flex-row gap-6">
         {/* ========================================================================= */}
-        {/* LEFT SIDEBAR FILTERS (Wireframe matching: Brand, Color, Duration, Price Range) */}
+        {/* LEFT SIDEBAR FILTERS */}
         {/* ========================================================================= */}
         <aside className="w-full md:w-64 shrink-0 space-y-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs h-fit">
+          {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h2 className="font-bold text-slate-900 text-sm flex items-center gap-2">
               <SlidersHorizontal className="size-4 text-blue-600" />
-              <span>Filters</span>
+              <span>Catalog Filters</span>
             </h2>
             <button
               onClick={() => {
+                setSelectedTag("All Tags")
                 setSelectedBrand("all")
                 setSelectedColor(null)
-                setSelectedDuration("All Duration")
                 setPriceMax(100)
                 setSearchQuery("")
               }}
@@ -372,6 +402,43 @@ export function CustomerCatalog() {
               Reset All
             </button>
           </div>
+
+          {/* TOP LEFT CATALOG TAG FILTER */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Tag className="size-3.5 text-blue-600" />
+                <span>Catalog Tag / Class</span>
+              </label>
+              {selectedTag !== "All Tags" && (
+                <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </div>
+
+            {/* Catalog Tag Selector Pills */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {ALL_CATALOG_TAGS.map((tag) => {
+                const isActive = selectedTag === tag
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTag(isActive ? "All Tags" : tag)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                      isActive
+                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-2" />
 
           {/* 1. Brand Filter */}
           <div className="space-y-2">
@@ -418,26 +485,7 @@ export function CustomerCatalog() {
             </div>
           </div>
 
-          {/* 3. Duration Filter */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-              Duration
-            </label>
-            <select
-              value={selectedDuration}
-              onChange={(e) => setSelectedDuration(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 cursor-pointer"
-            >
-              <option value="All Duration">All Duration</option>
-              <option value="1 Month">1 Month</option>
-              <option value="6 Month">6 Month</option>
-              <option value="1 Year">1 Year</option>
-              <option value="2 Years">2 Years</option>
-              <option value="3 Years">3 Years</option>
-            </select>
-          </div>
-
-          {/* 4. Price Range Filter */}
+          {/* 3. Price Range Filter */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-slate-700 uppercase tracking-wider">Price Range</span>
@@ -464,9 +512,17 @@ export function CustomerCatalog() {
         <section className="flex-1 space-y-6">
           {/* Top Bar Summary */}
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Featured Products ({filteredProducts.length})
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                Featured Products ({filteredProducts.length})
+              </h1>
+              {selectedTag !== "All Tags" && (
+                <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center gap-1">
+                  <Tag className="size-3" />
+                  <span>{selectedTag}</span>
+                </span>
+              )}
+            </div>
             <span className="text-xs text-slate-500">
               Showing page <span className="font-bold text-slate-800">1</span> of 1
             </span>
@@ -476,7 +532,7 @@ export function CustomerCatalog() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredProducts.length === 0 ? (
               <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
-                No products match your selected filter criteria.
+                No products match your selected catalog tag or filter criteria.
               </div>
             ) : (
               filteredProducts.map((product) => {
@@ -494,10 +550,20 @@ export function CustomerCatalog() {
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
 
+                      {/* TOP LEFT PRIMARY CATALOG TAG / CLASS BADGE */}
+                      <div className="absolute top-2.5 left-2.5 z-10">
+                        <button
+                          onClick={() => setSelectedTag(product.category)}
+                          className="px-2.5 py-1 rounded-md bg-slate-900/85 hover:bg-blue-600 text-white font-bold text-[10px] uppercase tracking-wider backdrop-blur-md shadow-xs transition-colors border border-white/20"
+                        >
+                          {product.category}
+                        </button>
+                      </div>
+
                       {/* Wishlist Button Overlay */}
                       <button
                         onClick={() => toggleWishlist(product.id)}
-                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 flex items-center justify-center text-slate-700 hover:text-rose-600 transition-colors shadow-xs"
+                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 flex items-center justify-center text-slate-700 hover:text-rose-600 transition-colors shadow-xs z-10"
                       >
                         <Heart
                           className={`size-4 ${
@@ -508,16 +574,16 @@ export function CustomerCatalog() {
 
                       {/* Out of Stock Overlay Badge */}
                       {!product.inStock && (
-                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-20">
                           <span className="px-3 py-1 rounded-full bg-slate-800 text-white font-bold text-xs uppercase tracking-wider border border-slate-700">
                             Out of stock
                           </span>
                         </div>
                       )}
 
-                      {/* Size Variants Badge (Wireframe annotation: 36, 42 & 55 inch TV) */}
+                      {/* Size Variants Badge */}
                       {product.sizeVariants && (
-                        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1">
+                        <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 z-10">
                           {product.sizeVariants.map((size, idx) => (
                             <span
                               key={idx}
@@ -532,7 +598,7 @@ export function CustomerCatalog() {
 
                     {/* Content Section */}
                     <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
                           <span>{product.brand}</span>
                           <div className="flex items-center gap-1 text-amber-500">
@@ -540,26 +606,19 @@ export function CustomerCatalog() {
                             <span className="font-bold text-slate-700">{product.rating}</span>
                           </div>
                         </div>
+
                         <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors line-clamp-1">
                           {product.title}
                         </h3>
+
+                        {/* Product Description */}
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed font-normal">
+                          {product.description}
+                        </p>
                       </div>
 
-                      {/* Color Swatches (Wireframe matching: Show variant images / color dots) */}
-                      {product.colorVariants && (
-                        <div className="flex items-center gap-1.5 pt-1">
-                          {product.colorVariants.map((hex, idx) => (
-                            <div
-                              key={idx}
-                              style={{ backgroundColor: hex }}
-                              className="size-3.5 rounded-full border border-slate-300"
-                            />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Price & Billing Period (Wireframe matching: Rs. xx / per Month, per day, per hour) */}
-                      <div className="flex items-baseline justify-between pt-2 border-t border-slate-100">
+                      {/* Price & Billing Period */}
+                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
                         <div>
                           <span className="font-mono text-base font-extrabold text-slate-900">
                             ${product.price}
@@ -569,13 +628,18 @@ export function CustomerCatalog() {
                           </span>
                         </div>
 
-                        <button
-                          onClick={() => addToCart(product.id)}
-                          disabled={!product.inStock}
-                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold text-xs shadow-xs transition-colors"
-                        >
-                          Rent Now
-                        </button>
+                        {/* Color Swatches */}
+                        {product.colorVariants && (
+                          <div className="flex items-center gap-1">
+                            {product.colorVariants.map((hex, idx) => (
+                              <div
+                                key={idx}
+                                style={{ backgroundColor: hex }}
+                                className="size-3.5 rounded-full border border-slate-300"
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -585,7 +649,7 @@ export function CustomerCatalog() {
           </div>
 
           {/* ========================================================================= */}
-          {/* PAGINATION CONTROLS (Wireframe matching: [<] [1] [2] ... [>]) */}
+          {/* PAGINATION CONTROLS */}
           {/* ========================================================================= */}
           <div className="flex items-center justify-center gap-2 pt-6">
             <button

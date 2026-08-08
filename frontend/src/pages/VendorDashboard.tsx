@@ -216,7 +216,7 @@ export function VendorDashboard() {
               <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
                 <Building2 className="size-4" />
               </div>
-              <span className="font-bold text-sm tracking-tight text-slate-900">Your Logo</span>
+              <span className="font-bold text-sm tracking-tight text-slate-900">EasyRental</span>
             </Link>
 
             <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-medium">

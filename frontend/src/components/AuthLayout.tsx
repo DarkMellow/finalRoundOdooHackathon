@@ -79,7 +79,7 @@ export function AuthLayout({
           <div className="relative z-10 flex items-center justify-between border-t border-white/15 pt-4 text-xs text-white/70">
             <div className="flex items-center gap-2">
               <Building2 className="size-4 text-white/80" />
-              <span>RentalSuite Platform</span>
+              <span>EasyRental Platform</span>
             </div>
             <div className="flex items-center gap-1 font-mono text-[10px]">
               <Sparkles className="size-3 text-amber-300" />

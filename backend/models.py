@@ -91,6 +91,7 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     vendor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(200), nullable=False)
+    category = Column(String(100), default="Electronics", nullable=True)
     product_type = Column(String(50), default="Goods", nullable=False)  # 'Goods' or 'Service'
     image_url = Column(Text, nullable=True)
     quantity_on_hand = Column(Integer, default=0, nullable=False)

@@ -14,10 +14,27 @@ import {
   Layers,
   Clock,
   Loader2,
+  Search,
+  ChevronDown,
+  Tag,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { fetchProductById, createProduct, updateProduct, getLoggedVendor } from "@/lib/api"
+
+const AVAILABLE_TAGS = [
+  "Electronics",
+  "Computers",
+  "Furniture",
+  "Gaming",
+  "Audio",
+  "Photography",
+  "Office",
+  "Living Room",
+  "Luxury",
+  "Vehicles",
+  "Services",
+]
 
 interface AttributeRow {
   id: string
@@ -37,6 +54,9 @@ export function VendorAddProduct() {
 
   // Product Form State
   const [name, setName] = useState("Computers")
+  const [category, setCategory] = useState("Electronics")
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
+  const [tagSearchQuery, setTagSearchQuery] = useState("")
   const [productType, setProductType] = useState<"Goods" | "Service">("Goods")
   const [imageUrl, setImageUrl] = useState("https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80")
   const [showImageUrlModal, setShowImageUrlModal] = useState(false)
@@ -66,6 +86,7 @@ export function VendorAddProduct() {
       fetchProductById(id)
         .then((product) => {
           setName(product.name || "")
+          setCategory(product.category || "Electronics")
           setProductType(product.product_type || "Goods")
           setImageUrl(product.image_url || "")
           setQuantityOnHand(product.quantity_on_hand !== undefined ? String(Math.round(product.quantity_on_hand)) : "0")
@@ -126,6 +147,7 @@ export function VendorAddProduct() {
     const payload: any = {
       vendor_id: loggedVendor?.id || 1,
       name,
+      category,
       product_type: productType,
       image_url: imageUrl,
       quantity_on_hand: parseInt(quantityOnHand, 10) || 0,
@@ -337,6 +359,114 @@ export function VendorAddProduct() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Product Category Tag Searchable Dropdown */}
+              <div className="col-span-full space-y-2">
+                <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Tag className="size-3.5 text-purple-600" />
+                    <span>Product Category Tag</span>
+                  </span>
+                  <span className="text-[11px] text-purple-600 font-medium">Searchable tag dropdown for catalog filtering</span>
+                </label>
+
+                <div className="relative max-w-md">
+                  {/* Trigger Button / Input Bar */}
+                  <div
+                    onClick={() => setTagDropdownOpen(!tagDropdownOpen)}
+                    className="flex items-center justify-between gap-2 h-10 px-3 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 cursor-pointer hover:border-purple-400 focus-within:ring-2 focus-within:ring-purple-500/20 shadow-xs transition-all"
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-purple-100 text-purple-800 font-bold text-xs shrink-0 border border-purple-200">
+                        {category || "Electronics"}
+                      </span>
+                      <span className="text-slate-400 text-[11px] truncate">
+                        Click to search or select category tag
+                      </span>
+                    </div>
+                    <ChevronDown className={`size-4 text-slate-400 transition-transform ${tagDropdownOpen ? "rotate-180 text-purple-600" : ""}`} />
+                  </div>
+
+                  {/* Dropdown Menu */}
+                  {tagDropdownOpen && (
+                    <>
+                      {/* Backdrop click outside detector */}
+                      <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setTagDropdownOpen(false)}
+                      />
+
+                      <div className="absolute left-0 right-0 top-11 z-30 rounded-xl border border-slate-200 bg-white p-2 shadow-xl space-y-2 animate-in fade-in slide-in-from-top-2">
+                        {/* Search Bar Input inside Dropdown */}
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 size-3.5 text-slate-400" />
+                          <Input
+                            type="text"
+                            placeholder="Search tag or type custom tag..."
+                            value={tagSearchQuery}
+                            onChange={(e) => setTagSearchQuery(e.target.value)}
+                            className="h-8 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 rounded-lg text-slate-900 focus-visible:ring-purple-500 font-medium"
+                            autoFocus
+                          />
+                        </div>
+
+                        {/* Tag Options List */}
+                        <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
+                          {AVAILABLE_TAGS.filter((t) =>
+                            t.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                          ).map((tag) => {
+                            const isSelected = category === tag
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => {
+                                  setCategory(tag)
+                                  setTagDropdownOpen(false)
+                                  setTagSearchQuery("")
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${
+                                  isSelected
+                                    ? "bg-purple-600 text-white font-bold"
+                                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                                }`}
+                              >
+                                <span>{tag}</span>
+                                {isSelected && <Check className="size-3.5" />}
+                              </button>
+                            )
+                          })}
+
+                          {/* Custom Tag Option if search query is not exact match */}
+                          {tagSearchQuery.trim() !== "" &&
+                            !AVAILABLE_TAGS.some((t) => t.toLowerCase() === tagSearchQuery.trim().toLowerCase()) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCategory(tagSearchQuery.trim())
+                                  setTagDropdownOpen(false)
+                                  setTagSearchQuery("")
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 text-left transition-colors"
+                              >
+                                <Plus className="size-3.5" />
+                                <span>Use custom tag "{tagSearchQuery.trim()}"</span>
+                              </button>
+                            )}
+
+                          {AVAILABLE_TAGS.filter((t) =>
+                            t.toLowerCase().includes(tagSearchQuery.toLowerCase())
+                          ).length === 0 &&
+                            tagSearchQuery.trim() === "" && (
+                              <div className="p-3 text-center text-slate-400 text-xs font-medium">
+                                No matching tags found.
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
               {/* Product Type (Goods vs Service) */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-700 block">Product Type</label>

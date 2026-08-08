@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { fetchProducts } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import {
   Building2,
@@ -45,136 +46,6 @@ const ALL_CATALOG_TAGS = [
   "Photography",
 ]
 
-const PRODUCTS: Product[] = [
-  {
-    id: "p1",
-    title: "Nordic Fabric 3-Seater Sofa",
-    description: "Premium ergonomic linen upholstery with high-density foam cushioning for living spaces.",
-    category: "Furniture",
-    brand: "IKEA",
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80",
-    price: 49,
-    billingPeriod: "per Month",
-    colorVariants: ["#3b82f6", "#eab308", "#64748b"],
-    tags: ["Furniture", "Living Room", "Sofa", "Luxury"],
-    inStock: true,
-    rating: 4.8,
-  },
-  {
-    id: "p2",
-    title: "Solid Teak Executive Workstation",
-    description: "Crafted solid hardwood desk featuring integrated cable management and dual drawer locks.",
-    category: "Furniture",
-    brand: "Herman Miller",
-    image: "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=600&q=80",
-    price: 35,
-    billingPeriod: "per Month",
-    colorVariants: ["#78350f", "#1e293b"],
-    tags: ["Furniture", "Office", "Desk", "Teak"],
-    inStock: true,
-    rating: 4.9,
-  },
-  {
-    id: "p3",
-    title: "Ultra HD 4K Smart OLED TV",
-    description: "Cinematic 120Hz OLED display with Dolby Atmos surround audio and native HDR10+ support.",
-    category: "Electronics",
-    brand: "Sony",
-    image: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=600&q=80",
-    price: 15,
-    billingPeriod: "per day",
-    colorVariants: ["#0f172a"],
-    sizeVariants: ["43\"", "55\"", "65\""],
-    tags: ["Electronics", "Entertainment", "Smart TV", "4K OLED"],
-    inStock: true,
-    rating: 4.7,
-  },
-  {
-    id: "p4",
-    title: "Pro Workstation Desktop PC",
-    description: "High-performance Intel i9 rig equipped with 64GB DDR5 RAM & RTX 4080 GPU for rendering.",
-    category: "Computers",
-    brand: "Dell",
-    image: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
-    price: 25,
-    billingPeriod: "per day",
-    colorVariants: ["#0f172a", "#475569"],
-    tags: ["Computers", "Workstation", "Office", "PC"],
-    inStock: true,
-    rating: 4.6,
-  },
-  {
-    id: "p5",
-    title: "High Performance Gaming Laptop",
-    description: "Portable powerhouse with QHD 240Hz screen, per-key RGB keyboard, and vapor cooling.",
-    category: "Computers",
-    brand: "ASUS",
-    image: "https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=600&q=80",
-    price: 18,
-    billingPeriod: "per day",
-    colorVariants: ["#111827"],
-    tags: ["Computers", "Gaming", "Laptop"],
-    inStock: true,
-    rating: 4.9,
-  },
-  {
-    id: "p6",
-    title: "Next-Gen Gaming Console",
-    description: "Ultra-fast custom SSD console bundled with 2 wireless haptic controllers & 4K Ray Tracing.",
-    category: "Gaming",
-    brand: "Sony",
-    image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=600&q=80",
-    price: 5,
-    billingPeriod: "per hour",
-    colorVariants: ["#ffffff", "#000000"],
-    tags: ["Gaming", "Entertainment", "Console"],
-    inStock: true,
-    rating: 4.9,
-  },
-  {
-    id: "p7",
-    title: "Luxury King Velvet Bed Set",
-    description: "Plush tufted velvet headboard frame paired with orthopedic memory foam mattress.",
-    category: "Furniture",
-    brand: "Ashley",
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80",
-    price: 79,
-    billingPeriod: "per Month",
-    colorVariants: ["#6b7280", "#1e1b4b"],
-    tags: ["Furniture", "Luxury", "Bedroom", "Bed"],
-    inStock: false,
-    rating: 4.8,
-  },
-  {
-    id: "p8",
-    title: "Hi-Fi Studio Surround Sound",
-    description: "Active noise-calibrated 5.1 wireless surround sound monitors with deep bass subwoofer.",
-    category: "Audio",
-    brand: "Bose",
-    image: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80",
-    price: 12,
-    billingPeriod: "per day",
-    colorVariants: ["#18181b"],
-    tags: ["Audio", "Studio", "Speakers", "Entertainment"],
-    inStock: true,
-    rating: 4.7,
-  },
-  {
-    id: "p9",
-    title: "Professional DSLR Mirrorless Camera",
-    description: "Full-frame 45MP sensor with 8K RAW video recording and dual pixel autofocus system.",
-    category: "Photography",
-    brand: "Canon",
-    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
-    price: 8,
-    billingPeriod: "per hour",
-    colorVariants: ["#09090b"],
-    tags: ["Photography", "Studio", "Camera"],
-    inStock: true,
-    rating: 4.9,
-  },
-]
-
 const COLOR_OPTIONS = [
   { name: "Teal", hex: "#0d9488" },
   { name: "Purple", hex: "#a855f7" },
@@ -190,7 +61,7 @@ export function CustomerCatalog() {
   const [selectedTag, setSelectedTag] = useState<string>("All Tags")
   const [selectedBrand, setSelectedBrand] = useState<string>("all")
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
-  const [priceMax, setPriceMax] = useState<number>(100)
+  const [priceMax, setPriceMax] = useState<number>(2000)
 
   const [wishlist, setWishlist] = useState<string[]>([])
   const [cart] = useState<{ id: string; quantity: number }[]>([
@@ -198,6 +69,40 @@ export function CustomerCatalog() {
   ])
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+
+  const [dbProducts, setDbProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load live database products from all vendors
+  useEffect(() => {
+    setLoading(true)
+    fetchProducts()
+      .then((items) => {
+        // Filter only published products for customer catalog
+        const publishedItems = items.filter((item) => item.is_published !== false)
+        const mapped: Product[] = publishedItems.map((item) => ({
+          id: `db-${item.id}`,
+          title: item.name,
+          description: `Vendor Product #${item.id} • ${item.product_type} (${item.periodicity} rental rate)`,
+          category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
+          brand: `Vendor #${item.vendor_id}`,
+          image: item.image_url || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
+          price: item.rent_price || item.sales_price || 0,
+          billingPeriod: item.periodicity === "Day" ? "per day" : item.periodicity === "Hours" ? "per hour" : "per Month",
+          tags: [item.category || "Electronics", item.product_type, item.periodicity, `Vendor #${item.vendor_id}`],
+          inStock: (item.quantity_on_hand || 0) > 0,
+          rating: 5.0,
+        }))
+        setDbProducts(mapped)
+      })
+      .catch((err) => {
+        console.warn("Could not fetch database products for catalog:", err)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Only display actual products from database across all vendors
+  const allProducts = dbProducts
 
   // Toggle wishlist
   const toggleWishlist = (id: string) => {
@@ -209,7 +114,7 @@ export function CustomerCatalog() {
   }
 
   // Filter products by search query, brand, price, AND primary tag / category
-  const filteredProducts = PRODUCTS.filter((product) => {
+  const filteredProducts = allProducts.filter((product) => {
     const matchesSearch =
       product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -228,7 +133,7 @@ export function CustomerCatalog() {
     }
 
     if (selectedBrand !== "all" && product.brand !== selectedBrand) return false
-    if (product.price > priceMax) return false
+    if (product.price > priceMax && priceMax < 2000) return false
 
     return true
   })
@@ -530,7 +435,11 @@ export function CustomerCatalog() {
 
           {/* Product Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredProducts.length === 0 ? (
+            {loading ? (
+              <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-semibold">
+                Loading products from database...
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
                 No products match your selected catalog tag or filter criteria.
               </div>

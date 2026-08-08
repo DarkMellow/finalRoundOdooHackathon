@@ -114,6 +114,7 @@ export interface ApiProduct {
   id: number
   vendor_id: number
   name: string
+  category?: string
   product_type: "Goods" | "Service"
   image_url?: string
   quantity_on_hand: number

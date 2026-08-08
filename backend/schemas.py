@@ -86,6 +86,7 @@ class VendorUserResponseSchema(BaseModel):
 class ProductCreateSchema(BaseModel):
     vendor_id: Optional[int] = 1
     name: str
+    category: Optional[str] = "Electronics"
     product_type: str = "Goods"  # 'Goods' or 'Service'
     image_url: Optional[str] = None
     quantity_on_hand: int = 0
@@ -104,6 +105,7 @@ class ProductCreateSchema(BaseModel):
 
 class ProductUpdateSchema(BaseModel):
     name: Optional[str] = None
+    category: Optional[str] = None
     product_type: Optional[str] = None
     image_url: Optional[str] = None
     quantity_on_hand: Optional[int] = None
@@ -124,6 +126,7 @@ class ProductResponseSchema(BaseModel):
     id: int
     vendor_id: int
     name: str
+    category: Optional[str] = "Electronics"
     product_type: str = "Goods"
     image_url: Optional[str] = None
     quantity_on_hand: Optional[int] = 0

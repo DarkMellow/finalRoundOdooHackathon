@@ -228,6 +228,7 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
     product = models.Product(
         vendor_id=payload.vendor_id,
         name=payload.name,
+        category=payload.category or "Electronics",
         product_type=payload.product_type,
         image_url=payload.image_url,
         quantity_on_hand=int(payload.quantity_on_hand or 0),

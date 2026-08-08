@@ -30,6 +30,7 @@ export interface ProductDetail {
   reviewCount: number
   vendorName: string
   vendorId?: number
+  productType?: "Goods" | "Service"
   variants: ProductVariant[]
 }
 
@@ -124,22 +125,26 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
         })
       }
 
+      const vendorBrand = realProduct.vendor_brand || realProduct.vendor_name || `Vendor #${realProduct.vendor_id}`
+      const vendorFullName = realProduct.vendor_name || realProduct.vendor_brand || `Vendor #${realProduct.vendor_id}`
+
       return {
         id: productId,
         title: realProduct.name,
-        brand: `Vendor #${realProduct.vendor_id}`,
+        brand: vendorBrand,
         category: realProduct.category || "General",
-        description: `High-quality ${realProduct.product_type.toLowerCase()} listing from Vendor #${realProduct.vendor_id}. Available for immediate flexible rental reservation with complete support and quality guarantee.`,
-        images: [
-          realProduct.image_url ||
-            "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=1000&q=80",
-          ...variantImages,
-        ],
+        description: `High-quality ${realProduct.product_type.toLowerCase()} listing from ${vendorBrand}. Available for immediate flexible rental reservation with complete support and quality guarantee.`,
+        images: variantImages.length > 0
+          ? variantImages
+          : ["https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=1000&q=80"],
         tags: [
           realProduct.category || "Rental",
           realProduct.product_type,
+          vendorBrand,
         ],
-        rentPrice: realProduct.rent_price || 0,
+        rentPrice: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
+          ? parseFloat(parsedAttr.variants[0].price) || realProduct.sales_price || 0
+          : realProduct.sales_price || 0,
         billingPeriod: "per Month",
         salesPrice: realProduct.sales_price,
         securityDeposit: realProduct.security_deposit || 0,
@@ -152,8 +157,9 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
           : 10,
         rating: 4.9,
         reviewCount: 18,
-        vendorName: `Vendor Partner #${realProduct.vendor_id}`,
+        vendorName: vendorFullName,
         vendorId: realProduct.vendor_id,
+        productType: realProduct.product_type as "Goods" | "Service",
         variants: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
           ? parsedAttr.variants.map((v: any, idx: number) => {
               const qty = parseInt(v.stockQuantity || "10", 10) || 0
@@ -166,7 +172,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
                   (Array.isArray(v.attributes)
                     ? v.attributes.map((a: any) => `${a.name}: ${a.value}`).join(" • ")
                     : "Standard rental configuration"),
-                rentPrice: parseFloat(v.price) || realProduct.rent_price || 0,
+                rentPrice: parseFloat(v.price) || 0,
                 billingPeriod: "per Month",
                 inStock: qty > 0,
                 stockQuantity: qty,
@@ -178,7 +184,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
                 id: `v-${realProduct.id}-1`,
                 name: `${realProduct.name} - Standard Package`,
                 specifications: "Standard rental configuration",
-                rentPrice: realProduct.rent_price || 0,
+                rentPrice: realProduct.sales_price || 100,
                 billingPeriod: "per Month",
                 inStock: true,
                 stockQuantity: 15,
@@ -187,7 +193,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
                 id: `v-${realProduct.id}-2`,
                 name: `${realProduct.name} - Deluxe Package`,
                 specifications: `Includes priority maintenance & extra accessories`,
-                rentPrice: Math.round((realProduct.rent_price || 10) * 1.25),
+                rentPrice: Math.round((realProduct.sales_price || 100) * 1.25),
                 billingPeriod: "per Month",
                 inStock: true,
                 stockQuantity: 10,

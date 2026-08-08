@@ -94,6 +94,38 @@ export function VendorProductList() {
     return []
   }
 
+  // Calculate starting display price for a product from its variants
+  const getProductDisplayPrice = (product: ApiProduct): number => {
+    if (product.attributes_json) {
+      try {
+        const parsed = JSON.parse(product.attributes_json)
+        if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
+          const firstPrice = parseFloat(parsed.variants[0].price)
+          if (!isNaN(firstPrice) && firstPrice > 0) return firstPrice
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return product.sales_price || 0
+  }
+
+  // Extract cover image from the first variant that has an image
+  const getProductCoverImage = (product: ApiProduct): string => {
+    if (product.attributes_json) {
+      try {
+        const parsed = JSON.parse(product.attributes_json)
+        if (parsed && Array.isArray(parsed.variants)) {
+          const firstWithImg = parsed.variants.find((v: any) => v.imageUrl && v.imageUrl.trim() !== "")
+          if (firstWithImg) return firstWithImg.imageUrl
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return ""
+  }
+
   // Calculate total variant stock for a product
   const getProductTotalStock = (product: ApiProduct): number => {
     const list = getProductVariantsList(product)
@@ -110,7 +142,6 @@ export function VendorProductList() {
         name: "Computers (Desktop Workstation)",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80",
-        rent_price: 1200.0,
         sales_price: 1200.0,
         cost_price: 0.0,
         is_published: true,
@@ -145,7 +176,6 @@ export function VendorProductList() {
         name: "Smart TV 65\" 4K OLED",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80",
-        rent_price: 650.0,
         sales_price: 650.0,
         cost_price: 0.0,
         is_published: true,
@@ -172,7 +202,6 @@ export function VendorProductList() {
         name: "Security Deposit / Downpayment",
         product_type: "Service",
         image_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80",
-        rent_price: 200.0,
         sales_price: 200.0,
         cost_price: 0.0,
         is_published: true,
@@ -457,7 +486,8 @@ export function VendorProductList() {
                         </tr>
                       ) : (
                         filteredProducts.map((product) => {
-                          const displayRentPrice = product.rent_price || product.sales_price || 0
+                          const displayRentPrice = getProductDisplayPrice(product)
+                          const coverImage = getProductCoverImage(product)
                           const variantsList = getProductVariantsList(product)
                           const totalStock = getProductTotalStock(product)
                           return (
@@ -465,9 +495,9 @@ export function VendorProductList() {
                               <td className="p-3.5">
                                 <div className="flex items-center gap-3">
                                   <div className="size-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                                    {product.image_url ? (
+                                    {coverImage ? (
                                       <img
-                                        src={product.image_url}
+                                        src={coverImage}
                                         alt={product.name}
                                         className="size-full object-cover"
                                       />
@@ -576,7 +606,8 @@ export function VendorProductList() {
               /* GRID VIEW */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredProducts.map((product) => {
-                  const displayRentPrice = product.rent_price || product.sales_price || 0
+                  const displayRentPrice = getProductDisplayPrice(product)
+                  const coverImage = getProductCoverImage(product)
                   const variantsList = getProductVariantsList(product)
                   const totalStock = getProductTotalStock(product)
                   return (
@@ -586,9 +617,9 @@ export function VendorProductList() {
                     >
                       <div>
                         <div className="relative h-40 rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200">
-                          {product.image_url ? (
+                          {coverImage ? (
                             <img
-                              src={product.image_url}
+                              src={coverImage}
                               alt={product.name}
                               className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />

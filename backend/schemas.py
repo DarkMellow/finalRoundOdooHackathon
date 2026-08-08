@@ -101,8 +101,6 @@ class ProductCreateSchema(BaseModel):
     name: str
     category: Optional[str] = "Electronics"
     product_type: str = "Goods"  # 'Goods' or 'Service'
-    image_url: Optional[str] = None
-    rent_price: float = 0.0
     sales_price: Optional[float] = 0.0
     cost_price: Optional[float] = 0.0
     is_published: bool = False
@@ -118,8 +116,6 @@ class ProductUpdateSchema(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     product_type: Optional[str] = None
-    image_url: Optional[str] = None
-    rent_price: Optional[float] = None
     sales_price: Optional[float] = None
     cost_price: Optional[float] = None
     is_published: Optional[bool] = None
@@ -137,8 +133,6 @@ class ProductResponseSchema(BaseModel):
     name: str
     category: Optional[str] = "Electronics"
     product_type: str = "Goods"
-    image_url: Optional[str] = None
-    rent_price: Optional[float] = 0.0
     sales_price: Optional[float] = 0.0
     cost_price: Optional[float] = 0.0
     is_published: Optional[bool] = True
@@ -149,5 +143,7 @@ class ProductResponseSchema(BaseModel):
     security_deposit: Optional[float] = None
     attributes_json: Optional[str] = None
     created_at: Optional[datetime] = None
+    vendor_name: Optional[str] = None
+    vendor_brand: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

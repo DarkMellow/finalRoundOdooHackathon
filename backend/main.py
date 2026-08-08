@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from config import settings
 from database import engine, Base, get_db, test_db_connection
@@ -223,16 +223,12 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
             db.refresh(default_vendor)
             payload.vendor_id = default_vendor.id
 
-    rent_val = payload.rent_price if payload.rent_price else payload.sales_price or 0.0
-
     product = models.Product(
         vendor_id=payload.vendor_id,
         name=payload.name,
         category=payload.category or "Electronics",
         product_type=payload.product_type,
-        image_url=payload.image_url,
-        rent_price=rent_val,
-        sales_price=rent_val,
+        sales_price=payload.sales_price or 0.0,
         cost_price=0.0,
         is_published=payload.is_published,
         padding_time=payload.padding_time,
@@ -255,7 +251,9 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
 )
 def get_products(vendor_id: int | None = Query(default=None), db: Session = Depends(get_db)):
     try:
-        query = db.query(models.Product)
+        query = db.query(models.Product).options(
+            joinedload(models.Product.vendor).joinedload(models.User.vendor_profile)
+        )
         if vendor_id is not None and vendor_id > 0:
             query = query.filter(models.Product.vendor_id == vendor_id)
         return query.order_by(models.Product.id.desc()).all()
@@ -270,7 +268,12 @@ def get_products(vendor_id: int | None = Query(default=None), db: Session = Depe
     tags=["Products"],
 )
 def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    product = (
+        db.query(models.Product)
+        .options(joinedload(models.Product.vendor).joinedload(models.User.vendor_profile))
+        .filter(models.Product.id == product_id)
+        .first()
+    )
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -92,26 +92,33 @@ export function CustomerCatalog() {
         const publishedItems = items.filter((item) => item.is_published !== false)
         const mapped: Product[] = publishedItems.map((item) => {
           let hasStock = true
+          let price = item.sales_price || 0
+          let coverImg = "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80"
           if (item.attributes_json) {
             try {
               const parsed = JSON.parse(item.attributes_json)
               if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
                 hasStock = parsed.variants.some((v: any) => (parseInt(v.stockQuantity || "0", 10) || 0) > 0)
+                const firstPrice = parseFloat(parsed.variants[0].price)
+                if (!isNaN(firstPrice) && firstPrice > 0) price = firstPrice
+                const variantWithImg = parsed.variants.find((v: any) => v.imageUrl && v.imageUrl.trim() !== "")
+                if (variantWithImg) coverImg = variantWithImg.imageUrl
               }
             } catch {
               // Ignore
             }
           }
+          const brandName = item.vendor_brand || item.vendor_name || `Vendor #${item.vendor_id}`
           return {
             id: `db-${item.id}`,
             title: item.name,
-            description: `Vendor Product #${item.id} • ${item.product_type}`,
+            description: `${brandName} • ${item.product_type}`,
             category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
-            brand: `Vendor #${item.vendor_id}`,
-            image: item.image_url || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
-            price: item.rent_price || item.sales_price || 0,
+            brand: brandName,
+            image: coverImg,
+            price: price,
             billingPeriod: "per Month",
-            tags: [item.category || "Electronics", item.product_type, `Vendor #${item.vendor_id}`],
+            tags: [item.category || "Electronics", item.product_type, brandName],
             inStock: hasStock,
             rating: 5.0,
           }
@@ -383,12 +390,11 @@ export function CustomerCatalog() {
               className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="all">All Brands</option>
-              <option value="IKEA">IKEA</option>
-              <option value="Sony">Sony</option>
-              <option value="Dell">Dell</option>
-              <option value="ASUS">ASUS</option>
-              <option value="Bose">Bose</option>
-              <option value="Herman Miller">Herman Miller</option>
+              {Array.from(new Set(allProducts.map((p) => p.brand).filter(Boolean))).map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
             </select>
           </div>
 

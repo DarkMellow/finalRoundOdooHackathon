@@ -12,6 +12,7 @@ import {
   Loader2,
   Sparkles,
   Tag,
+  Package,
 } from "lucide-react"
 import { fetchProductDetails, type ProductDetail, type ProductVariant } from "@/lib/productDetailApi"
 import { Button } from "@/components/ui/button"
@@ -216,11 +217,10 @@ export function ProductExpansionView({
                   {/* WISHLIST BUTTON OVERLAY */}
                   <button
                     onClick={handleWishlistClick}
-                    className={`absolute top-4 right-4 flex size-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all ${
-                      localWishlist
-                        ? "bg-rose-50 border-rose-200 text-rose-600"
-                        : "bg-white/90 border-slate-200 text-slate-700 hover:bg-white hover:text-rose-600"
-                    }`}
+                    className={`absolute top-4 right-4 flex size-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-all ${localWishlist
+                      ? "bg-rose-50 border-rose-200 text-rose-600"
+                      : "bg-white/90 border-slate-200 text-slate-700 hover:bg-white hover:text-rose-600"
+                      }`}
                     title={localWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
                   >
                     <Heart className={`size-5 transition-transform active:scale-125 ${localWishlist ? "fill-rose-500 text-rose-500" : ""}`} />
@@ -240,11 +240,10 @@ export function ProductExpansionView({
                       <button
                         key={idx}
                         onClick={() => handleImageSelect(idx)}
-                        className={`relative size-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
-                          selectedImageIndex === idx
-                            ? "border-purple-600 ring-2 ring-purple-500/20 scale-105"
-                            : "border-slate-200 opacity-75 hover:opacity-100"
-                        }`}
+                        className={`relative size-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${selectedImageIndex === idx
+                          ? "border-purple-600 ring-2 ring-purple-500/20 scale-105"
+                          : "border-slate-200 opacity-75 hover:opacity-100"
+                          }`}
                       >
                         <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="size-full object-cover" />
                       </button>
@@ -332,48 +331,49 @@ export function ProductExpansionView({
                           <div
                             key={v.id}
                             onClick={() => handleVariantSelect(v)}
-                            className={`flex items-center justify-between p-3.5 cursor-pointer transition-colors ${
-                              isSelected
-                                ? "bg-purple-50/80 font-semibold text-slate-900 border-l-4 border-l-purple-600"
-                                : "hover:bg-slate-50 text-slate-800"
-                            }`}
+                            className={`flex items-center justify-between gap-3 p-3.5 cursor-pointer transition-colors ${isSelected
+                              ? "bg-purple-50/80 font-semibold text-slate-900 border-l-4 border-l-purple-600"
+                              : "hover:bg-slate-50 text-slate-800"
+                              }`}
                           >
-                            <div className="flex items-center gap-3">
+                            {/* Left Side: Number + Title & Specs */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div
-                                className={`flex size-5 items-center justify-center rounded-full border text-[11px] font-bold ${
-                                  isSelected
-                                    ? "border-purple-600 bg-purple-600 text-white"
-                                    : "border-slate-300 text-slate-400"
-                                }`}
+                                className={`flex size-5 items-center justify-center rounded-full border text-[11px] font-bold shrink-0 ${isSelected
+                                  ? "border-purple-600 bg-purple-600 text-white"
+                                  : "border-slate-300 text-slate-400"
+                                  }`}
                               >
                                 {index + 1}
                               </div>
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-slate-900">{v.name}</span>
-                                  <span
-                                    className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${
-                                      v.inStock
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : "bg-rose-50 text-rose-700 border-rose-200"
-                                    }`}
-                                  >
-                                    {v.inStock ? `${v.stockQuantity} in stock` : "Out of stock"}
-                                  </span>
-                                </div>
-                                <span className="text-[11px] text-slate-500 font-normal">
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                  {v.name}
+                                </span>
+                                <span className="text-[11px] text-slate-500 font-normal truncate">
                                   {v.specifications}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="flex flex-col items-end">
-                              <span className="text-sm font-extrabold text-purple-700">
-                                ${v.rentPrice}
+                            {/* Right Side: Stock Badge + Price & Period */}
+                            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                              <span
+                                className={`whitespace-nowrap px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${v.inStock
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-rose-50 text-rose-700 border-rose-200"
+                                  }`}
+                              >
+                                {v.inStock ? `${v.stockQuantity} in stock` : "Out of stock"}
                               </span>
-                              <span className="text-[10px] text-slate-400">
-                                {v.billingPeriod}
-                              </span>
+                              <div className="flex flex-col items-end min-w-[55px] shrink-0">
+                                <span className="text-sm font-extrabold text-purple-700 whitespace-nowrap">
+                                  ${v.rentPrice}
+                                </span>
+                                <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                                  {v.billingPeriod}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         )
@@ -394,10 +394,21 @@ export function ProductExpansionView({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
-                    <Shield className="size-4 text-emerald-600 shrink-0" />
+                    {product.productType === "Service" ? (
+                      <Sparkles className="size-4 text-amber-600 shrink-0" />
+                    ) : (
+                      <Package className="size-4 text-purple-600 shrink-0" />
+                    )}
                     <div>
-                      <p className="font-semibold text-slate-800">Insurance & Safety</p>
-                      <p className="text-[11px] text-slate-500">Verified Hardware</p>
+                      <p className="font-semibold text-slate-800">Item Type</p>
+                      <span
+                        className={`inline-flex items-center rounded font-bold mt-0.5 ${product.productType === "Service"
+                          ? "text-amber-800"
+                          : "text-purple-800"
+                          }`}
+                      >
+                        {product.productType || "Goods"}
+                      </span>
                     </div>
                   </div>
                 </div>

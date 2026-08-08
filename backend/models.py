@@ -93,8 +93,6 @@ class Product(Base):
     name = Column(String(200), nullable=False)
     category = Column(String(100), default="Electronics", nullable=True)
     product_type = Column(String(50), default="Goods", nullable=False)  # 'Goods' or 'Service'
-    image_url = Column(Text, nullable=True)
-    rent_price = Column(Float, default=0.0, nullable=False)
     sales_price = Column(Float, default=0.0, nullable=True)
     cost_price = Column(Float, default=0.0, nullable=True)
     is_published = Column(Boolean, default=False, nullable=False)
@@ -113,3 +111,17 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     vendor = relationship("User", back_populates="products")
+
+    @property
+    def vendor_name(self) -> str | None:
+        if self.vendor and self.vendor.full_name:
+            return self.vendor.full_name
+        return None
+
+    @property
+    def vendor_brand(self) -> str | None:
+        if self.vendor and self.vendor.vendor_profile and self.vendor.vendor_profile.company_name:
+            return self.vendor.vendor_profile.company_name
+        if self.vendor and self.vendor.full_name:
+            return self.vendor.full_name
+        return None

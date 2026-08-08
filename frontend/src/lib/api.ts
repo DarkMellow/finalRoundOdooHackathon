@@ -129,8 +129,6 @@ export interface ApiProduct {
   name: string
   category?: string
   product_type: "Goods" | "Service"
-  image_url?: string
-  rent_price: number
   sales_price?: number
   cost_price?: number
   is_published: boolean
@@ -141,6 +139,8 @@ export interface ApiProduct {
   security_deposit?: number
   attributes_json?: string
   created_at: string
+  vendor_name?: string
+  vendor_brand?: string
 }
 
 export function getLoggedVendor(): VendorUser | null {

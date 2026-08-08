@@ -84,9 +84,10 @@ export function VendorProductList() {
         name: "Computers (Desktop Workstation)",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 100.0,
+        quantity_on_hand: 100,
+        rent_price: 1200.0,
         sales_price: 1200.0,
-        cost_price: 850.0,
+        cost_price: 0.0,
         is_published: true,
         periodicity: "Hours",
         padding_time: "2:00 H",
@@ -104,9 +105,10 @@ export function VendorProductList() {
         name: "Smart TV 65\" 4K OLED",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 45.0,
+        quantity_on_hand: 45,
+        rent_price: 650.0,
         sales_price: 650.0,
-        cost_price: 400.0,
+        cost_price: 0.0,
         is_published: true,
         periodicity: "Day",
         padding_time: "1:00 H",
@@ -123,7 +125,8 @@ export function VendorProductList() {
         name: "Security Deposit / Downpayment",
         product_type: "Service",
         image_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 0.0,
+        quantity_on_hand: 0,
+        rent_price: 200.0,
         sales_price: 200.0,
         cost_price: 0.0,
         is_published: true,
@@ -393,9 +396,8 @@ export function VendorProductList() {
                       <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
                         <th className="p-3.5">Product</th>
                         <th className="p-3.5">Type</th>
-                        <th className="p-3.5">Qty on Hand</th>
-                        <th className="p-3.5">Sales Price</th>
-                        <th className="p-3.5">Cost Price</th>
+                        <th className="p-3.5">Quantity (Units)</th>
+                        <th className="p-3.5">Rent Price</th>
                         <th className="p-3.5">Periodicity</th>
                         <th className="p-3.5 text-center">Status</th>
                         <th className="p-3.5 text-right">Actions</th>
@@ -404,7 +406,7 @@ export function VendorProductList() {
                     <tbody className="divide-y divide-slate-200">
                       {filteredProducts.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-slate-500 font-sans space-y-2">
+                          <td colSpan={7} className="p-8 text-center text-slate-500 font-sans space-y-2">
                             <p>No products found in database matching your query.</p>
                             {products.length === 0 && (
                               <button
@@ -417,88 +419,89 @@ export function VendorProductList() {
                           </td>
                         </tr>
                       ) : (
-                        filteredProducts.map((product) => (
-                          <tr key={product.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-3">
-                                <div className="size-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                                  {product.image_url ? (
-                                    <img
-                                      src={product.image_url}
-                                      alt={product.name}
-                                      className="size-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="size-full flex items-center justify-center text-slate-400">
-                                      <Package className="size-5" />
-                                    </div>
-                                  )}
+                        filteredProducts.map((product) => {
+                          const displayRentPrice = product.rent_price || product.sales_price || 0
+                          const displayQty = Math.round(product.quantity_on_hand || 0)
+                          return (
+                            <tr key={product.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="p-3.5">
+                                <div className="flex items-center gap-3">
+                                  <div className="size-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                                    {product.image_url ? (
+                                      <img
+                                        src={product.image_url}
+                                        alt={product.name}
+                                        className="size-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="size-full flex items-center justify-center text-slate-400">
+                                        <Package className="size-5" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="font-bold text-slate-900 block text-xs">
+                                      {product.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-mono">
+                                      ID #{product.id}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div>
-                                  <span className="font-bold text-slate-900 block text-xs">
-                                    {product.name}
+                              </td>
+                              <td className="p-3.5">
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                    product.product_type === "Goods"
+                                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                                      : "bg-amber-50 text-amber-800 border-amber-200"
+                                  }`}
+                                >
+                                  {product.product_type}
+                                </span>
+                              </td>
+                              <td className="p-3.5 font-mono font-bold text-slate-800">
+                                {displayQty}
+                              </td>
+                              <td className="p-3.5 font-mono font-extrabold text-slate-900">
+                                ${displayRentPrice.toFixed(2)}
+                              </td>
+                              <td className="p-3.5 text-slate-600 font-medium">
+                                {product.periodicity}
+                              </td>
+                              <td className="p-3.5 text-center">
+                                {product.is_published ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    <CheckCircle2 className="size-3" /> Published
                                   </span>
-                                  <span className="text-[10px] text-slate-500 font-mono">
-                                    ID #{product.id}
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                                    <XCircle className="size-3" /> Draft
                                   </span>
+                                )}
+                              </td>
+                              <td className="p-3.5 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => navigate(`/vendor/products/edit/${product.id}`)}
+                                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-purple-50 hover:text-purple-700 text-slate-700 transition-colors border border-slate-200"
+                                    title="Edit Product"
+                                  >
+                                    <Edit className="size-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProduct(product.id, product.name)}
+                                    disabled={deletingId === product.id}
+                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200 disabled:opacity-50"
+                                    title="Delete Product"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="p-3.5">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                                  product.product_type === "Goods"
-                                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                                    : "bg-amber-50 text-amber-800 border-amber-200"
-                                }`}
-                              >
-                                {product.product_type}
-                              </span>
-                            </td>
-                            <td className="p-3.5 font-mono font-medium text-slate-700">
-                              {Number(product.quantity_on_hand).toFixed(2)}
-                            </td>
-                            <td className="p-3.5 font-mono font-bold text-slate-900">
-                              ${Number(product.sales_price).toFixed(2)}
-                            </td>
-                            <td className="p-3.5 font-mono text-slate-500">
-                              ${Number(product.cost_price).toFixed(2)}
-                            </td>
-                            <td className="p-3.5 text-slate-600 font-medium">
-                              {product.periodicity}
-                            </td>
-                            <td className="p-3.5 text-center">
-                              {product.is_published ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                  <CheckCircle2 className="size-3" /> Published
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
-                                  <XCircle className="size-3" /> Draft
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3.5 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => navigate(`/vendor/products/edit/${product.id}`)}
-                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-purple-50 hover:text-purple-700 text-slate-700 transition-colors border border-slate-200"
-                                  title="Edit Product"
-                                >
-                                  <Edit className="size-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteProduct(product.id, product.name)}
-                                  disabled={deletingId === product.id}
-                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200 disabled:opacity-50"
-                                  title="Delete Product"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                              </td>
+                            </tr>
+                          )
+                        })
                       )}
                     </tbody>
                   </table>
@@ -507,80 +510,84 @@ export function VendorProductList() {
             ) : (
               /* GRID VIEW */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 hover:border-purple-300 hover:shadow-md transition-all shadow-xs group flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="relative h-40 rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200">
-                        {product.image_url ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="size-full flex items-center justify-center text-slate-400">
-                            <Package className="size-8" />
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2 flex items-center gap-1">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border shadow-xs ${
-                              product.product_type === "Goods"
-                                ? "bg-purple-600 text-white border-purple-700"
-                                : "bg-amber-600 text-white border-amber-700"
-                            }`}
-                          >
-                            {product.product_type}
-                          </span>
-                        </div>
-                        <div className="absolute top-2 right-2">
-                          {product.is_published ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white shadow-xs">
-                              Published
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-white shadow-xs">
-                              Draft
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <h3 className="font-bold text-slate-900 text-sm group-hover:text-purple-600 transition-colors">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-                        <span>Stock: <strong className="font-mono text-slate-800">{product.quantity_on_hand}</strong></span>
-                        <span>Rate: <strong className="font-semibold text-slate-800">{product.periodicity}</strong></span>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                {filteredProducts.map((product) => {
+                  const displayRentPrice = product.rent_price || product.sales_price || 0
+                  const displayQty = Math.round(product.quantity_on_hand || 0)
+                  return (
+                    <div
+                      key={product.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 hover:border-purple-300 hover:shadow-md transition-all shadow-xs group flex flex-col justify-between"
+                    >
                       <div>
-                        <span className="text-[10px] text-slate-400 block uppercase font-semibold">Sales Price</span>
-                        <span className="font-mono font-extrabold text-slate-900 text-base">${Number(product.sales_price).toFixed(2)}</span>
+                        <div className="relative h-40 rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200">
+                          {product.image_url ? (
+                            <img
+                              src={product.image_url}
+                              alt={product.name}
+                              className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="size-full flex items-center justify-center text-slate-400">
+                              <Package className="size-8" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 left-2 flex items-center gap-1">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold border shadow-xs ${
+                                product.product_type === "Goods"
+                                  ? "bg-purple-600 text-white border-purple-700"
+                                  : "bg-amber-600 text-white border-amber-700"
+                              }`}
+                            >
+                              {product.product_type}
+                            </span>
+                          </div>
+                          <div className="absolute top-2 right-2">
+                            {product.is_published ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-600 text-white shadow-xs">
+                                Published
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-white shadow-xs">
+                                Draft
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <h3 className="font-bold text-slate-900 text-sm group-hover:text-purple-600 transition-colors">
+                          {product.name}
+                        </h3>
+                        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
+                          <span>Stock: <strong className="font-mono text-slate-800">{displayQty} units</strong></span>
+                          <span>Rate: <strong className="font-semibold text-slate-800">{product.periodicity}</strong></span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => navigate(`/vendor/products/edit/${product.id}`)}
-                          className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-xs"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(product.id, product.name)}
-                          disabled={deletingId === product.id}
-                          className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase font-semibold">Rent Price</span>
+                          <span className="font-mono font-extrabold text-slate-900 text-base">${displayRentPrice.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => navigate(`/vendor/products/edit/${product.id}`)}
+                            className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-xs"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(product.id, product.name)}
+                            disabled={deletingId === product.id}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>

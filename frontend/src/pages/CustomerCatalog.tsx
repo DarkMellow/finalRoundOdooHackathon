@@ -154,8 +154,6 @@ export function CustomerCatalog() {
       product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
 
-    if (!matchesSearch) return false
-
     // Primary tag / class filter matching
     if (selectedTag !== "All Tags") {
       const isMatch =
@@ -169,6 +167,17 @@ export function CustomerCatalog() {
 
     return true
   })
+
+  // Reset pagination on filter or search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedTag, selectedBrand, priceMax])
+
+  // Pagination calculation
+  const ITEMS_PER_PAGE = 6
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE))
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-500 selection:text-white">
@@ -439,22 +448,23 @@ export function CustomerCatalog() {
               )}
             </div>
             <span className="text-xs text-slate-500">
-              Showing page <span className="font-bold text-slate-800">1</span> of 1
+              Showing page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
+              <span className="font-bold text-slate-800">{totalPages}</span> ({filteredProducts.length} total)
             </span>
           </div>
 
-          {/* Product Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {loading ? (
-              <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-semibold">
-                Loading products from database...
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
-                No products match your selected catalog tag or filter criteria.
-              </div>
-            ) : (
-              filteredProducts.map((product) => {
+            {/* Product Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {loading ? (
+                <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-semibold">
+                  Loading products from database...
+                </div>
+              ) : paginatedProducts.length === 0 ? (
+                <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
+                  No products match your selected catalog tag or filter criteria.
+                </div>
+              ) : (
+                paginatedProducts.map((product) => {
                 const isWishlisted = wishlist.includes(product.id)
                 return (
                   <div
@@ -558,46 +568,60 @@ export function CustomerCatalog() {
           {/* ========================================================================= */}
           {/* PAGINATION CONTROLS */}
           {/* ========================================================================= */}
-          <div className="flex items-center justify-center gap-2 pt-6">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-6">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Previous Page"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
 
-            <button
-              onClick={() => setCurrentPage(1)}
-              className={`size-8 rounded-xl font-semibold text-xs transition-colors ${
-                currentPage === 1
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              1
-            </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                if (
+                  totalPages > 7 &&
+                  pageNum !== 1 &&
+                  pageNum !== totalPages &&
+                  Math.abs(pageNum - currentPage) > 1
+                ) {
+                  if (pageNum === 2 || pageNum === totalPages - 1) {
+                    return (
+                      <span key={pageNum} className="text-slate-400 font-mono text-xs px-1">
+                        ...
+                      </span>
+                    )
+                  }
+                  return null
+                }
 
-            <button
-              onClick={() => setCurrentPage(2)}
-              className={`size-8 rounded-xl font-semibold text-xs transition-colors ${
-                currentPage === 2
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              2
-            </button>
+                const isActive = currentPage === pageNum
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`size-8 rounded-xl font-semibold text-xs transition-all ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
 
-            <span className="text-slate-400 font-mono text-xs px-1">...</span>
-
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Next Page"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
         </section>
       </main>
 

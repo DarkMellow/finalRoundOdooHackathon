@@ -425,52 +425,52 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                     <p className="text-sm font-medium">Your rental cart is currently empty.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {cartSummary.items.map((item) => {
                       const itemTotal = (item.hourlyRate * cartSummary.totalHours * item.quantity).toFixed(2)
                       return (
                         <div
                           key={item.id}
-                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border border-border/60 bg-card shadow-xs gap-4 transition-all hover:border-border"
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white shadow-xs gap-4 transition-all hover:border-slate-300"
                         >
                           <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                            <div className="size-20 shrink-0 overflow-hidden rounded-lg border border-dashed border-border/80 bg-muted/30">
+                            <div className="size-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                               <img src={item.image} alt={item.title} className="size-full object-cover" />
                             </div>
 
                             <div className="flex flex-col min-w-0 space-y-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                                 {item.brand}
                               </span>
-                              <h4 className="text-sm font-bold text-foreground truncate">
+                              <h4 className="text-sm font-bold text-slate-900 truncate">
                                 {item.title}
                               </h4>
                               {item.variantName && (
-                                <span className="text-[11px] text-muted-foreground font-medium truncate">
+                                <span className="text-[11px] text-slate-500 font-medium truncate">
                                   {item.variantName}
                                 </span>
                               )}
 
-                              <div className="flex flex-wrap items-center gap-1.5 text-xs pt-1">
-                                <span className="font-bold text-primary">${item.hourlyRate}/hr</span>
-                                <span className="text-muted-foreground">×</span>
-                                <span className="font-semibold text-foreground">{cartSummary.totalHours} hrs</span>
-                                <span className="text-muted-foreground">=</span>
-                                <span className="font-bold text-foreground">${itemTotal}</span>
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs pt-0.5">
+                                <span className="font-bold text-slate-900">${item.hourlyRate}/hr</span>
+                                <span className="text-slate-400">×</span>
+                                <span className="font-semibold text-slate-700">{cartSummary.totalHours} hrs</span>
+                                <span className="text-slate-400">=</span>
+                                <span className="font-black text-slate-900">${itemTotal}</span>
                               </div>
 
                               <div className="flex items-center gap-3 pt-1 text-xs">
                                 <button
                                   onClick={() => handleRemoveItem(item.id)}
-                                  className="text-rose-600 hover:text-rose-700 font-semibold transition-colors flex items-center gap-1"
+                                  className="text-rose-600 hover:text-rose-700 font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                                 >
                                   <Trash2 className="size-3" />
                                   <span>Remove</span>
                                 </button>
-                                <span className="text-border">|</span>
+                                <span className="text-slate-200">|</span>
                                 <button
                                   onClick={() => handleSaveForLater(item.id)}
-                                  className="text-muted-foreground hover:text-foreground font-medium transition-colors flex items-center gap-1"
+                                  className="text-slate-500 hover:text-slate-800 font-medium transition-colors flex items-center gap-1 cursor-pointer"
                                 >
                                   <Bookmark className="size-3" />
                                   <span>Save for Later</span>
@@ -479,18 +479,18 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                             </div>
                           </div>
 
-                          <div className="flex items-center border border-border/80 rounded-full px-2.5 py-1 bg-muted/20 shrink-0 self-end sm:self-center">
+                          <div className="flex items-center border border-slate-200 rounded-full px-3 py-1 bg-slate-50 shrink-0 self-end sm:self-center">
                             <button
                               onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                               disabled={item.quantity <= 1}
-                              className="size-6 flex items-center justify-center rounded-full hover:bg-muted text-foreground font-bold disabled:opacity-40"
+                              className="size-6 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-700 font-bold disabled:opacity-30 cursor-pointer"
                             >
                               -
                             </button>
-                            <span className="w-7 text-center text-xs font-bold">{item.quantity}</span>
+                            <span className="w-7 text-center text-xs font-bold text-slate-900">{item.quantity}</span>
                             <button
                               onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                              className="size-6 flex items-center justify-center rounded-full hover:bg-muted text-foreground font-bold"
+                              className="size-6 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-700 font-bold cursor-pointer"
                             >
                               +
                             </button>
@@ -515,48 +515,48 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
               {/* Right Column: Rental Period & Proceed Button */}
               <div className="lg:col-span-5 flex flex-col space-y-6">
-                <div className="rounded-xl border border-border/80 bg-card p-5 space-y-4 shadow-xs">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Calendar className="size-4 text-primary" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Calendar className="size-4 text-slate-700" />
                       <span>Rental Period</span>
                     </h3>
-                    <div className="inline-flex items-center gap-1 text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
-                      <Clock className="size-3" />
+                    <div className="inline-flex items-center gap-1 text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full">
+                      <Clock className="size-3 text-slate-500" />
                       <span>{cartSummary.totalHours} Hours</span>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                        <span>From (Rental Start):</span>
+                      <label className="text-xs font-semibold text-slate-600 block">
+                        From (Rental Start):
                       </label>
                       <input
                         type="datetime-local"
                         value={startDate}
                         onChange={(e) => handleDatesChange(e.target.value, endDate)}
-                        className="w-full rounded-lg border border-border/80 bg-background px-3 py-2 text-xs font-mono text-foreground focus:border-primary outline-none"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-500 outline-none"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                        <span>To (Rental End):</span>
+                      <label className="text-xs font-semibold text-slate-600 block">
+                        To (Rental End):
                       </label>
                       <input
                         type="datetime-local"
                         value={endDate}
                         onChange={(e) => handleDatesChange(startDate, e.target.value)}
-                        className="w-full rounded-lg border border-border/80 bg-background px-3 py-2 text-xs font-mono text-foreground focus:border-primary outline-none"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="border-t border-border/40 pt-3 space-y-2 text-xs">
-                    <div className="flex items-center justify-between text-muted-foreground">
+                  <div className="border-t border-slate-100 pt-3 space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-slate-500">
                       <span>Sub Total</span>
-                      <span className="font-mono font-bold text-foreground">${cartSummary.subtotal.toFixed(2)}</span>
+                      <span className="font-mono font-bold text-slate-900">${cartSummary.subtotal.toFixed(2)}</span>
                     </div>
 
                     {cartSummary.discount > 0 && (
@@ -566,9 +566,9 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-sm font-black text-foreground pt-2 border-t border-border/40">
-                      <span>Total</span>
-                      <span className="font-mono text-xl text-primary">${cartSummary.total.toFixed(2)}</span>
+                    <div className="flex items-center justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
+                      <span className="text-base font-bold">Total</span>
+                      <span className="font-mono text-xl font-black text-slate-900">${cartSummary.total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -581,11 +581,11 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                       placeholder="Enter Coupon Code (e.g. RENTAL10)"
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value)}
-                      className="flex-1 rounded-xl border border-border/80 bg-background px-3.5 py-2.5 text-xs text-foreground outline-none focus:border-primary"
+                      className="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500"
                     />
                     <button
                       onClick={handleApplyCoupon}
-                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-xs"
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-xs cursor-pointer"
                     >
                       Apply Coupon
                     </button>
@@ -603,15 +603,14 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                 </div>
 
                 {/* Proceed to Address Button */}
-                <Button
+                <button
                   onClick={() => setActiveStep("address")}
                   disabled={cartSummary.items.length === 0 || actionLoading}
-                  size="lg"
-                  className="w-full py-6 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span>Proceed to Address</span>
-                  <ArrowRight className="size-5" />
-                </Button>
+                  <ArrowRight className="size-4" />
+                </button>
               </div>
             </div>
           ) : activeStep === "address" ? (
@@ -621,15 +620,15 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left Column: Select Saved Address */}
               <div className="lg:col-span-7 flex flex-col space-y-6">
-                <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                  <h2 className="text-xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-                    <MapPin className="size-5 text-primary" />
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+                    <MapPin className="size-5 text-slate-900" />
                     <span>Select Delivery Address</span>
                   </h2>
 
                   <button
                     onClick={() => setShowNewAddressForm(!showNewAddressForm)}
-                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                    className="text-xs font-bold text-slate-900 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="size-3.5" />
                     <span>{showNewAddressForm ? "Cancel Form" : "Add New Address"}</span>
@@ -638,8 +637,8 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
                 {/* New Address Form */}
                 {showNewAddressForm ? (
-                  <form onSubmit={handleAddNewAddress} className="p-4 rounded-xl border border-primary/40 bg-primary/5 space-y-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                  <form onSubmit={handleAddNewAddress} className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                       Add New Delivery Location
                     </h3>
 
@@ -650,7 +649,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                         value={newAddrFullName}
                         onChange={(e) => setNewAddrFullName(e.target.value)}
                         required
-                        className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                       />
                       <input
                         type="text"
@@ -658,7 +657,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                         value={newAddrPhone}
                         onChange={(e) => setNewAddrPhone(e.target.value)}
                         required
-                        className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                       />
                     </div>
 
@@ -668,7 +667,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                       value={newAddrStreet}
                       onChange={(e) => setNewAddrStreet(e.target.value)}
                       required
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                     />
 
                     <div className="grid grid-cols-3 gap-3">
@@ -678,35 +677,35 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                         value={newAddrCity}
                         onChange={(e) => setNewAddrCity(e.target.value)}
                         required
-                        className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                       />
                       <input
                         type="text"
                         placeholder="State *"
                         value={newAddrState}
                         onChange={(e) => setNewAddrState(e.target.value)}
-                        className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                       />
                       <input
                         type="text"
                         placeholder="Zip Code *"
                         value={newAddrZip}
                         onChange={(e) => setNewAddrZip(e.target.value)}
-                        className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium outline-none focus:border-blue-500"
                       />
                     </div>
 
                     <div className="flex items-center gap-3 text-xs pt-1">
-                      <span className="font-semibold text-muted-foreground">Label:</span>
+                      <span className="font-semibold text-slate-600">Label:</span>
                       {(["Home", "Work", "Other"] as const).map((lbl) => (
                         <button
                           type="button"
                           key={lbl}
                           onClick={() => setNewAddrLabel(lbl)}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                             newAddrLabel === lbl
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:text-foreground"
+                              ? "bg-slate-900 text-white"
+                              : "bg-slate-200/80 text-slate-700 hover:bg-slate-300"
                           }`}
                         >
                           {lbl}
@@ -723,11 +722,35 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                       >
                         Cancel
                       </Button>
-                      <Button type="submit" size="sm" className="rounded-lg font-bold">
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-xs cursor-pointer"
+                      >
                         Save & Select Address
-                      </Button>
+                      </button>
                     </div>
                   </form>
+                ) : addresses.length === 0 ? (
+                  /* Empty state when user has no saved addresses */
+                  <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-3">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mx-auto">
+                      <MapPin className="size-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-slate-800">No saved addresses found</p>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        You haven't added any delivery locations yet. Add an address to proceed with your rental booking.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewAddressForm(true)}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Plus className="size-3.5" />
+                      <span>Add New Address</span>
+                    </button>
+                  </div>
                 ) : (
                   /* Saved Addresses Cards Grid */
                   <div className="space-y-3">
@@ -737,42 +760,42 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                         <div
                           key={addr.id}
                           onClick={() => setSelectedAddressId(addr.id)}
-                          className={`flex items-start justify-between p-4 rounded-xl border cursor-pointer transition-all ${
+                          className={`flex items-start justify-between p-4.5 rounded-2xl cursor-pointer transition-all ${
                             isSelected
-                              ? "border-primary bg-primary/5 ring-1 ring-primary shadow-xs"
-                              : "border-border/60 bg-card hover:border-border"
+                              ? "border-2 border-slate-900 bg-white shadow-xs"
+                              : "border border-slate-200 bg-white hover:border-slate-300"
                           }`}
                         >
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-start gap-3.5">
                             <div
-                              className={`mt-0.5 flex size-5 items-center justify-center rounded-full border text-[10px] ${
+                              className={`mt-0.5 flex size-5 items-center justify-center rounded-full transition-colors ${
                                 isSelected
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "border-muted-foreground/40 text-transparent"
+                                  ? "bg-slate-900 text-white"
+                                  : "border border-slate-300 text-transparent"
                               }`}
                             >
-                              <Check className="size-3" />
+                              <Check className="size-3 stroke-[3]" />
                             </div>
 
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-foreground">
+                                <span className="text-sm font-bold text-slate-900">
                                   {addr.fullName}
                                 </span>
-                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted text-muted-foreground flex items-center gap-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 flex items-center gap-1">
                                   {addr.label === "Home" ? (
-                                    <Home className="size-3" />
+                                    <Home className="size-3 text-slate-500" />
                                   ) : (
-                                    <Briefcase className="size-3" />
+                                    <Briefcase className="size-3 text-slate-500" />
                                   )}
                                   {addr.label}
                                 </span>
                               </div>
 
-                              <p className="text-xs text-foreground/80 leading-relaxed">
+                              <p className="text-xs text-slate-600 leading-relaxed">
                                 {addr.street}, {addr.city}, {addr.state} {addr.zipCode}
                               </p>
-                              <p className="text-[11px] text-muted-foreground">
+                              <p className="text-[11px] text-slate-500">
                                 Phone: {addr.phone}
                               </p>
                             </div>
@@ -784,47 +807,45 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                 )}
 
                 {/* Back / Continue Action Row */}
-                <div className="pt-4 flex items-center justify-between gap-4">
-                  <Button
+                <div className="pt-2 flex items-center justify-between gap-4">
+                  <button
                     onClick={() => setActiveStep("cart")}
-                    variant="outline"
-                    className="rounded-xl font-bold text-xs"
+                    className="px-4 py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <ArrowLeft className="size-4 mr-1.5" />
-                    Back to Cart
-                  </Button>
+                    <ArrowLeft className="size-3.5" />
+                    <span>Back to Cart</span>
+                  </button>
 
-                  <Button
+                  <button
                     onClick={() => setActiveStep("payment")}
                     disabled={!selectedAddressId}
-                    size="lg"
-                    className="rounded-xl font-extrabold text-sm px-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
+                    className="px-6 py-2.5 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span>Proceed to Payment</span>
-                    <ArrowRight className="size-4 ml-1.5" />
-                  </Button>
+                    <ArrowRight className="size-3.5" />
+                  </button>
                 </div>
               </div>
 
               {/* Right Column: Order Summary Brief */}
               <div className="lg:col-span-5 flex flex-col space-y-4">
-                <div className="rounded-xl border border-border/80 bg-card p-5 space-y-3 shadow-xs">
-                  <h3 className="text-sm font-bold text-foreground border-b border-border/40 pb-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3 shadow-xs">
+                  <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2.5">
                     Checkout Summary
                   </h3>
 
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-500 font-medium">
                       <span>Total Items</span>
-                      <span className="font-bold text-foreground">{cartSummary.items.length}</span>
+                      <span className="font-bold text-slate-900">{cartSummary.items.length}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-slate-500 font-medium">
                       <span>Rental Duration</span>
-                      <span className="font-mono font-bold text-foreground">{cartSummary.totalHours} Hours</span>
+                      <span className="font-mono font-bold text-slate-900">{cartSummary.totalHours} Hours</span>
                     </div>
-                    <div className="flex justify-between border-t border-border/40 pt-2 text-sm font-bold text-foreground">
+                    <div className="flex justify-between border-t border-slate-100 pt-3 text-sm font-bold text-slate-900">
                       <span>Total Payable</span>
-                      <span className="font-mono text-primary text-base">${cartSummary.total.toFixed(2)}</span>
+                      <span className="font-mono text-base font-extrabold text-slate-900">${cartSummary.total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>

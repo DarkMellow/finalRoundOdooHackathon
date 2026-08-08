@@ -14,6 +14,7 @@ import {
   Package,
 } from "lucide-react"
 import { fetchProductDetails, type ProductDetail, type ProductVariant } from "@/lib/productDetailApi"
+import { addItemToCart } from "@/lib/cartCheckoutApi"
 import { Button } from "@/components/ui/button"
 
 interface ProductExpansionViewProps {
@@ -98,8 +99,27 @@ export function ProductExpansionView({
     }
   }
 
-  const handleAddToCartClick = () => {
+  const handleAddToCartClick = async () => {
     if (!product) return
+
+    const rentPrice = selectedVariant?.price || product.rentPrice || 60
+    const hourlyRate = Math.max(1, Math.round((rentPrice / 24) * 10) / 10)
+
+    try {
+      await addItemToCart({
+        productId: String(product.id),
+        variantId: selectedVariant?.id ? String(selectedVariant.id) : undefined,
+        quantity: quantity > 0 ? quantity : 1,
+        title: product.title,
+        brand: product.brand,
+        image: selectedVariant?.imageUrl || product.images[0] || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
+        hourlyRate: hourlyRate,
+        variantName: selectedVariant?.name || `${product.productType} Standard Edition`,
+      })
+    } catch (err) {
+      console.warn("Failed to add to cart:", err)
+    }
+
     if (onAddToCart) {
       onAddToCart(product.id, selectedVariant?.id, quantity)
     }

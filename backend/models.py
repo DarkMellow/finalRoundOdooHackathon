@@ -23,6 +23,8 @@ class User(Base):
     properties = relationship("Property", back_populates="owner")
     bookings = relationship("RentalBooking", back_populates="customer")
     products = relationship("Product", back_populates="vendor")
+    cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
 
 
 class CustomerProfile(Base):
@@ -36,6 +38,7 @@ class CustomerProfile(Base):
     zip_code = Column(String(20), nullable=True)
     id_proof_type = Column(String(50), nullable=True)
     id_proof_number = Column(String(100), nullable=True)
+    addresses_json = Column(Text, nullable=True)  # JSON array of saved delivery addresses
 
     user = relationship("User", back_populates="customer_profile")
 
@@ -125,3 +128,36 @@ class Product(Base):
         if self.vendor and self.vendor.full_name:
             return self.vendor.full_name
         return None
+
+
+class Cart(Base):
+    __tablename__ = "carts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    items_json = Column(Text, nullable=True)  # JSON serialized array of cart items
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="cart")
+
+
+class UserAddress(Base):
+    __tablename__ = "user_addresses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    full_name = Column(String(120), nullable=False)
+    label = Column(String(50), default="Home", nullable=False)
+    street = Column(String(255), nullable=False)
+    city = Column(String(100), nullable=False)
+    state = Column(String(100), default="IL", nullable=True)
+    zip_code = Column(String(20), default="60601", nullable=True)
+    phone = Column(String(30), nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="addresses")
+
+

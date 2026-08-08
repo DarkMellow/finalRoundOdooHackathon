@@ -147,3 +147,72 @@ class ProductResponseSchema(BaseModel):
     vendor_brand: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# CART SCHEMAS
+# ==========================================
+
+class CartItemSchema(BaseModel):
+    id: str
+    productId: str
+    variantId: Optional[str] = None
+    title: str
+    brand: str
+    image: str
+    hourlyRate: float
+    quantity: int = 1
+    variantName: Optional[str] = None
+    savedForLater: bool = False
+
+
+class AddToCartSchema(BaseModel):
+    user_id: Optional[int] = None
+    productId: str
+    variantId: Optional[str] = None
+    quantity: int = 1
+    title: Optional[str] = None
+    brand: Optional[str] = None
+    image: Optional[str] = None
+    hourlyRate: Optional[float] = None
+    variantName: Optional[str] = None
+
+
+class UpdateCartItemSchema(BaseModel):
+    quantity: Optional[int] = None
+    savedForLater: Optional[bool] = None
+
+
+class CartResponseSchema(BaseModel):
+    user_id: int
+    items: List[CartItemSchema] = []
+
+
+# ==========================================
+# ADDRESS SCHEMAS
+# ==========================================
+
+class DeliveryAddressSchema(BaseModel):
+    id: str
+    fullName: str
+    street: str
+    city: str
+    state: str
+    zipCode: str
+    phone: str
+    isDefault: bool = False
+    label: str = "Home"  # 'Home' | 'Work' | 'Other'
+
+
+class SaveAddressSchema(BaseModel):
+    user_id: Optional[int] = None
+    fullName: str
+    street: str
+    city: str
+    state: Optional[str] = "IL"
+    zipCode: Optional[str] = "60601"
+    phone: Optional[str] = "+1 (555) 000-1122"
+    label: Optional[str] = "Home"
+    isDefault: Optional[bool] = False
+
+

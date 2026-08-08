@@ -1,6 +1,9 @@
+import { API_BASE_URL, getLoggedCustomer } from "./api"
+
 export interface CartItem {
   id: string
   productId: string
+  variantId?: string
   title: string
   brand: string
   image: string
@@ -53,17 +56,28 @@ export interface PaymentDetails {
   upiId?: string
 }
 
-// Initial default dates: Start = Now, End = 24 Hours from now
+export interface AddToCartPayload {
+  productId: string
+  variantId?: string
+  quantity: number
+  title: string
+  brand: string
+  image: string
+  hourlyRate: number
+  variantName?: string
+}
+
+// Initial default dates: Start = Today at 19:30, End = Tomorrow at 19:30 (matches 24 Hours default)
 const getDefaultStartDate = (): string => {
   const now = new Date()
-  now.setMinutes(0, 0, 0)
+  now.setMinutes(30, 0, 0)
   return now.toISOString().slice(0, 16)
 }
 
 const getDefaultEndDate = (): string => {
   const endDate = new Date()
   endDate.setDate(endDate.getDate() + 1)
-  endDate.setMinutes(0, 0, 0)
+  endDate.setMinutes(30, 0, 0)
   return endDate.toISOString().slice(0, 16)
 }
 
@@ -74,104 +88,25 @@ export function calculateRentalHours(startDateStr: string, endDateStr: string): 
     const end = new Date(endDateStr)
     const diffMs = end.getTime() - start.getTime()
     if (isNaN(diffMs) || diffMs <= 0) {
-      return 1 // Minimum fallback 1 hour
+      return 24 // Fallback default 24 hours
     }
     const hours = Math.ceil(diffMs / (1000 * 60 * 60))
     return Math.max(1, hours)
   } catch {
-    return 1
+    return 24
   }
 }
 
-// Mock Cart Store State
-let mockCartItems: CartItem[] = [
-  {
-    id: "cart-1",
-    productId: "p1",
-    title: "Ergonomic Mesh Executive Chair",
-    brand: "Herman Miller Spec",
-    image: "https://images.unsplash.com/photo-1580481072645-022f9a6d83d0?auto=format&fit=crop&w=600&q=80",
-    hourlyRate: 2.5,
-    quantity: 1,
-    variantName: "Pro Mesh + Headrest (Dark Graphite)",
-    savedForLater: false,
-  },
-  {
-    id: "cart-2",
-    productId: "p2",
-    title: "4K Cinema Projector Pro",
-    brand: "Sony Professional",
-    image: "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80",
-    hourlyRate: 8.0,
-    quantity: 1,
-    variantName: "Standard Cinema 4K Package",
-    savedForLater: false,
-  },
-  {
-    id: "cart-3",
-    productId: "p3",
-    title: "MacBook Pro M3 Max Studio Kit",
-    brand: "Apple Enterprise",
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80",
-    hourlyRate: 12.0,
-    quantity: 2,
-    variantName: "64GB RAM / 2TB SSD Edition",
-    savedForLater: false,
-  },
-]
-
-let mockAddresses: DeliveryAddress[] = [
-  {
-    id: "addr-1",
-    fullName: "Jane Doe",
-    street: "742 Evergreen Terrace",
-    city: "Springfield",
-    state: "IL",
-    zipCode: "62701",
-    phone: "+1 (555) 019-2834",
-    isDefault: true,
-    label: "Home",
-  },
-  {
-    id: "addr-2",
-    fullName: "Jane Doe (Office)",
-    street: "100 Innovation Way, Suite 400",
-    city: "Chicago",
-    state: "IL",
-    zipCode: "60601",
-    phone: "+1 (555) 012-9988",
-    isDefault: false,
-    label: "Work",
-  },
-]
-
-let mockSavedCards: SavedCard[] = [
-  {
-    id: "card-1",
-    cardholderName: "Jane Doe",
-    cardNumberLast4: "4242",
-    expiry: "12/28",
-    brand: "Visa",
-    isDefault: true,
-  },
-  {
-    id: "card-2",
-    cardholderName: "Jane Doe",
-    cardNumberLast4: "8899",
-    expiry: "09/27",
-    brand: "Mastercard",
-    isDefault: false,
-  },
-]
-
+// Local in-memory cache for fast UI updates & offline fallback
+let cachedCartItems: CartItem[] = []
 let currentStartDate: string = getDefaultStartDate()
 let currentEndDate: string = getDefaultEndDate()
 let activeDiscount: number = 0
 let activeCouponCode: string | undefined = undefined
 
-function computeCartSummary(): CartSummary {
-  const activeItems = mockCartItems.filter((i) => !i.savedForLater)
-  const saved = mockCartItems.filter((i) => i.savedForLater)
+function computeCartSummary(items: CartItem[] = cachedCartItems): CartSummary {
+  const activeItems = items.filter((i) => !i.savedForLater)
+  const saved = items.filter((i) => i.savedForLater)
   const totalHours = calculateRentalHours(currentStartDate, currentEndDate)
 
   const subtotal = activeItems.reduce((sum, item) => {
@@ -193,54 +128,181 @@ function computeCartSummary(): CartSummary {
   }
 }
 
+function getUserIdParam(): string {
+  const user = getLoggedCustomer()
+  return user?.id ? `user_id=${user.id}` : ""
+}
+
 /**
- * MIMICKING API FUNCTIONS
+ * BACKEND CONNECTED CART API FUNCTIONS
  */
 
 export async function fetchCartSummary(): Promise<CartSummary> {
-  await new Promise((resolve) => setTimeout(resolve, 150))
+  try {
+    const userParam = getUserIdParam()
+    const url = userParam ? `${API_BASE_URL}/api/v1/cart?${userParam}` : `${API_BASE_URL}/api/v1/cart`
+    const res = await fetch(url)
+    if (res.ok) {
+      const items: CartItem[] = await res.json()
+      cachedCartItems = items
+      return computeCartSummary(items)
+    }
+  } catch (err) {
+    console.warn("Failed to fetch cart from backend, using local cache:", err)
+  }
+  return computeCartSummary()
+}
+
+export async function addItemToCart(payload: AddToCartPayload): Promise<CartSummary> {
+  const user = getLoggedCustomer()
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/cart/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user?.id,
+        productId: payload.productId,
+        variantId: payload.variantId,
+        quantity: payload.quantity,
+        title: payload.title,
+        brand: payload.brand,
+        image: payload.image,
+        hourlyRate: payload.hourlyRate,
+        variantName: payload.variantName,
+      }),
+    })
+    if (res.ok) {
+      const items: CartItem[] = await res.json()
+      cachedCartItems = items
+      return computeCartSummary(items)
+    }
+  } catch (err) {
+    console.warn("Failed to post cart item to backend:", err)
+  }
+
+  // Fallback local update if backend is unreachable
+  const existingIdx = cachedCartItems.findIndex(
+    (i) => i.productId === payload.productId && i.variantId === payload.variantId
+  )
+  if (existingIdx !== -1) {
+    cachedCartItems[existingIdx].quantity += payload.quantity
+    cachedCartItems[existingIdx].savedForLater = false
+  } else {
+    cachedCartItems.unshift({
+      id: `cart-${Date.now()}`,
+      productId: payload.productId,
+      variantId: payload.variantId,
+      title: payload.title,
+      brand: payload.brand,
+      image: payload.image,
+      hourlyRate: payload.hourlyRate,
+      quantity: payload.quantity,
+      variantName: payload.variantName,
+      savedForLater: false,
+    })
+  }
   return computeCartSummary()
 }
 
 export async function updateRentalPeriod(startDate: string, endDate: string): Promise<CartSummary> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
   currentStartDate = startDate
   currentEndDate = endDate
   return computeCartSummary()
 }
 
 export async function updateCartItemQuantity(itemId: string, quantity: number): Promise<CartSummary> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  mockCartItems = mockCartItems.map((item) => {
-    if (item.id === itemId) {
-      return { ...item, quantity: Math.max(1, quantity) }
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/cart/items/${itemId}${userParam}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    })
+    if (res.ok) {
+      const items: CartItem[] = await res.json()
+      cachedCartItems = items
+      return computeCartSummary(items)
     }
-    return item
-  })
+  } catch (err) {
+    console.warn("Failed to update cart item on backend:", err)
+  }
+
+  cachedCartItems = cachedCartItems.map((item) =>
+    item.id === itemId ? { ...item, quantity: Math.max(1, quantity) } : item
+  )
   return computeCartSummary()
 }
 
 export async function removeCartItem(itemId: string): Promise<CartSummary> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  mockCartItems = mockCartItems.filter((item) => item.id !== itemId)
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/cart/items/${itemId}${userParam}`, {
+      method: "DELETE",
+    })
+    if (res.ok) {
+      const items: CartItem[] = await res.json()
+      cachedCartItems = items
+      return computeCartSummary(items)
+    }
+  } catch (err) {
+    console.warn("Failed to remove cart item on backend:", err)
+  }
+
+  cachedCartItems = cachedCartItems.filter((item) => item.id !== itemId)
   return computeCartSummary()
 }
 
 export async function toggleSaveForLater(itemId: string): Promise<CartSummary> {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  mockCartItems = mockCartItems.map((item) => {
-    if (item.id === itemId) {
-      return { ...item, savedForLater: !item.savedForLater }
+  const currentItem = cachedCartItems.find((i) => i.id === itemId)
+  const newSavedState = currentItem ? !currentItem.savedForLater : false
+  const user = getLoggedCustomer()
+
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/cart/items/${itemId}${userParam}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ savedForLater: newSavedState }),
+    })
+    if (res.ok) {
+      const items: CartItem[] = await res.json()
+      cachedCartItems = items
+      return computeCartSummary(items)
     }
-    return item
-  })
+  } catch (err) {
+    console.warn("Failed to toggle save for later on backend:", err)
+  }
+
+  cachedCartItems = cachedCartItems.map((item) =>
+    item.id === itemId ? { ...item, savedForLater: newSavedState } : item
+  )
   return computeCartSummary()
+}
+
+export async function clearCart(): Promise<CartSummary> {
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/cart${userParam}`, {
+      method: "DELETE",
+    })
+    if (res.ok) {
+      cachedCartItems = []
+      return computeCartSummary([])
+    }
+  } catch (err) {
+    console.warn("Failed to clear cart on backend:", err)
+  }
+
+  cachedCartItems = []
+  return computeCartSummary([])
 }
 
 export async function applyCouponCode(
   code: string
 ): Promise<{ success: boolean; discountAmount: number; message: string; summary: CartSummary }> {
-  await new Promise((resolve) => setTimeout(resolve, 200))
   const cleanCode = code.trim().toUpperCase()
 
   if (cleanCode === "RENTAL10") {
@@ -271,32 +333,107 @@ export async function applyCouponCode(
   }
 }
 
+let cachedAddresses: DeliveryAddress[] = []
+
+let mockSavedCards: SavedCard[] = [
+  {
+    id: "card-1",
+    cardholderName: "Jane Doe",
+    cardNumberLast4: "4242",
+    expiry: "12/28",
+    brand: "Visa",
+    isDefault: true,
+  },
+  {
+    id: "card-2",
+    cardholderName: "Jane Doe",
+    cardNumberLast4: "8899",
+    expiry: "09/27",
+    brand: "Mastercard",
+    isDefault: false,
+  },
+]
+
 export async function fetchSavedAddresses(): Promise<DeliveryAddress[]> {
-  await new Promise((resolve) => setTimeout(resolve, 150))
-  return [...mockAddresses]
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/addresses${userParam}`)
+    if (res.ok) {
+      const addrs: DeliveryAddress[] = await res.json()
+      cachedAddresses = addrs
+      return addrs
+    }
+  } catch (err) {
+    console.warn("Failed to fetch addresses from backend:", err)
+  }
+  return [...cachedAddresses]
 }
 
 export async function saveDeliveryAddress(
   address: Omit<DeliveryAddress, "id">
 ): Promise<DeliveryAddress[]> {
-  await new Promise((resolve) => setTimeout(resolve, 200))
+  const user = getLoggedCustomer()
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/addresses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user?.id,
+        fullName: address.fullName,
+        label: address.label,
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        zipCode: address.zipCode,
+        phone: address.phone,
+        isDefault: Boolean(address.isDefault),
+      }),
+    })
+    if (res.ok) {
+      const addrs: DeliveryAddress[] = await res.json()
+      cachedAddresses = addrs
+      return addrs
+    }
+  } catch (err) {
+    console.warn("Failed to save address to backend:", err)
+  }
+
   const newAddr: DeliveryAddress = {
     ...address,
     id: `addr-${Date.now()}`,
   }
-  mockAddresses = [newAddr, ...mockAddresses]
-  return [...mockAddresses]
+  cachedAddresses = [newAddr, ...cachedAddresses]
+  return [...cachedAddresses]
+}
+
+export async function deleteDeliveryAddress(addressId: string): Promise<DeliveryAddress[]> {
+  const user = getLoggedCustomer()
+  try {
+    const userParam = user?.id ? `?user_id=${user.id}` : ""
+    const res = await fetch(`${API_BASE_URL}/api/v1/addresses/${addressId}${userParam}`, {
+      method: "DELETE",
+    })
+    if (res.ok) {
+      const addrs: DeliveryAddress[] = await res.json()
+      cachedAddresses = addrs
+      return addrs
+    }
+  } catch (err) {
+    console.warn("Failed to delete address on backend:", err)
+  }
+
+  cachedAddresses = cachedAddresses.filter((a) => a.id !== addressId)
+  return [...cachedAddresses]
 }
 
 export async function fetchSavedCards(): Promise<SavedCard[]> {
-  await new Promise((resolve) => setTimeout(resolve, 150))
   return [...mockSavedCards]
 }
 
 export async function saveNewCard(
   cardData: Omit<SavedCard, "id" | "cardNumberLast4"> & { cardNumber: string }
 ): Promise<SavedCard[]> {
-  await new Promise((resolve) => setTimeout(resolve, 200))
   const rawNum = cardData.cardNumber.replace(/\s+/g, "")
   const last4 = rawNum.slice(-4) || "0000"
 
@@ -321,9 +458,9 @@ export async function processFinalOrder(
   orderId: string
   message: string
 }> {
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await clearCart()
   const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`
-  const selectedAddr = mockAddresses.find((a) => a.id === addressId)
+  const selectedAddr = cachedAddresses.find((a) => a.id === addressId)
   const addrStr = selectedAddr ? `${selectedAddr.street}, ${selectedAddr.city}` : "Selected Address"
 
   return {
@@ -332,3 +469,4 @@ export async function processFinalOrder(
     message: `Order #${orderId} confirmed! Delivering to ${addrStr} via ${paymentDetails.method.toUpperCase()}.`,
   }
 }
+

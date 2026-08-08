@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import json
+import time
 from sqlalchemy.orm import Session, joinedload
 
 from config import settings
@@ -323,6 +325,344 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.delete(product)
     db.commit()
     return {"status": "success", "message": f"Product {product_id} deleted successfully"}
+
+
+# ==========================================
+# CART ENDPOINTS
+# ==========================================
+
+def get_or_create_user_cart(user_id: int | None, db: Session) -> tuple[models.Cart, int]:
+    if not user_id:
+        first_cust = db.query(models.User).filter(models.User.role == "customer").first()
+        if not first_cust:
+            first_cust = db.query(models.User).first()
+        if first_cust:
+            user_id = first_cust.id
+        else:
+            default_u = models.User(
+                full_name="Jane Doe",
+                email="jane.doe@example.com",
+                hashed_password="hashed_customer123",
+                role="customer",
+                is_active=True,
+            )
+            db.add(default_u)
+            db.commit()
+            db.refresh(default_u)
+            user_id = default_u.id
+
+    cart = db.query(models.Cart).filter(models.Cart.user_id == user_id).first()
+    if not cart:
+        cart = models.Cart(user_id=user_id, items_json="[]")
+        db.add(cart)
+        db.commit()
+        db.refresh(cart)
+    return cart, user_id
+
+
+@app.get(
+    "/api/v1/cart",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def get_cart(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+        return items
+    except Exception as e:
+        print(f"Error parsing cart items: {e}")
+        return []
+
+
+@app.post(
+    "/api/v1/cart/items",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def add_to_cart(payload: schemas.AddToCartSchema, db: Session = Depends(get_db)):
+    cart, _ = get_or_create_user_cart(payload.user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    # Check if item with matching productId AND variantId exists
+    matched = False
+    for item in items:
+        if str(item.get("productId")) == str(payload.productId) and str(item.get("variantId", "")) == str(payload.variantId or ""):
+            item["quantity"] = int(item.get("quantity", 1)) + int(payload.quantity or 1)
+            item["savedForLater"] = False
+            matched = True
+            break
+
+    if not matched:
+        new_item = {
+            "id": f"cart-{int(time.time() * 1000)}",
+            "productId": str(payload.productId),
+            "variantId": payload.variantId,
+            "title": payload.title or "Equipment Rental",
+            "brand": payload.brand or "Verified Vendor",
+            "image": payload.image or "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
+            "hourlyRate": float(payload.hourlyRate if payload.hourlyRate is not None else 5.0),
+            "quantity": int(payload.quantity or 1),
+            "variantName": payload.variantName or "Standard Package",
+            "savedForLater": False,
+        }
+        items.insert(0, new_item)
+
+    cart.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(cart)
+    return items
+
+
+@app.put(
+    "/api/v1/cart/items/{item_id}",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def update_cart_item(
+    item_id: str,
+    payload: schemas.UpdateCartItemSchema,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    for item in items:
+        if str(item.get("id")) == str(item_id):
+            if payload.quantity is not None:
+                item["quantity"] = max(1, int(payload.quantity))
+            if payload.savedForLater is not None:
+                item["savedForLater"] = bool(payload.savedForLater)
+            break
+
+    cart.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(cart)
+    return items
+
+
+@app.delete(
+    "/api/v1/cart/items/{item_id}",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def remove_cart_item(
+    item_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    items = [i for i in items if str(i.get("id")) != str(item_id)]
+    cart.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(cart)
+    return items
+
+
+@app.delete(
+    "/api/v1/cart",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def clear_cart(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    cart.items_json = "[]"
+    db.commit()
+    db.refresh(cart)
+    return []
+
+
+# ==========================================
+# ADDRESS ENDPOINTS
+# ==========================================
+
+DEFAULT_INITIAL_ADDRESSES = [
+    {
+        "id": "addr-1",
+        "fullName": "Jane Doe",
+        "label": "Home",
+        "street": "742 Evergreen Terrace",
+        "city": "Springfield",
+        "state": "IL",
+        "zipCode": "62701",
+        "phone": "+1 (555) 019-2834",
+        "isDefault": True,
+    },
+    {
+        "id": "addr-2",
+        "fullName": "Jane Doe (Office)",
+        "label": "Work",
+        "street": "100 Innovation Way, Suite 400",
+        "city": "Chicago",
+        "state": "IL",
+        "zipCode": "60601",
+        "phone": "+1 (555) 012-9988",
+        "isDefault": False,
+    },
+]
+
+
+def resolve_target_user_id(user_id: int | None, db: Session) -> int:
+    if user_id and user_id > 0:
+        return user_id
+    first_cust = db.query(models.User).filter(models.User.role == "customer").first()
+    if not first_cust:
+        first_cust = db.query(models.User).first()
+    if first_cust:
+        return first_cust.id
+    default_u = models.User(
+        full_name="Jane Doe",
+        email="jane.doe@example.com",
+        hashed_password="hashed_customer123",
+        role="customer",
+        is_active=True,
+    )
+    db.add(default_u)
+    db.commit()
+    db.refresh(default_u)
+    return default_u.id
+
+
+@app.get(
+    "/api/v1/addresses",
+    response_model=list[schemas.DeliveryAddressSchema],
+    tags=["Addresses"],
+)
+def get_addresses(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(user_id, db)
+    rows = (
+        db.query(models.UserAddress)
+        .filter(models.UserAddress.user_id == target_user_id)
+        .order_by(models.UserAddress.id.desc())
+        .all()
+    )
+    return [
+        schemas.DeliveryAddressSchema(
+            id=str(row.id),
+            fullName=row.full_name,
+            label=row.label,
+            street=row.street,
+            city=row.city,
+            state=row.state or "IL",
+            zipCode=row.zip_code or "60601",
+            phone=row.phone,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.post(
+    "/api/v1/addresses",
+    response_model=list[schemas.DeliveryAddressSchema],
+    tags=["Addresses"],
+)
+def save_address(payload: schemas.SaveAddressSchema, db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+
+    if payload.isDefault:
+        db.query(models.UserAddress).filter(models.UserAddress.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+
+    new_addr = models.UserAddress(
+        user_id=target_user_id,
+        full_name=payload.fullName,
+        label=payload.label or "Home",
+        street=payload.street,
+        city=payload.city,
+        state=payload.state or "IL",
+        zip_code=payload.zipCode or "60601",
+        phone=payload.phone or "+1 (555) 000-1122",
+        is_default=bool(payload.isDefault),
+    )
+    db.add(new_addr)
+    db.commit()
+    db.refresh(new_addr)
+
+    rows = (
+        db.query(models.UserAddress)
+        .filter(models.UserAddress.user_id == target_user_id)
+        .order_by(models.UserAddress.id.desc())
+        .all()
+    )
+    return [
+        schemas.DeliveryAddressSchema(
+            id=str(row.id),
+            fullName=row.full_name,
+            label=row.label,
+            street=row.street,
+            city=row.city,
+            state=row.state or "IL",
+            zipCode=row.zip_code or "60601",
+            phone=row.phone,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.delete(
+    "/api/v1/addresses/{address_id}",
+    response_model=list[schemas.DeliveryAddressSchema],
+    tags=["Addresses"],
+)
+def delete_address(
+    address_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    addr_query = db.query(models.UserAddress).filter(models.UserAddress.id == address_id)
+    if user_id:
+        addr_query = addr_query.filter(models.UserAddress.user_id == target_user_id)
+    addr = addr_query.first()
+    if addr:
+        db.delete(addr)
+        db.commit()
+
+    rows = (
+        db.query(models.UserAddress)
+        .filter(models.UserAddress.user_id == target_user_id)
+        .order_by(models.UserAddress.id.desc())
+        .all()
+    )
+    return [
+        schemas.DeliveryAddressSchema(
+            id=str(row.id),
+            fullName=row.full_name,
+            label=row.label,
+            street=row.street,
+            city=row.city,
+            state=row.state or "IL",
+            zipCode=row.zip_code or "60601",
+            phone=row.phone,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
 
 
 

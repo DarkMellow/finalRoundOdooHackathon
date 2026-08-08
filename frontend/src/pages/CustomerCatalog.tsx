@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { fetchProducts, getLoggedCustomer, type CustomerUser } from "@/lib/api"
+import { getLoggedCustomer, type CustomerUser, fetchProducts } from "@/lib/api"
+import { fetchCartSummary } from "@/lib/cartCheckoutApi"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
 import { CartCheckout } from "@/pages/CartCheckout"
 import { Wishlist } from "@/pages/Wishlist"
@@ -56,9 +57,7 @@ export function CustomerCatalog() {
   const [priceMax, setPriceMax] = useState<number>(2000)
 
   const [wishlist, setWishlist] = useState<string[]>([])
-  const [cart] = useState<{ id: string; quantity: number }[]>([
-    { id: "p1", quantity: 1 },
-  ])
+  const [cartItemCount, setCartItemCount] = useState<number>(0)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -69,10 +68,20 @@ export function CustomerCatalog() {
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState<boolean>(false)
   const [isMyOrdersModalOpen, setIsMyOrdersModalOpen] = useState<boolean>(false)
 
-  // Load logged customer user
+  const refreshCartCount = () => {
+    fetchCartSummary()
+      .then((summary) => {
+        const totalCount = summary.items.reduce((sum, item) => sum + item.quantity, 0)
+        setCartItemCount(totalCount)
+      })
+      .catch((err) => console.warn("Failed to load cart summary:", err))
+  }
+
+  // Load logged customer user & cart summary
   useEffect(() => {
     const user = getLoggedCustomer()
     setLoggedCustomer(user)
+    refreshCartCount()
   }, [])
 
   const userFullName = loggedCustomer?.full_name || "Jane Doe"
@@ -246,7 +255,7 @@ export function CustomerCatalog() {
             >
               <ShoppingCart className="size-4 text-blue-600" />
               <span className="flex size-4 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-[9px]">
-                {cart.reduce((a, b) => a + b.quantity, 0)}
+                {cartItemCount}
               </span>
             </button>
 
@@ -631,6 +640,7 @@ export function CustomerCatalog() {
           productId={selectedProductIdForModal}
           isOpen={Boolean(selectedProductIdForModal)}
           onClose={() => setSelectedProductIdForModal(null)}
+          onAddToCart={() => refreshCartCount()}
           isWishlisted={wishlist.includes(selectedProductIdForModal)}
           onToggleWishlist={(id) => {
             setWishlist((prev) =>
@@ -643,7 +653,10 @@ export function CustomerCatalog() {
       {/* Cart Checkout Modal */}
       <CartCheckout
         isOpen={isCartModalOpen}
-        onClose={() => setIsCartModalOpen(false)}
+        onClose={() => {
+          setIsCartModalOpen(false)
+          refreshCartCount()
+        }}
       />
 
       {/* Wishlist Modal */}

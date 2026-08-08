@@ -15,16 +15,19 @@ import { DateScheduleModal } from "./DateScheduleModal"
 import { Button } from "@/components/ui/button"
 
 export function VendorCalendar() {
-  const [selectedMonth, setSelectedMonth] = useState<string>("2026-01")
+  const [selectedMonth, setSelectedMonth] = useState<string>("2026-08")
   const [summaries, setSummaries] = useState<Record<string, MonthDaySummary>>({})
-  const [selectedDate, setSelectedDate] = useState<string>("2026-01-28")
+  const [selectedDate, setSelectedDate] = useState<string>("2026-08-09")
   const [dateItems, setDateItems] = useState<DailyScheduleItem[]>([])
   const [loadingItems, setLoadingItems] = useState<boolean>(false)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
 
   // Load monthly calendar summaries
   useEffect(() => {
-    fetchMonthlyCalendarEvents(2026, 1).then((data) => {
+    const [yearStr, monthStr] = selectedMonth.split("-")
+    const y = parseInt(yearStr, 10)
+    const m = parseInt(monthStr, 10)
+    fetchMonthlyCalendarEvents(y, m).then((data) => {
       setSummaries(data)
     })
   }, [selectedMonth])
@@ -46,9 +49,14 @@ export function VendorCalendar() {
   // Days of week header
   const weekDays = ["S", "M", "T", "W", "T", "F", "S"]
 
-  // Jan 2026 starts on Thursday (day index 4)
-  const startingOffset = 4
-  const daysInMonth = 31
+  // Calculate dynamic starting offset and days in month
+  const [yearStr, monthStr] = selectedMonth.split("-")
+  const year = parseInt(yearStr, 10)
+  const month = parseInt(monthStr, 10)
+
+  const firstDay = new Date(year, month - 1, 1)
+  const startingOffset = firstDay.getDay()
+  const daysInMonth = new Date(year, month, 0).getDate()
 
   const renderDotColor = (color: string) => {
     switch (color) {
@@ -89,6 +97,15 @@ export function VendorCalendar() {
               <option value="2026-01">Jan 2026</option>
               <option value="2026-02">Feb 2026</option>
               <option value="2026-03">Mar 2026</option>
+              <option value="2026-04">Apr 2026</option>
+              <option value="2026-05">May 2026</option>
+              <option value="2026-06">Jun 2026</option>
+              <option value="2026-07">Jul 2026</option>
+              <option value="2026-08">Aug 2026</option>
+              <option value="2026-09">Sep 2026</option>
+              <option value="2026-10">Oct 2026</option>
+              <option value="2026-11">Nov 2026</option>
+              <option value="2026-12">Dec 2026</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-2.5 size-4 text-slate-500" />
           </div>
@@ -117,7 +134,7 @@ export function VendorCalendar() {
             {Array.from({ length: daysInMonth }).map((_, idx) => {
               const dayNum = idx + 1
               const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
-              const dateStr = `2026-01-${pad(dayNum)}`
+              const dateStr = `${selectedMonth}-${pad(dayNum)}`
               const summary = summaries[dateStr]
               const isSelected = selectedDate === dateStr
 
@@ -201,7 +218,7 @@ export function VendorCalendar() {
 
                     <span
                       className={`shrink-0 px-2.5 py-0.5 rounded-full font-extrabold text-[11px] border ${
-                        item.status === "Available"
+                        item.status === "Reserved"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : item.status === "Booked"
                           ? "bg-purple-50 text-purple-700 border-purple-200"

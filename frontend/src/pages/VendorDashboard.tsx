@@ -127,7 +127,7 @@ const INITIAL_ORDERS: Order[] = [
 export function VendorDashboard() {
   const navigate = useNavigate()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
-  const [orders] = useState<Order[]>(INITIAL_ORDERS)
+  const [orders, setOrders] = useState<Order[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all")
   const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "products" | "reports">("dashboard")
@@ -136,11 +136,34 @@ export function VendorDashboard() {
   const [dateRange, setDateRange] = useState("Last 7 Days")
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
 
+  const fetchOrders = async (vendorId?: number) => {
+    const API_BASE_URL =
+      import.meta.env.VITE_API_URL ||
+      (typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? `http://${window.location.hostname}:8000`
+        : "http://127.0.0.1:8000")
+    try {
+      const param = vendorId ? `?vendor_id=${vendorId}` : ""
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/orders${param}`)
+      if (res.ok) {
+        const data = await res.json()
+        setOrders(data)
+      }
+    } catch (err) {
+      console.warn("Failed to fetch vendor orders:", err)
+    }
+  }
+
   // Load logged vendor profile
   useEffect(() => {
     const vendor = getLoggedVendor()
+    if (!vendor) {
+      navigate("/vendor/signin")
+      return
+    }
     setLoggedVendor(vendor)
-  }, [])
+    fetchOrders(vendor.id)
+  }, [navigate])
 
   // Filter orders by status & search query
   const filteredOrders = orders.filter((order) => {
@@ -151,13 +174,26 @@ export function VendorDashboard() {
 
     if (!matchesSearch) return false
 
-    if (activeFilter === "today") return order.pickupDate.includes("Jul 10")
+    if (activeFilter === "today") {
+      const currentMonth = new Date().toLocaleString("en-US", { month: "short" })
+      return order.pickupDate.includes(currentMonth) || order.pickupDate.includes("Today")
+    }
     if (activeFilter === "pickup") return order.status === "Reserved" || order.status === "Late pickup"
     if (activeFilter === "return") return order.status === "Picked Up"
     if (activeFilter === "late") return order.status === "Late pickup" || order.status === "Late Return"
 
     return true
   })
+
+  const sales = orders.filter((o) => o.status !== "Cancelled").reduce((sum, o) => sum + o.total, 0)
+  const lateFees = Math.round(sales * 0.1)
+  const deposit = Math.round(sales * 0.2)
+
+  const currentMonthName = new Date().toLocaleString("en-US", { month: "short" })
+  const todayCount = orders.filter((o) => o.pickupDate.includes(currentMonthName) || o.pickupDate.includes("Today")).length
+  const pickupCount = orders.filter((o) => o.status === "Reserved" || o.status === "Late pickup").length
+  const returnCount = orders.filter((o) => o.status === "Picked Up").length
+  const lateCount = orders.filter((o) => o.status === "Late pickup" || o.status === "Late Return").length
 
   // Select all checkbox handler
   const handleSelectAll = (checked: boolean) => {
@@ -416,7 +452,7 @@ export function VendorDashboard() {
                   : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
               }`}
             >
-              All ({INITIAL_ORDERS.length})
+              All ({orders.length})
             </button>
             <button
               onClick={() => setActiveFilter(activeFilter === "today" ? "all" : "today")}
@@ -427,7 +463,7 @@ export function VendorDashboard() {
               }`}
             >
               <span className="flex size-4 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-[10px]">
-                2
+                {todayCount}
               </span>
               <span>Today</span>
             </button>
@@ -440,7 +476,7 @@ export function VendorDashboard() {
               }`}
             >
               <span className="flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
-                3
+                {pickupCount}
               </span>
               <span>To Pickup</span>
             </button>
@@ -453,7 +489,7 @@ export function VendorDashboard() {
               }`}
             >
               <span className="flex size-4 items-center justify-center rounded-full bg-sky-600 text-white font-bold text-[10px]">
-                1
+                {returnCount}
               </span>
               <span>To Return</span>
             </button>
@@ -466,7 +502,7 @@ export function VendorDashboard() {
               }`}
             >
               <span className="flex size-4 items-center justify-center rounded-full bg-rose-600 text-white font-bold text-[10px]">
-                1
+                {lateCount}
               </span>
               <span>Late</span>
             </button>
@@ -490,17 +526,17 @@ export function VendorDashboard() {
             <div className="flex items-center gap-3 bg-slate-50 px-3.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 shadow-xs">
               <div>
                 <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Sales</span>
-                <span className="font-bold text-emerald-700">$1945</span>
+                <span className="font-bold text-emerald-700">${sales}</span>
               </div>
               <div className="h-6 w-px bg-slate-200" />
               <div>
                 <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Late Fees</span>
-                <span className="font-bold text-rose-700">$235</span>
+                <span className="font-bold text-rose-700">${lateFees}</span>
               </div>
               <div className="h-6 w-px bg-slate-200" />
               <div>
                 <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Deposit</span>
-                <span className="font-bold text-amber-700">$710</span>
+                <span className="font-bold text-amber-700">${deposit}</span>
               </div>
             </div>
           </div>

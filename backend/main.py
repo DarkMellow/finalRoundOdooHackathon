@@ -1163,6 +1163,119 @@ def cancel_customer_order_endpoint(
     return [format_order_response(o) for o in all_orders]
 
 
+@app.get(
+    "/api/v1/vendor/orders",
+    tags=["Vendor"],
+)
+def get_vendor_orders(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    # Resolve vendor_id
+    if not vendor_id:
+        # Fallback to first vendor user
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return []
+        vendor_id = vendor.id
+
+    # Get vendor's products
+    vendor_products = db.query(models.Product).filter(models.Product.vendor_id == vendor_id).all()
+    vendor_prod_ids = {p.id for p in vendor_products}
+
+    # Fetch all orders
+    orders = db.query(models.Order).all()
+    vendor_orders = []
+
+    for order in orders:
+        try:
+            items_data = json.loads(order.items_json or "[]")
+        except Exception:
+            items_data = []
+
+        matching_items = []
+        for it in items_data:
+            prod_id_str = str(it.get("productId") or "")
+            clean_id = None
+            if prod_id_str.startswith("db-"):
+                try:
+                    clean_id = int(prod_id_str.replace("db-", ""))
+                except ValueError:
+                    pass
+            else:
+                try:
+                    clean_id = int(prod_id_str)
+                except ValueError:
+                    pass
+
+            if clean_id in vendor_prod_ids:
+                matching_items.append(it)
+
+        if len(matching_items) > 0:
+            # Get customer details
+            customer = db.query(models.User).filter(models.User.id == order.user_id).first()
+            customer_name = customer.full_name if customer else "Customer"
+
+            # Calculate total for vendor's items only
+            vendor_total = 0.0
+            item_names = []
+            for it in matching_items:
+                h_rate = float(it.get("hourlyRate") or 0.0)
+                qty = int(it.get("quantity") or 1)
+                vendor_total += h_rate * order.total_hours * qty
+                item_names.append(it.get("title") or "Item")
+
+            # Map status
+            status_map = {
+                "Active": "Reserved",
+                "Pending Pickup": "Quotation",
+                "Completed": "Picked Up",
+                "Returned": "Picked Up",
+                "Cancelled": "Cancelled"
+            }
+            mapped_status = status_map.get(order.status, "Reserved")
+
+            invoice_status_map = {
+                "Active": "Invoiced",
+                "Pending Pickup": "Quotation Sent",
+                "Completed": "Confirmed",
+                "Returned": "Confirmed",
+                "Cancelled": "Nothing to Invoice"
+            }
+            mapped_invoice_status = invoice_status_map.get(order.status, "Confirmed")
+
+            # Date formatting
+            try:
+                # Expecting format: "2026-08-08 16:00"
+                pickup_dt = datetime.strptime(order.start_date, "%Y-%m-%d %H:%M")
+                pickup_str = pickup_dt.strftime("%b %d, %I:%M%p").replace(" 0", " ").lower()
+            except Exception:
+                pickup_str = order.start_date
+
+            try:
+                return_dt = datetime.strptime(order.end_date, "%Y-%m-%d %H:%M")
+                return_str = return_dt.strftime("%b %d, %I:%M%p").replace(" 0", " ").lower()
+            except Exception:
+                return_str = order.end_date
+
+            vendor_orders.append({
+                "id": str(order.id),
+                "reference": order.reference,
+                "customer": customer_name,
+                "item": ", ".join(item_names),
+                "status": mapped_status,
+                "pickupDate": pickup_str,
+                "returnDate": return_str,
+                "startDateRaw": order.start_date,
+                "endDateRaw": order.end_date,
+                "total": int(vendor_total),
+                "invoiceStatus": mapped_invoice_status
+            })
+
+    return vendor_orders
+
+
+
 
 
 

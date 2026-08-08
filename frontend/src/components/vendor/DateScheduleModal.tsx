@@ -65,11 +65,11 @@ export function DateScheduleModal({
 
   const getStatusBadge = (status: ScheduleStatus) => {
     switch (status) {
-      case "Available":
+      case "Reserved":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="size-3 text-emerald-600" />
-            Available
+            Reserved
           </span>
         )
       case "Booked":

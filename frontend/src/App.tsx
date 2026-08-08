@@ -6,11 +6,14 @@ import { CustomerCatalog } from "@/pages/CustomerCatalog"
 import { VendorSignIn } from "@/pages/VendorSignIn"
 import { VendorSignUp } from "@/pages/VendorSignUp"
 import { VendorDashboard } from "@/pages/VendorDashboard"
+import { VendorAddProduct } from "@/pages/VendorAddProduct"
+import { VendorProductList } from "@/pages/VendorProductList"
 
 function AppRoutes() {
   const location = useLocation()
   const isStandalonePage =
     location.pathname.startsWith("/vendor/dashboard") ||
+    location.pathname.startsWith("/vendor/products") ||
     location.pathname.startsWith("/customer/catalog")
 
   return (
@@ -25,6 +28,8 @@ function AppRoutes() {
           <Route path="/vendor/signin" element={<VendorSignIn />} />
           <Route path="/vendor/signup" element={<VendorSignUp />} />
           <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+          <Route path="/vendor/products" element={<VendorProductList />} />
+          <Route path="/vendor/products/new" element={<VendorAddProduct />} />
           {/* Legacy redirects */}
           <Route path="/admin/*" element={<Navigate to="/vendor/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/customer/catalog" replace />} />

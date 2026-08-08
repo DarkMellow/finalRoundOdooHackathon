@@ -229,7 +229,13 @@ export function VendorDashboard() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveNavTab(tab.id as any)}
+                  onClick={() => {
+                    if (tab.id === "products") {
+                      navigate("/vendor/products")
+                    } else {
+                      setActiveNavTab(tab.id as any)
+                    }
+                  }}
                   className={`px-3 py-1.5 rounded-lg transition-colors ${
                     activeNavTab === tab.id
                       ? "bg-slate-100 text-slate-900 font-bold"
@@ -309,6 +315,15 @@ export function VendorDashboard() {
             >
               <Plus className="size-3.5" />
               <span>New</span>
+            </button>
+
+            {/* Add Product Button */}
+            <button
+              onClick={() => navigate("/vendor/products/new")}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all transform active:scale-95"
+            >
+              <Package className="size-3.5" />
+              <span>+ Add Product</span>
             </button>
           </div>
 

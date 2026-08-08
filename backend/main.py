@@ -180,3 +180,67 @@ def vendor_signin(payload: schemas.VendorSignInSchema, db: Session = Depends(get
 
     return user
 
+
+# ==========================================
+# PRODUCT ENDPOINTS
+# ==========================================
+
+@app.post(
+    "/api/v1/products",
+    response_model=schemas.ProductResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Products"],
+)
+def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(get_db)):
+    # Fallback to first vendor user if vendor_id is not specified or 1
+    vendor = db.query(models.User).filter(models.User.id == payload.vendor_id).first()
+    if not vendor:
+        first_vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if first_vendor:
+            payload.vendor_id = first_vendor.id
+        else:
+            # Create a default vendor if none exists
+            default_vendor = models.User(
+                full_name="Default Vendor",
+                email="vendor@easyrental.com",
+                hashed_password="hashed_vendor123",
+                role="vendor",
+                is_active=True,
+            )
+            db.add(default_vendor)
+            db.commit()
+            db.refresh(default_vendor)
+            payload.vendor_id = default_vendor.id
+
+    product = models.Product(
+        vendor_id=payload.vendor_id,
+        name=payload.name,
+        product_type=payload.product_type,
+        image_url=payload.image_url,
+        quantity_on_hand=payload.quantity_on_hand,
+        sales_price=payload.sales_price,
+        cost_price=payload.cost_price,
+        is_published=payload.is_published,
+        periodicity=payload.periodicity,
+        padding_time=payload.padding_time,
+        pickup_time=payload.pickup_time,
+        return_time=payload.return_time,
+        late_fees=payload.late_fees,
+        security_deposit=payload.security_deposit,
+        attributes_json=payload.attributes_json,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@app.get(
+    "/api/v1/products",
+    response_model=list[schemas.ProductResponseSchema],
+    tags=["Products"],
+)
+def get_products(db: Session = Depends(get_db)):
+    return db.query(models.Product).order_by(models.Product.id.desc()).all()
+
+

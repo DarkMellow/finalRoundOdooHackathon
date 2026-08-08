@@ -22,6 +22,7 @@ class User(Base):
     vendor_profile = relationship("VendorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     properties = relationship("Property", back_populates="owner")
     bookings = relationship("RentalBooking", back_populates="customer")
+    products = relationship("Product", back_populates="vendor")
 
 
 class CustomerProfile(Base):
@@ -82,3 +83,34 @@ class RentalBooking(Base):
 
     property = relationship("Property", back_populates="bookings")
     customer = relationship("User", back_populates="bookings")
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(200), nullable=False)
+    product_type = Column(String(50), default="Goods", nullable=False)  # 'Goods' or 'Service'
+    image_url = Column(Text, nullable=True)
+    quantity_on_hand = Column(Float, default=0.0, nullable=False)
+    sales_price = Column(Float, default=0.0, nullable=False)
+    cost_price = Column(Float, default=0.0, nullable=False)
+    is_published = Column(Boolean, default=False, nullable=False)
+
+    # Sales / Rental parameters
+    periodicity = Column(String(50), default="Hours", nullable=False)  # 'Hours', 'Day', 'Night', 'Weekly'
+    padding_time = Column(String(50), default="2:00 H", nullable=True)
+    pickup_time = Column(String(50), default="10:00 H", nullable=True)
+    return_time = Column(String(50), default="19:00 H", nullable=True)
+    late_fees = Column(Float, default=0.0, nullable=True)
+    security_deposit = Column(Float, default=0.0, nullable=True)
+
+    # Attributes & Variants stored as JSON string
+    attributes_json = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vendor = relationship("User", back_populates="products")
+

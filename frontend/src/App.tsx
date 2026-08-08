@@ -8,13 +8,18 @@ import { VendorSignUp } from "@/pages/VendorSignUp"
 import { VendorDashboard } from "@/pages/VendorDashboard"
 import { VendorAddProduct } from "@/pages/VendorAddProduct"
 import { VendorProductList } from "@/pages/VendorProductList"
+import { Wishlist } from "@/pages/Wishlist"
+import { Profile } from "@/pages/Profile"
+
 
 function AppRoutes() {
   const location = useLocation()
   const isStandalonePage =
     location.pathname.startsWith("/vendor/dashboard") ||
     location.pathname.startsWith("/vendor/products") ||
-    location.pathname.startsWith("/customer/catalog")
+    location.pathname.startsWith("/customer/catalog") ||
+    location.pathname.startsWith("/customer/wishlist") ||
+    location.pathname.startsWith("/customer/profile")
 
   return (
     <div className="min-h-screen bg-background font-sans antialiased text-foreground">
@@ -25,6 +30,8 @@ function AppRoutes() {
           <Route path="/customer/signin" element={<CustomerSignIn />} />
           <Route path="/customer/signup" element={<CustomerSignUp />} />
           <Route path="/customer/catalog" element={<CustomerCatalog />} />
+          <Route path="/customer/wishlist" element={<Wishlist />} />
+          <Route path="/customer/profile" element={<Profile />} />
           <Route path="/vendor/signin" element={<VendorSignIn />} />
           <Route path="/vendor/signup" element={<VendorSignUp />} />
           <Route path="/vendor/dashboard" element={<VendorDashboard />} />

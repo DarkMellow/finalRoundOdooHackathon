@@ -749,6 +749,61 @@ def save_card(payload: schemas.SaveCardSchema, db: Session = Depends(get_db)):
     ]
 
 
+@app.put(
+    "/api/v1/cards/{card_id}",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def update_card(
+    card_id: str,
+    payload: schemas.SaveCardSchema,
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+    card = db.query(models.UserCard).filter(models.UserCard.id == card_id, models.UserCard.user_id == target_user_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    raw_num = payload.cardNumber.replace(" ", "").replace("-", "")
+    if len(raw_num) >= 4 and not (raw_num.startswith("x") or raw_num.startswith("*")):
+        last4 = raw_num[-4:]
+        brand = payload.brand or "Visa"
+        if raw_num.startswith("5"):
+            brand = "Mastercard"
+        elif raw_num.startswith("3"):
+            brand = "Amex"
+        card.card_number_last4 = last4
+        card.brand = brand
+
+    card.cardholder_name = payload.cardholderName
+    card.expiry = payload.expiry or "12/28"
+    if payload.isDefault:
+        db.query(models.UserCard).filter(models.UserCard.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+        card.is_default = True
+
+    db.commit()
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
 @app.delete(
     "/api/v1/cards/{card_id}",
     response_model=list[schemas.SavedCardSchema],
@@ -1118,6 +1173,47 @@ def create_customer_order(
     )
     db.add(new_order)
 
+    # 4.5. Deduct stock quantity of ordered variants
+    for it in items_list:
+        prod_id_str = str(it.get("productId") or "")
+        clean_prod_id = None
+        if prod_id_str.startswith("db-"):
+            try:
+                clean_prod_id = int(prod_id_str.replace("db-", ""))
+            except ValueError:
+                pass
+        else:
+            try:
+                clean_prod_id = int(prod_id_str)
+            except ValueError:
+                pass
+
+        if clean_prod_id:
+            product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+            if product and product.attributes_json:
+                try:
+                    attr_data = json.loads(product.attributes_json)
+                except Exception:
+                    attr_data = {}
+
+                variants = attr_data.get("variants", [])
+                variant_name = it.get("variantName")
+                qty_ordered = int(it.get("quantity") or 1)
+
+                modified = False
+                for variant in variants:
+                    if variant.get("name") == variant_name:
+                        try:
+                            curr_stock = int(variant.get("stockQuantity") or "0")
+                            new_stock = max(0, curr_stock - qty_ordered)
+                            variant["stockQuantity"] = str(new_stock)
+                            modified = True
+                        except ValueError:
+                            pass
+
+                if modified:
+                    product.attributes_json = json.dumps(attr_data)
+
     # 5. Clear User Cart
     cart = db.query(models.Cart).filter(models.Cart.user_id == target_user_id).first()
     if cart:
@@ -1152,6 +1248,53 @@ def cancel_customer_order_endpoint(
 
     order.status = "Cancelled"
     order.total = 0.0
+
+    # 4.6. Return stock quantity of cancelled items
+    try:
+        items_data = json.loads(order.items_json or "[]")
+    except Exception:
+        items_data = []
+
+    for it in items_data:
+        prod_id_str = str(it.get("productId") or "")
+        clean_prod_id = None
+        if prod_id_str.startswith("db-"):
+            try:
+                clean_prod_id = int(prod_id_str.replace("db-", ""))
+            except ValueError:
+                pass
+        else:
+            try:
+                clean_prod_id = int(prod_id_str)
+            except ValueError:
+                pass
+
+        if clean_prod_id:
+            product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+            if product and product.attributes_json:
+                try:
+                    attr_data = json.loads(product.attributes_json)
+                except Exception:
+                    attr_data = {}
+
+                variants = attr_data.get("variants", [])
+                variant_name = it.get("variantName")
+                qty_ordered = int(it.get("quantity") or 1)
+
+                modified = False
+                for variant in variants:
+                    if variant.get("name") == variant_name:
+                        try:
+                            curr_stock = int(variant.get("stockQuantity") or "0")
+                            new_stock = curr_stock + qty_ordered
+                            variant["stockQuantity"] = str(new_stock)
+                            modified = True
+                        except ValueError:
+                            pass
+
+                if modified:
+                    product.attributes_json = json.dumps(attr_data)
+
     db.commit()
 
     all_orders = (
@@ -1273,12 +1416,3 @@ def get_vendor_orders(
             })
 
     return vendor_orders
-
-
-
-
-
-
-
-
-

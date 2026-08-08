@@ -785,6 +785,253 @@ def delete_card(
     ]
 
 
+# ==========================================
+# WISHLIST ENDPOINTS & HELPERS
+# ==========================================
+
+DEFAULT_INITIAL_WISHLIST = [
+    {
+        "id": "p-001",
+        "title": "JBL FLIP 3 Portable Bluetooth Mobile/Table Speaker (SQUAD, 2.0 Channel)",
+        "image": "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 9975,
+        "originalPrice": 11999,
+        "discount": 16,
+        "rating": 4.0,
+        "reviews": 21,
+        "assured": True,
+        "stockText": "In Stock",
+    },
+    {
+        "id": "p-002",
+        "title": "Chevron Screen Guard for Apple iPhone 6",
+        "image": "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?auto=format&fit=crop&q=80",
+        "inStock": False,
+        "price": 399,
+        "originalPrice": 845,
+        "discount": 11,
+        "rating": 4.5,
+        "reviews": 11,
+        "assured": False,
+        "stockText": "Out of Stock",
+    },
+    {
+        "id": "p-003",
+        "title": "Zotac NVIDIA GeForce GT 610 Synergy Edition 2 GB DDR3 Graphics Card",
+        "image": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 3999,
+        "originalPrice": 4990,
+        "discount": 5,
+        "rating": 4.3,
+        "reviews": 733,
+        "assured": True,
+        "stockText": "In Stock",
+    },
+    {
+        "id": "p-004",
+        "title": "GoPro Daydream View VR Headset with Controller (Slate)",
+        "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 6499,
+        "originalPrice": None,
+        "discount": None,
+        "rating": 4.4,
+        "reviews": 194,
+        "assured": True,
+        "stockText": "In Stock",
+    },
+    {
+        "id": "p-005",
+        "title": "Apple Watch Series 1 - 38 mm Silver Aluminium Case with White Sport Band",
+        "image": "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 2200,
+        "originalPrice": 3290,
+        "discount": 4,
+        "rating": 4.3,
+        "reviews": 60,
+        "assured": True,
+        "stockText": "In Stock",
+    },
+    {
+        "id": "p-006",
+        "title": "Sony Wireless Headphones WH-1000XM4",
+        "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 17990,
+        "originalPrice": 24990,
+        "discount": 28,
+        "rating": 4.8,
+        "reviews": 980,
+        "assured": True,
+        "stockText": "In Stock",
+    },
+    {
+        "id": "p-007",
+        "title": "Canon EOS 1500D DSLR Camera Kit",
+        "image": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 34990,
+        "originalPrice": 42900,
+        "discount": 19,
+        "rating": 4.7,
+        "reviews": 405,
+        "assured": True,
+        "stockText": "In Stock",
+    },
+    {
+        "id": "p-008",
+        "title": "Acer Aspire 5 Thin and Light Laptop",
+        "image": "https://images.unsplash.com/photo-1541807084-5c52b6b3c7b5?auto=format&fit=crop&q=80",
+        "inStock": True,
+        "price": 48990,
+        "originalPrice": 56990,
+        "discount": 14,
+        "rating": 4.2,
+        "reviews": 120,
+        "assured": False,
+        "stockText": "In Stock",
+    },
+]
+
+
+def get_or_create_user_wishlist(user_id: int | None, db: Session) -> tuple[models.Wishlist, int]:
+    target_user_id = resolve_target_user_id(user_id, db)
+    wishlist = db.query(models.Wishlist).filter(models.Wishlist.user_id == target_user_id).first()
+    if not wishlist:
+        wishlist = models.Wishlist(
+            user_id=target_user_id,
+            items_json=json.dumps(DEFAULT_INITIAL_WISHLIST),
+        )
+        db.add(wishlist)
+        db.commit()
+        db.refresh(wishlist)
+    return wishlist, target_user_id
+
+
+@app.get(
+    "/api/v1/wishlist",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def get_wishlist(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    wishlist, _ = get_or_create_user_wishlist(user_id, db)
+    try:
+        items = json.loads(wishlist.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+        return items
+    except Exception as e:
+        print(f"Error parsing wishlist: {e}")
+        return []
+
+
+@app.post(
+    "/api/v1/wishlist/toggle",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def toggle_wishlist_item(payload: schemas.WishlistToggleSchema, db: Session = Depends(get_db)):
+    wishlist, target_user_id = get_or_create_user_wishlist(payload.user_id, db)
+    try:
+        items = json.loads(wishlist.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    existing_idx = next((i for i, item in enumerate(items) if str(item.get("id")) == str(payload.productId)), -1)
+
+    if existing_idx >= 0:
+        # Remove from wishlist
+        items.pop(existing_idx)
+    else:
+        # Add to wishlist
+        if payload.item:
+            new_item = payload.item.model_dump()
+        else:
+            # Fallback search product in db
+            product = db.query(models.Product).filter(models.Product.id == payload.productId).first()
+            if product:
+                img = None
+                if product.variants and len(product.variants) > 0 and product.variants[0].images:
+                    img = product.variants[0].images[0].image_url
+                new_item = {
+                    "id": str(product.id),
+                    "title": product.name,
+                    "image": img or "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80",
+                    "inStock": True,
+                    "price": float(product.rental_plans[0].rate if product.rental_plans else 500),
+                    "originalPrice": None,
+                    "discount": None,
+                    "rating": 4.5,
+                    "reviews": 10,
+                    "assured": True,
+                    "stockText": "In Stock",
+                }
+            else:
+                new_item = {
+                    "id": str(payload.productId),
+                    "title": "Selected Equipment",
+                    "image": "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80",
+                    "inStock": True,
+                    "price": 999,
+                    "originalPrice": None,
+                    "discount": None,
+                    "rating": 4.5,
+                    "reviews": 10,
+                    "assured": True,
+                    "stockText": "In Stock",
+                }
+        items.insert(0, new_item)
+
+    wishlist.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(wishlist)
+    return items
+
+
+@app.delete(
+    "/api/v1/wishlist/items/{product_id}",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def remove_wishlist_item(
+    product_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    wishlist, _ = get_or_create_user_wishlist(user_id, db)
+    try:
+        items = json.loads(wishlist.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    items = [item for item in items if str(item.get("id")) != str(product_id)]
+    wishlist.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(wishlist)
+    return items
+
+
+@app.delete(
+    "/api/v1/wishlist",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def clear_wishlist(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    wishlist, _ = get_or_create_user_wishlist(user_id, db)
+    wishlist.items_json = "[]"
+    db.commit()
+    db.refresh(wishlist)
+    return []
+
+
+
 
 
 

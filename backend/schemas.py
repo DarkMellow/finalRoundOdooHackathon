@@ -240,4 +240,29 @@ class SaveCardSchema(BaseModel):
     isDefault: Optional[bool] = False
 
 
+# ==========================================
+# WISHLIST SCHEMAS
+# ==========================================
+
+class WishlistItemSchema(BaseModel):
+    id: str
+    title: str
+    image: str
+    inStock: bool = True
+    price: float
+    originalPrice: Optional[float] = None
+    discount: Optional[int] = None
+    rating: float = 4.5
+    reviews: int = 20
+    assured: bool = True
+    stockText: Optional[str] = "In Stock"
+
+
+class WishlistToggleSchema(BaseModel):
+    user_id: Optional[int] = None
+    productId: str
+    item: Optional[WishlistItemSchema] = None
+
+
+
 

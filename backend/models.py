@@ -24,6 +24,7 @@ class User(Base):
     bookings = relationship("RentalBooking", back_populates="customer")
     products = relationship("Product", back_populates="vendor")
     cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    wishlist = relationship("Wishlist", back_populates="user", uselist=False, cascade="all, delete-orphan")
     addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
     cards = relationship("UserCard", back_populates="user", cascade="all, delete-orphan")
 
@@ -176,6 +177,19 @@ class UserCard(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="cards")
+
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    items_json = Column(Text, nullable=True)  # JSON serialized array of wishlisted product items
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="wishlist")
+
 
 
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { getLoggedCustomer, type CustomerUser, fetchProducts } from "@/lib/api"
 import { fetchCartSummary } from "@/lib/cartCheckoutApi"
+import { fetchWishlistProducts, toggleWishlistApi } from "@/lib/wishlistFetcher"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
 import { CartCheckout } from "@/pages/CartCheckout"
 import { Wishlist } from "@/pages/Wishlist"
@@ -142,15 +143,46 @@ export function CustomerCatalog() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Load wishlist from database
+  useEffect(() => {
+    fetchWishlistProducts()
+      .then((items) => {
+        setWishlist(items.map((i) => i.id))
+      })
+      .catch((err) => console.warn("Failed to fetch wishlist:", err))
+  }, [isWishlistModalOpen])
+
   // Only display actual products from database across all vendors
   const allProducts = dbProducts
 
   // Toggle wishlist
-  const toggleWishlist = (id: string) => {
+  const toggleWishlist = async (id: string) => {
+    const prod = allProducts.find((p) => p.id === id)
     if (wishlist.includes(id)) {
       setWishlist(wishlist.filter((item) => item !== id))
     } else {
       setWishlist([...wishlist, id])
+    }
+    try {
+      const updated = await toggleWishlistApi(
+        id,
+        prod
+          ? {
+              id: prod.id,
+              title: prod.title,
+              image: prod.image,
+              inStock: prod.inStock,
+              price: prod.price,
+              rating: prod.rating || 4.5,
+              reviews: 15,
+              assured: true,
+              stockText: prod.inStock ? "In Stock" : "Out of Stock",
+            }
+          : undefined
+      )
+      setWishlist(updated.map((i) => i.id))
+    } catch (err) {
+      console.warn("Failed to sync wishlist toggle with backend:", err)
     }
   }
 
@@ -492,8 +524,11 @@ export function CustomerCatalog() {
                       {/* TOP LEFT PRIMARY CATALOG TAG / CLASS BADGE */}
                       <div className="absolute top-2.5 left-2.5 z-10">
                         <button
-                          onClick={() => setSelectedTag(product.category)}
-                          className="px-2.5 py-1 rounded-md bg-slate-900/85 hover:bg-blue-600 text-white font-bold text-[10px] uppercase tracking-wider backdrop-blur-md shadow-xs transition-colors border border-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedTag(product.category)
+                          }}
+                          className="px-2.5 py-1 rounded-md bg-slate-900/85 hover:bg-blue-600 text-white font-bold text-[10px] uppercase tracking-wider backdrop-blur-md shadow-xs transition-colors border border-white/20 cursor-pointer"
                         >
                           {product.category}
                         </button>
@@ -501,8 +536,12 @@ export function CustomerCatalog() {
 
                       {/* Wishlist Button Overlay */}
                       <button
-                        onClick={() => toggleWishlist(product.id)}
-                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 flex items-center justify-center text-slate-700 hover:text-rose-600 transition-colors shadow-xs z-10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleWishlist(product.id)
+                        }}
+                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 flex items-center justify-center text-slate-700 hover:text-rose-600 transition-colors shadow-xs z-10 cursor-pointer"
+                        title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                       >
                         <Heart
                           className={`size-4 ${

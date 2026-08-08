@@ -5,9 +5,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Notion-Inspired Design Tokens ─── */
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Inter Variable', sans-serif;
+    /* Typography */
+    --font-heading: 'Inter Variable', 'Inter', -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-sans: 'Inter Variable', 'Inter', -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+
+    /* Border Radius Scale (DESIGN.md) */
+    --radius-xs: 4px;
+    --radius-sm: 5px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+    --radius-3xl: 24px;
+    --radius-4xl: 9999px;
+
+    /* Shadcn color token mappings */
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,92 +53,250 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ─── Light Mode: Notion Warm Paper ─── */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /* Surface & Canvas */
+    --background: #f6f5f4;            /* Warm Paper canvas-soft */
+    --foreground: #000000;            /* Ink — near-black */
+    --card: #ffffff;                  /* White card surfaces */
+    --card-foreground: #000000;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+
+    /* Primary — Notion Blue (the single structural accent) */
+    --primary: #0075de;
+    --primary-foreground: #ffffff;
+
+    /* Secondary — Deep Indigo (hero "night" band) */
+    --secondary: #213183;
+    --secondary-foreground: #ffffff;
+
+    /* Muted */
+    --muted: #f6f5f4;
+    --muted-foreground: #615d59;      /* Stone — supporting copy */
+
+    /* Accent */
+    --accent: #f6f5f4;
+    --accent-foreground: #000000;
+
+    /* Destructive */
+    --destructive: #dc2626;
+
+    /* Borders & Inputs */
+    --border: #e6e6e6;               /* Hairline */
+    --input: #e6e6e6;
+    --ring: #0075de;                 /* Focus ring = Notion Blue */
+
+    /* Charts (using sticker palette for visual data) */
+    --chart-1: #0075de;              /* Notion Blue */
+    --chart-2: #1aae39;              /* Sticker Green */
+    --chart-3: #dd5b00;              /* Sticker Orange */
+    --chart-4: #d6b6f6;              /* Sticker Purple */
+    --chart-5: #2a9d99;              /* Sticker Teal */
+
+    /* Radius */
+    --radius: 0.75rem;               /* 12px — DESIGN.md rounded.lg */
+
+    /* Sidebar */
+    --sidebar: #ffffff;
+    --sidebar-foreground: #000000;
+    --sidebar-primary: #0075de;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f6f5f4;
+    --sidebar-accent-foreground: #000000;
+    --sidebar-border: #e6e6e6;
+    --sidebar-ring: #0075de;
+
+    /* Notion-specific semantic tokens */
+    --ink: #000000;
+    --ink-secondary: #31302e;        /* Warm Charcoal */
+    --ink-muted: #615d59;            /* Stone */
+    --ink-faint: #a39e98;            /* Ash */
+    --canvas-soft: #f6f5f4;          /* Warm Paper */
+    --surface: #ffffff;
+    --hairline: #e6e6e6;
+    --primary-active: #005bab;       /* Pressed Blue */
+
+    /* Sticker Palette (decorative only) */
+    --accent-sky: #62aef0;
+    --accent-purple: #d6b6f6;
+    --accent-pink: #ff64c8;
+    --accent-orange: #dd5b00;
+    --accent-teal: #2a9d99;
+    --accent-green: #1aae39;
+
+    /* Elevation Shadows */
+    --shadow-soft: 0 0.175px 1.041px rgba(0,0,0,0.01),
+                   0 0.8px 2.925px rgba(0,0,0,0.02),
+                   0 2.025px 7.847px rgba(0,0,0,0.027),
+                   0 4px 18px rgba(0,0,0,0.04);
+    --shadow-elevated: 0 0.175px 1.041px rgba(0,0,0,0.01),
+                       0 0.8px 2.925px rgba(0,0,0,0.02),
+                       0 2.025px 7.847px rgba(0,0,0,0.027),
+                       0 4px 18px rgba(0,0,0,0.04),
+                       0 23px 52px rgba(0,0,0,0.05);
 }
 
+/* ─── Dark Mode ─── */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: #0f0f10;
+    --foreground: #f5f5f5;
+    --card: #1a1a1c;
+    --card-foreground: #f5f5f5;
+    --popover: #1a1a1c;
+    --popover-foreground: #f5f5f5;
+
+    --primary: #4d9ee8;
+    --primary-foreground: #0a0a0a;
+
+    --secondary: #1e2a6e;
+    --secondary-foreground: #f5f5f5;
+
+    --muted: #262628;
+    --muted-foreground: #a0a0a0;
+
+    --accent: #262628;
+    --accent-foreground: #f5f5f5;
+
+    --destructive: #ef4444;
+
+    --border: rgba(255, 255, 255, 0.1);
+    --input: rgba(255, 255, 255, 0.12);
+    --ring: #4d9ee8;
+
+    --chart-1: #4d9ee8;
+    --chart-2: #34d058;
+    --chart-3: #f0883e;
+    --chart-4: #d6b6f6;
+    --chart-5: #3fc1c0;
+
+    --sidebar: #141416;
+    --sidebar-foreground: #f5f5f5;
+    --sidebar-primary: #4d9ee8;
+    --sidebar-primary-foreground: #f5f5f5;
+    --sidebar-accent: #262628;
+    --sidebar-accent-foreground: #f5f5f5;
+    --sidebar-border: rgba(255, 255, 255, 0.08);
+    --sidebar-ring: #4d9ee8;
+
+    --ink: #f5f5f5;
+    --ink-secondary: #d0d0d0;
+    --ink-muted: #a0a0a0;
+    --ink-faint: #6b6b6b;
+    --canvas-soft: #0f0f10;
+    --surface: #1a1a1c;
+    --hairline: rgba(255, 255, 255, 0.1);
+    --primary-active: #3a8ad4;
+
+    --accent-sky: #5a9fd8;
+    --accent-purple: #b89fe0;
+    --accent-pink: #e858b0;
+    --accent-orange: #c85400;
+    --accent-teal: #258b87;
+    --accent-green: #17993a;
+
+    --shadow-soft: 0 0.175px 1.041px rgba(0,0,0,0.08),
+                   0 0.8px 2.925px rgba(0,0,0,0.12),
+                   0 2.025px 7.847px rgba(0,0,0,0.16),
+                   0 4px 18px rgba(0,0,0,0.2);
+    --shadow-elevated: 0 0.175px 1.041px rgba(0,0,0,0.1),
+                       0 0.8px 2.925px rgba(0,0,0,0.15),
+                       0 2.025px 7.847px rgba(0,0,0,0.2),
+                       0 4px 18px rgba(0,0,0,0.25),
+                       0 23px 52px rgba(0,0,0,0.3);
 }
 
+/* ─── Base Layer ─── */
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    body {
+        @apply bg-background text-foreground antialiased;
     }
-  html {
-    @apply font-sans;
+    html {
+        @apply font-sans;
+        font-feature-settings: "lnum", "locl";
+    }
+}
+
+/* ─── Notion Typography Hierarchy ─── */
+@layer components {
+    /* Display Headlines — tight negative tracking */
+    .text-display-1 {
+        font-size: 64px;
+        font-weight: 700;
+        line-height: 1.0;
+        letter-spacing: -2.125px;
+    }
+    .text-display-2 {
+        font-size: 54px;
+        font-weight: 700;
+        line-height: 1.04;
+        letter-spacing: -1.875px;
+    }
+    .text-heading-1 {
+        font-size: 40px;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -1px;
+    }
+    .text-heading-2 {
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1.23;
+        letter-spacing: -0.625px;
+    }
+    .text-heading-3 {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.27;
+        letter-spacing: -0.25px;
+    }
+    .text-title {
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.4;
+        letter-spacing: -0.125px;
+    }
+    .text-body-md {
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 1.5;
+        letter-spacing: 0;
+    }
+    .text-body-sm {
+        font-size: 15px;
+        font-weight: 400;
+        line-height: 1.33;
+        letter-spacing: 0;
+    }
+    .text-button {
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 1.5;
+        letter-spacing: 0;
+    }
+    .text-caption {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.43;
+        letter-spacing: 0;
+    }
+    .text-eyebrow {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.33;
+        letter-spacing: 0.125px;
+    }
+
+    /* Elevation Utilities */
+    .shadow-notion-soft {
+        box-shadow: var(--shadow-soft);
+    }
+    .shadow-notion-elevated {
+        box-shadow: var(--shadow-elevated);
     }
 }

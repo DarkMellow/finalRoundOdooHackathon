@@ -40,19 +40,6 @@ The team consists of three developers with the following role assignments:
      - [crud.py (catalog)](../backend/app/features/catalog/crud.py)
 
 #### 2. Ankan (Client Frontend)
-- **Branch**: `feature/foundation-auth-catalog-client`
-- **Tasks**:
-  1. Configure `react-router-dom` routes and add guards in [App.tsx](../frontend/src/App.tsx).
-  2. Add [authStore.ts](../frontend/src/store/authStore.ts) using Zustand to track current authenticated client details.
-  3. Design `/splash`, `/login`, and `/signup` views using Shadcn components:
-     - [LoginForm.tsx](../frontend/src/features/auth/components/LoginForm.tsx)
-     - [SignupForm.tsx](../frontend/src/features/auth/components/SignupForm.tsx)
-  4. Create client browse index `/` displaying catalog grids:
-     - [BrowsePage.tsx](../frontend/src/pages/client/BrowsePage.tsx)
-     - [ProductGrid.tsx](../frontend/src/features/catalog/components/ProductGrid.tsx)
-     - [ProductCard.tsx](../frontend/src/features/catalog/components/ProductCard.tsx)
-
-#### 3. Ayan (Admin Frontend)
 - **Branch**: `feature/catalog-admin-views`
 - **Tasks**:
   1. Build `/admin/login` page for administrators.
@@ -61,7 +48,21 @@ The team consists of three developers with the following role assignments:
      - `/admin/products` containing product variants list and item creation drawer: [ProductAdminPage.tsx](../frontend/src/pages/admin/ProductAdminPage.tsx), [ProductTable.tsx](../frontend/src/features/catalog/components/ProductTable.tsx)
      - `/admin/pricelists` showing rate rules mapping: [PricelistAdminPage.tsx](../frontend/src/pages/admin/PricelistAdminPage.tsx)
      - `/admin/rental-periods`: [RentalPeriodsAdminPage.tsx](../frontend/src/pages/admin/RentalPeriodsAdminPage.tsx)
+  4. Create client browse index `/` displaying catalog grids:
+     - [BrowsePage.tsx](../frontend/src/pages/client/BrowsePage.tsx)
+     - [ProductGrid.tsx](../frontend/src/features/catalog/components/ProductGrid.tsx)
+     - [ProductCard.tsx](../frontend/src/features/catalog/components/ProductCard.tsx)
 
+
+#### 3. Ayan (Admin Frontend)
+- **Branch**: `feature/foundation-auth-catalog-client`
+- **Tasks**:
+  1. Configure `react-router-dom` routes and add guards in [App.tsx](../frontend/src/App.tsx).
+  2. Add [authStore.ts](../frontend/src/store/authStore.ts) using Zustand to track current authenticated client details.
+  3. Design `/splash`, `/login`, and `/signup` views using Shadcn components:
+     - [LoginForm.tsx](../frontend/src/features/auth/components/LoginForm.tsx)
+     - [SignupForm.tsx](../frontend/src/features/auth/components/SignupForm.tsx)
+  
 ### Merge & Integration Checkpoint 1
 - **Target Branches**: Merge all branches into `develop` or `main`.
 - **Conflicts Prevention**: Ensure [App.tsx](../frontend/src/App.tsx) and main configurations are merged carefully.

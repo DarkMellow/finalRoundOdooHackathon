@@ -264,5 +264,50 @@ class WishlistToggleSchema(BaseModel):
     item: Optional[WishlistItemSchema] = None
 
 
+# ==========================================
+# ORDER SCHEMAS
+# ==========================================
+
+class OrderItemSchema(BaseModel):
+    id: str
+    productId: str
+    title: str
+    brand: str = "Brand"
+    image: str
+    hourlyRate: float
+    quantity: int = 1
+    variantName: Optional[str] = "Standard"
+
+
+class OrderResponseSchema(BaseModel):
+    id: str
+    reference: str
+    orderDate: str
+    status: str
+    startDate: str
+    endDate: str
+    totalHours: int
+    subtotal: float
+    discount: float
+    total: float
+    deliveryAddress: str
+    paymentMethod: str
+    items: List[OrderItemSchema] = []
+    invoiceUrl: Optional[str] = None
+
+
+class CreateOrderSchema(BaseModel):
+    user_id: Optional[int] = None
+    addressId: Optional[str] = None
+    deliveryAddress: Optional[str] = None
+    paymentMethod: Optional[str] = "Card"
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    totalHours: Optional[int] = 24
+    discount: Optional[float] = 0.0
+    items: Optional[List[OrderItemSchema]] = None
+
+
+
 
 

@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import json
 import time
+from datetime import datetime, timedelta
+import random
 from sqlalchemy.orm import Session, joinedload
 
 from config import settings
@@ -924,6 +926,242 @@ def clear_wishlist(user_id: int | None = Query(default=None), db: Session = Depe
     db.commit()
     db.refresh(wishlist)
     return []
+
+
+# ==========================================
+# ORDER ENDPOINTS & HELPERS
+# ==========================================
+
+def format_order_response(order: models.Order) -> schemas.OrderResponseSchema:
+    try:
+        items_data = json.loads(order.items_json or "[]")
+        if not isinstance(items_data, list):
+            items_data = []
+    except Exception:
+        items_data = []
+
+    formatted_items = []
+    for it in items_data:
+        formatted_items.append(
+            schemas.OrderItemSchema(
+                id=str(it.get("id") or f"item-{random.randint(100, 999)}"),
+                productId=str(it.get("productId") or it.get("id") or "p1"),
+                title=str(it.get("title") or it.get("name") or "Equipment Item"),
+                brand=str(it.get("brand") or "Equipment Co"),
+                image=str(it.get("image") or "https://images.unsplash.com/photo-1580481072645-022f9a6d83d0?auto=format&fit=crop&w=600&q=80"),
+                hourlyRate=float(it.get("hourlyRate") or 0.0),
+                quantity=int(it.get("quantity") or 1),
+                variantName=it.get("variantName") or it.get("variantTitle") or "Standard",
+            )
+        )
+
+    order_date_str = order.order_date.isoformat() if order.order_date else datetime.utcnow().isoformat()
+
+    return schemas.OrderResponseSchema(
+        id=str(order.id),
+        reference=order.reference,
+        orderDate=order_date_str,
+        status=order.status,
+        startDate=order.start_date,
+        endDate=order.end_date,
+        totalHours=order.total_hours,
+        subtotal=order.subtotal,
+        discount=order.discount,
+        total=order.total,
+        deliveryAddress=order.delivery_address,
+        paymentMethod=order.payment_method,
+        items=formatted_items,
+        invoiceUrl=None,
+    )
+
+
+@app.get(
+    "/api/v1/orders",
+    response_model=list[schemas.OrderResponseSchema],
+    tags=["Orders"],
+)
+def get_customer_orders(
+    user_id: int | None = Query(default=None),
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    query = db.query(models.Order).filter(models.Order.user_id == target_user_id)
+
+    if status and status != "all":
+        if status == "active":
+            query = query.filter(models.Order.status.in_(["Active", "Pending Pickup"]))
+        elif status == "completed":
+            query = query.filter(models.Order.status.in_(["Completed", "Returned"]))
+        elif status == "cancelled":
+            query = query.filter(models.Order.status == "Cancelled")
+        else:
+            query = query.filter(models.Order.status == status)
+
+    orders = query.order_by(models.Order.created_at.desc()).all()
+    return [format_order_response(o) for o in orders]
+
+
+@app.get(
+    "/api/v1/orders/{order_id}",
+    response_model=schemas.OrderResponseSchema,
+    tags=["Orders"],
+)
+def get_order_by_id(
+    order_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    order = (
+        db.query(models.Order)
+        .filter(
+            models.Order.user_id == target_user_id,
+            (models.Order.reference == order_id) | (models.Order.id == (int(order_id) if order_id.isdigit() else 0)),
+        )
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return format_order_response(order)
+
+
+@app.post(
+    "/api/v1/orders",
+    response_model=schemas.OrderResponseSchema,
+    tags=["Orders"],
+)
+def create_customer_order(
+    payload: schemas.CreateOrderSchema,
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+
+    # 1. Resolve Cart or provided items
+    items_list = []
+    subtotal = 0.0
+    total_hours = payload.totalHours or 24
+
+    if payload.items and len(payload.items) > 0:
+        for it in payload.items:
+            items_list.append(it.model_dump())
+            subtotal += it.hourlyRate * total_hours * it.quantity
+    else:
+        # Load from carts table
+        cart, _ = get_or_create_user_cart(target_user_id, db)
+        try:
+            cart_items = json.loads(cart.items_json or "[]")
+        except Exception:
+            cart_items = []
+        for it in cart_items:
+            h_rate = float(it.get("hourlyRate") or 0.0)
+            qty = int(it.get("quantity") or 1)
+            d_hours = int(it.get("durationHours") or total_hours)
+            subtotal += h_rate * d_hours * qty
+            items_list.append({
+                "id": str(it.get("id") or f"item-{random.randint(100, 999)}"),
+                "productId": str(it.get("productId") or it.get("id") or "p1"),
+                "title": str(it.get("title") or it.get("name") or "Rental Item"),
+                "brand": str(it.get("brand") or "Equipment Brand"),
+                "image": str(it.get("image") or "https://images.unsplash.com/photo-1580481072645-022f9a6d83d0?auto=format&fit=crop&w=600&q=80"),
+                "hourlyRate": h_rate,
+                "quantity": qty,
+                "variantName": it.get("variantName") or it.get("variantTitle") or "Standard",
+            })
+
+    discount = float(payload.discount or 0.0)
+    total = max(0.0, subtotal - discount)
+
+    # 2. Resolve Delivery Address
+    delivery_address = payload.deliveryAddress
+    if not delivery_address:
+        if payload.addressId:
+            addr = db.query(models.UserAddress).filter(
+                models.UserAddress.user_id == target_user_id,
+                models.UserAddress.id == (int(payload.addressId) if str(payload.addressId).isdigit() else 0),
+            ).first()
+            if addr:
+                delivery_address = f"{addr.street}, {addr.city}, {addr.state} {addr.zip_code}"
+        if not delivery_address:
+            default_addr = db.query(models.UserAddress).filter(
+                models.UserAddress.user_id == target_user_id,
+                models.UserAddress.is_default == True,
+            ).first()
+            if default_addr:
+                delivery_address = f"{default_addr.street}, {default_addr.city}, {default_addr.state} {default_addr.zip_code}"
+            else:
+                delivery_address = "Standard Delivery Address"
+
+    # 3. Dates & Reference
+    now = datetime.utcnow()
+    start_dt = now
+    end_dt = now + timedelta(hours=total_hours)
+    start_date_str = payload.startDate or start_dt.strftime("%Y-%m-%d %H:%M")
+    end_date_str = payload.endDate or end_dt.strftime("%Y-%m-%d %H:%M")
+    reference = f"ORD-{random.randint(100000, 999999)}"
+
+    # 4. Create Order Record
+    new_order = models.Order(
+        user_id=target_user_id,
+        reference=reference,
+        status="Active",
+        order_date=now,
+        start_date=start_date_str,
+        end_date=end_date_str,
+        total_hours=total_hours,
+        subtotal=subtotal,
+        discount=discount,
+        total=total,
+        delivery_address=delivery_address,
+        payment_method=payload.paymentMethod or "Credit Card",
+        items_json=json.dumps(items_list),
+    )
+    db.add(new_order)
+
+    # 5. Clear User Cart
+    cart = db.query(models.Cart).filter(models.Cart.user_id == target_user_id).first()
+    if cart:
+        cart.items_json = "[]"
+
+    db.commit()
+    db.refresh(new_order)
+    return format_order_response(new_order)
+
+
+@app.post(
+    "/api/v1/orders/{order_id}/cancel",
+    response_model=list[schemas.OrderResponseSchema],
+    tags=["Orders"],
+)
+def cancel_customer_order_endpoint(
+    order_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    order = (
+        db.query(models.Order)
+        .filter(
+            models.Order.user_id == target_user_id,
+            (models.Order.reference == order_id) | (models.Order.id == (int(order_id) if order_id.isdigit() else 0)),
+        )
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order.status = "Cancelled"
+    order.total = 0.0
+    db.commit()
+
+    all_orders = (
+        db.query(models.Order)
+        .filter(models.Order.user_id == target_user_id)
+        .order_by(models.Order.created_at.desc())
+        .all()
+    )
+    return [format_order_response(o) for o in all_orders]
+
 
 
 

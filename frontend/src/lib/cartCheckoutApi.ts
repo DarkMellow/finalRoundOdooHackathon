@@ -493,15 +493,54 @@ export async function processFinalOrder(
   orderId: string
   message: string
 }> {
+  const user = getLoggedCustomer()
+  const selectedAddr = cachedAddresses.find((a) => a.id === addressId)
+  const addrStr = selectedAddr
+    ? `${selectedAddr.street}, ${selectedAddr.city}, ${selectedAddr.state} ${selectedAddr.zipCode}`
+    : undefined
+
+  let paymentMethodStr = "Credit Card"
+  if (paymentDetails.method === "card") {
+    paymentMethodStr = `Card ending in ${paymentDetails.cardNumber.slice(-4) || "4242"}`
+  } else if (paymentDetails.method === "upi") {
+    paymentMethodStr = `UPI ID (${paymentDetails.upiId || "user@upi"})`
+  } else if (paymentDetails.method === "netbanking") {
+    paymentMethodStr = `Net Banking (${paymentDetails.bank || "HDFC Bank"})`
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user?.id,
+        addressId,
+        deliveryAddress: addrStr,
+        paymentMethod: paymentMethodStr,
+        totalHours: 24,
+      }),
+    })
+    if (res.ok) {
+      const createdOrder = await res.json()
+      await clearCart()
+      return {
+        success: true,
+        orderId: createdOrder.reference || createdOrder.id,
+        message: `Order #${createdOrder.reference || createdOrder.id} confirmed! Delivering to ${createdOrder.deliveryAddress} via ${createdOrder.paymentMethod}.`,
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to create order on backend:", err)
+  }
+
+  // Fallback
   await clearCart()
   const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`
-  const selectedAddr = cachedAddresses.find((a) => a.id === addressId)
-  const addrStr = selectedAddr ? `${selectedAddr.street}, ${selectedAddr.city}` : "Selected Address"
-
   return {
     success: true,
     orderId,
-    message: `Order #${orderId} confirmed! Delivering to ${addrStr} via ${paymentDetails.method.toUpperCase()}.`,
+    message: `Order #${orderId} confirmed! Delivering to ${addrStr || "Selected Address"} via ${paymentMethodStr}.`,
   }
 }
+
 

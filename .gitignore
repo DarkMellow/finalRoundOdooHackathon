@@ -1,0 +1,117 @@
+# ==============================================================================
+# Rental Management System — Root Git Ignore
+# ==============================================================================
+
+# OS / System Files
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.swp
+
+# IDEs & Editor Configuration
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.user
+*.sublime-project
+*.sublime-workspace
+
+# Logs & Caches
+# ------------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment Secrets & Local Configs
+# ------------------------------------------------------------------------------
+.env
+.env*.local
+.env.development
+.env.test
+.env.production
+backend/.env
+frontend/.env
+*.local
+
+# Frontend (Node / React / Vite)
+# ------------------------------------------------------------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.svelte-kit/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.cache/
+frontend/pnpm-debug.log*
+
+# Backend (Python / FastAPI)
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+backend/__pycache__/
+backend/app/**/__pycache__/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+backend/.venv/
+backend/venv/
+
+# Python packaging & distribution build artifacts
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing & Coverage Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# Agent / Tooling Caches
+# ------------------------------------------------------------------------------
+.claude/
+.gemini/

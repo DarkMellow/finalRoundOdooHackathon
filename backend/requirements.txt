@@ -1,0 +1,10 @@
+fastapi>=0.100.0,<0.111.0
+uvicorn[standard]>=0.22.0
+sqlmodel>=0.0.14
+pydantic-settings>=2.0.0
+cryptography>=41.0.0
+passlib[argon2]>=1.7.4
+argon2-cffi>=23.1.0
+pyjwt[crypto]>=2.8.0
+pymysql>=1.1.0
+alembic>=1.11.0

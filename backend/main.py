@@ -1416,12 +1416,3 @@ def get_vendor_orders(
             })
 
     return vendor_orders
-
-
-
-
-
-
-
-
-

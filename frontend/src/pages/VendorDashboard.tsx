@@ -14,6 +14,10 @@ import {
   Plus,
   Calendar,
   Package,
+  TrendingUp,
+  Award,
+  ShoppingBag,
+  DollarSign,
 } from "lucide-react"
 
 // Types
@@ -358,362 +362,765 @@ export function VendorDashboard() {
       {/* MAIN DASHBOARD CONTENT */}
       {/* ========================================================================= */}
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-6 space-y-6">
-        {/* Top Control Bar: Title + Actions + Search & View Switcher */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <span>Rental Sales Orders</span>
-              <button
-                onClick={() => setActiveFilter("all")}
-                className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700"
-              >
-                {orders.length}
-              </button>
-            </h1>
+        {activeNavTab === "reports" ? (
+          <VendorReportsView orders={orders} sales={sales} />
+        ) : (
+          <>
+            {/* Top Control Bar: Title + Actions + Search & View Switcher */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+                  <span>Rental Sales Orders</span>
+                  <button
+                    onClick={() => setActiveFilter("all")}
+                    className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700"
+                  >
+                    {orders.length}
+                  </button>
+                </h1>
 
-            {/* Add Product Button */}
-            <button
-              onClick={() => navigate("/vendor/products/new")}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all transform active:scale-95"
-            >
-              <Package className="size-3.5" />
-              <span>+ Add Product</span>
-            </button>
-          </div>
+                {/* Add Product Button */}
+                <button
+                  onClick={() => navigate("/vendor/products/new")}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all transform active:scale-95"
+                >
+                  <Plus className="size-3.5" />
+                  <span>+ Add Product</span>
+                </button>
+              </div>
 
-          {/* Search & View Switcher */}
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-            {/* Search Bar with Search Icon */}
-            <div className="relative flex-1 sm:w-64">
-              <Input
-                type="text"
-                placeholder="Search orders, customers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-9 pl-3 h-9 bg-white border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-indigo-500 shadow-xs"
-              />
-              <div className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-500">
-                <Search className="size-3.5" />
+              {/* Search & View Switcher */}
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                {/* Search Bar with Search Icon */}
+                <div className="relative flex-1 sm:w-64">
+                  <Input
+                    type="text"
+                    placeholder="Search orders, customers..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pr-9 pl-3 h-9 bg-white border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-indigo-500 shadow-xs"
+                  />
+                  <div className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+                    <Search className="size-3.5" />
+                  </div>
+                </div>
+
+                {/* View Switcher Bar (3 Views: List, Kanban, Calendar) */}
+                <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-lg text-xs shadow-xs">
+                  
+                  <button
+                    onClick={() => setViewMode("list")}
+                    title="List View"
+                    className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
+                      viewMode === "list"
+                        ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <List className="size-4" />
+                    <span className="text-xs font-semibold hidden sm:inline">List</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode("kanban")}
+                    title="Kanban View"
+                    className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
+                      viewMode === "kanban"
+                        ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <LayoutGrid className="size-4" />
+                    <span className="text-xs font-semibold hidden sm:inline">Kanban</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode("calendar")}
+                    title="Calendar View"
+                    className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
+                      viewMode === "calendar"
+                        ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Calendar className="size-4" />
+                    <span className="text-xs font-semibold hidden sm:inline">Calendar</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* View Switcher Bar (3 Views: List, Kanban, Calendar) */}
-            <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-lg text-xs shadow-xs">
-              
-              <button
-                onClick={() => setViewMode("list")}
-                title="List View"
-                className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
-                  viewMode === "list"
-                    ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                }`}
-              >
-                <List className="size-4" />
-                <span className="text-xs font-semibold hidden sm:inline">List</span>
-              </button>
-              <button
-                onClick={() => setViewMode("kanban")}
-                title="Kanban View"
-                className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
-                  viewMode === "kanban"
-                    ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                }`}
-              >
-                <LayoutGrid className="size-4" />
-                <span className="text-xs font-semibold hidden sm:inline">Kanban</span>
-              </button>
-              <button
-                onClick={() => setViewMode("calendar")}
-                title="Calendar View"
-                className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
-                  viewMode === "calendar"
-                    ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                }`}
-              >
-                <Calendar className="size-4" />
-                <span className="text-xs font-semibold hidden sm:inline">Calendar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Status Filter Badges + Summary Metrics Row */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
-          {/* Status Metric Filter Badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setActiveFilter("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                activeFilter === "all"
-                  ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                  : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
-              }`}
-            >
-              All ({orders.length})
-            </button>
-            <button
-              onClick={() => setActiveFilter(activeFilter === "today" ? "all" : "today")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                activeFilter === "today"
-                  ? "bg-amber-600 text-white border-amber-700 shadow-xs"
-                  : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
-              }`}
-            >
-              <span className="flex size-4 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-[10px]">
-                {todayCount}
-              </span>
-              <span>Today</span>
-            </button>
-            <button
-              onClick={() => setActiveFilter(activeFilter === "pickup" ? "all" : "pickup")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                activeFilter === "pickup"
-                  ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
-                  : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-              }`}
-            >
-              <span className="flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
-                {pickupCount}
-              </span>
-              <span>To Pickup</span>
-            </button>
-            <button
-              onClick={() => setActiveFilter(activeFilter === "return" ? "all" : "return")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                activeFilter === "return"
-                  ? "bg-sky-600 text-white border-sky-700 shadow-xs"
-                  : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
-              }`}
-            >
-              <span className="flex size-4 items-center justify-center rounded-full bg-sky-600 text-white font-bold text-[10px]">
-                {returnCount}
-              </span>
-              <span>To Return</span>
-            </button>
-            <button
-              onClick={() => setActiveFilter(activeFilter === "late" ? "all" : "late")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                activeFilter === "late"
-                  ? "bg-rose-600 text-white border-rose-700 shadow-xs"
-                  : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
-              }`}
-            >
-              <span className="flex size-4 items-center justify-center rounded-full bg-rose-600 text-white font-bold text-[10px]">
-                {lateCount}
-              </span>
-              <span>Late</span>
-            </button>
-          </div>
-
-          {/* Right Metrics Summary */}
-          <div className="flex items-center gap-4 text-xs font-medium flex-wrap">
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs">
-              <Calendar className="size-3.5 text-slate-500" />
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="bg-transparent text-slate-800 font-medium outline-none cursor-pointer"
-              >
-                <option value="Last 7 Days">Last 7 Days</option>
-                <option value="Last 30 Days">Last 30 Days</option>
-                <option value="This Month">This Month</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3 bg-slate-50 px-3.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 shadow-xs">
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Sales</span>
-                <span className="font-bold text-emerald-700">${sales}</span>
+            {/* Status Filter Badges + Summary Metrics Row */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
+              {/* Status Metric Filter Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setActiveFilter("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    activeFilter === "all"
+                      ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                  }`}
+                >
+                  All ({orders.length})
+                </button>
+                <button
+                  onClick={() => setActiveFilter(activeFilter === "today" ? "all" : "today")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    activeFilter === "today"
+                      ? "bg-amber-600 text-white border-amber-700 shadow-xs"
+                      : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                  }`}
+                >
+                  <span className="flex size-4 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                    {todayCount}
+                  </span>
+                  <span>Today</span>
+                </button>
+                <button
+                  onClick={() => setActiveFilter(activeFilter === "pickup" ? "all" : "pickup")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    activeFilter === "pickup"
+                      ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                >
+                  <span className="flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
+                    {pickupCount}
+                  </span>
+                  <span>To Pickup</span>
+                </button>
+                <button
+                  onClick={() => setActiveFilter(activeFilter === "return" ? "all" : "return")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    activeFilter === "return"
+                      ? "bg-sky-600 text-white border-sky-700 shadow-xs"
+                      : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
+                  }`}
+                >
+                  <span className="flex size-4 items-center justify-center rounded-full bg-sky-600 text-white font-bold text-[10px]">
+                    {returnCount}
+                  </span>
+                  <span>To Return</span>
+                </button>
+                <button
+                  onClick={() => setActiveFilter(activeFilter === "late" ? "all" : "late")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    activeFilter === "late"
+                      ? "bg-rose-600 text-white border-rose-700 shadow-xs"
+                      : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
+                  }`}
+                >
+                  <span className="flex size-4 items-center justify-center rounded-full bg-rose-600 text-white font-bold text-[10px]">
+                    {lateCount}
+                  </span>
+                  <span>Late</span>
+                </button>
               </div>
-              <div className="h-6 w-px bg-slate-200" />
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Late Fees</span>
-                <span className="font-bold text-rose-700">${lateFees}</span>
-              </div>
-              <div className="h-6 w-px bg-slate-200" />
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Deposit</span>
-                <span className="font-bold text-amber-700">${deposit}</span>
+
+              {/* Right Metrics Summary */}
+              <div className="flex items-center gap-4 text-xs font-medium flex-wrap">
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs">
+                  <Calendar className="size-3.5 text-slate-500" />
+                  <select
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.target.value)}
+                    className="bg-transparent text-slate-800 font-medium outline-none cursor-pointer"
+                  >
+                    <option value="Last 7 Days">Last 7 Days</option>
+                    <option value="Last 30 Days">Last 30 Days</option>
+                    <option value="This Month">This Month</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3 bg-slate-50 px-3.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 shadow-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Sales</span>
+                    <span className="font-bold text-emerald-700">${sales}</span>
+                  </div>
+                  <div className="h-6 w-px bg-slate-200" />
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Late Fees</span>
+                    <span className="font-bold text-rose-700">${lateFees}</span>
+                  </div>
+                  <div className="h-6 w-px bg-slate-200" />
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Deposit</span>
+                    <span className="font-bold text-amber-700">${deposit}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* ========================================================================= */}
-        {/* VIEW MODE 1: LIST VIEW TABLE */}
-        {/* ========================================================================= */}
-        {viewMode === "list" ? (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
-                    <th className="p-3 w-10 text-center">
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedOrders.length > 0 &&
-                          selectedOrders.length === filteredOrders.length
-                        }
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="size-3.5 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
-                      />
-                    </th>
-                    <th className="p-3">Order Reference</th>
-                    <th className="p-3">Customer</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Pickup Date</th>
-                    <th className="p-3">Return Date</th>
-                    <th className="p-3">Total</th>
-                    <th className="p-3 text-right">Invoice Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-mono">
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-500 font-sans">
-                        No orders match the current filter criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredOrders.map((order) => {
-                      const isSelected = selectedOrders.includes(order.id)
-                      return (
-                        <tr
-                          key={order.id}
-                          className={`hover:bg-slate-50/80 transition-colors ${
-                            isSelected ? "bg-indigo-50/50" : ""
-                          }`}
-                        >
-                          <td className="p-3 text-center">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => handleSelectOne(order.id, e.target.checked)}
-                              className="size-3.5 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
-                            />
-                          </td>
-                          <td className="p-3 font-bold text-indigo-600">{order.reference}</td>
-                          <td className="p-3 font-sans font-medium text-slate-900">
-                            {order.customer}
-                            <span className="block text-[10px] text-slate-500">{order.item}</span>
-                          </td>
-                          <td className="p-3 font-sans">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${getStatusBadge(
-                                order.status
-                              )}`}
-                            >
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="p-3 text-slate-600 text-[11px]">{order.pickupDate}</td>
-                          <td className="p-3 text-slate-600 text-[11px]">{order.returnDate}</td>
-                          <td className="p-3 font-bold text-slate-900">${order.total}</td>
-                          <td className="p-3 text-right font-sans">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] ${getInvoiceStatusBadge(
-                                order.invoiceStatus
-                              )}`}
-                            >
-                              {order.invoiceStatus}
-                            </span>
+            {/* VIEW MODE 1: LIST VIEW TABLE */}
+            {viewMode === "list" ? (
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
+                        <th className="p-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={
+                              selectedOrders.length > 0 &&
+                              selectedOrders.length === filteredOrders.length
+                            }
+                            onChange={(e) => handleSelectAll(e.target.checked)}
+                            className="size-3.5 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                          />
+                        </th>
+                        <th className="p-3">Order Reference</th>
+                        <th className="p-3">Customer</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3">Pickup Date</th>
+                        <th className="p-3">Return Date</th>
+                        <th className="p-3">Total</th>
+                        <th className="p-3 text-right">Invoice Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 font-mono">
+                      {filteredOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="p-8 text-center text-slate-500 font-sans">
+                            No orders match the current filter criteria.
                           </td>
                         </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      ) : (
+                        filteredOrders.map((order) => {
+                          const isSelected = selectedOrders.includes(order.id)
+                          return (
+                            <tr
+                              key={order.id}
+                              className={`hover:bg-slate-50/80 transition-colors ${
+                                isSelected ? "bg-indigo-50/50" : ""
+                              }`}
+                            >
+                              <td className="p-3 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => handleSelectOne(order.id, e.target.checked)}
+                                  className="size-3.5 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-indigo-600">{order.reference}</td>
+                              <td className="p-3 font-sans font-medium text-slate-900">
+                                {order.customer}
+                                <span className="block text-[10px] text-slate-500">{order.item}</span>
+                              </td>
+                              <td className="p-3 font-sans">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${getStatusBadge(
+                                    order.status
+                                  )}`}
+                                >
+                                  {order.status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-600 text-[11px]">{order.pickupDate}</td>
+                              <td className="p-3 text-slate-600 text-[11px]">{order.returnDate}</td>
+                              <td className="p-3 font-bold text-slate-900">${order.total}</td>
+                              <td className="p-3 text-right font-sans">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] ${getInvoiceStatusBadge(
+                                    order.invoiceStatus
+                                  )}`}
+                                >
+                                  {order.invoiceStatus}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* Table Footer */}
-            <div className="flex items-center justify-between p-3 border-t border-slate-200 bg-slate-50/50 text-xs text-slate-600">
-              <div>
-                Showing <span className="font-semibold text-slate-900">{filteredOrders.length}</span> orders
+                {/* Table Footer */}
+                <div className="flex items-center justify-between p-3 border-t border-slate-200 bg-slate-50/50 text-xs text-slate-600">
+                  <div>
+                    Showing <span className="font-semibold text-slate-900">{filteredOrders.length}</span> orders
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled
+                      className="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-400 opacity-50 cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button className="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 shadow-xs">
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled
-                  className="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-400 opacity-50 cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button className="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 shadow-xs">
-                  Next
-                </button>
+            ) : viewMode === "kanban" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredOrders.length === 0 ? (
+                  <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200">
+                    No orders found for Kanban view.
+                  </div>
+                ) : (
+                  filteredOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 hover:border-indigo-300 hover:shadow-md transition-all shadow-xs group"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
+                            {order.customer}
+                          </h3>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Package className="size-3 text-slate-400" />
+                            <span>{order.item}</span>
+                          </p>
+                        </div>
+                        <span className="font-mono font-extrabold text-indigo-600 text-sm">
+                          ${order.total}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span className="font-mono text-xs font-semibold text-slate-500">
+                          {order.reference}
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(
+                            order.status
+                          )}`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="size-3 text-slate-400" />
+                          <span>Pickup:</span>
+                        </div>
+                        <span className="font-mono text-slate-700">{order.pickupDate}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+                <VendorCalendar />
+              </div>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function VendorReportsView({ orders, sales }: { orders: any[]; sales: number }) {
+  const [barTimeframe, setBarTimeframe] = useState<"weekly" | "monthly" | "yearly">("weekly")
+  const [pieTimeframe, setPieTimeframe] = useState<"weekly" | "monthly" | "yearly">("weekly")
+
+  const totalOrders = orders.length
+  const avgOrderValue = totalOrders ? Math.round(sales / totalOrders) : 0
+  const activeRentals = orders.filter((o) => o.status === "Reserved").length
+
+  // Calculate most rented (always yearly/all-time for leaderboard)
+  const productCountsAll: Record<string, { title: string; count: number; revenue: number }> = {}
+  for (const o of orders) {
+    if (o.status === "Cancelled") continue
+    const titles = o.item.split(", ")
+    for (const title of titles) {
+      if (!productCountsAll[title]) {
+        productCountsAll[title] = { title, count: 0, revenue: 0 }
+      }
+      productCountsAll[title].count += 1
+      productCountsAll[title].revenue += Math.round(o.total / titles.length)
+    }
+  }
+  const mostRented = Object.values(productCountsAll)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+
+  const targetRevenue = 10000
+  const progressPercent = Math.min(100, Math.round((sales / targetRevenue) * 100))
+
+  // BAR CHART DYNAMIC DATA (COUNT OF PRODUCTS ORDERED)
+  const now = new Date()
+  let barData: { label: string; value: number }[] = []
+
+  if (barTimeframe === "weekly") {
+    // 7 days (last 7 days from today)
+    const dayBars = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      dayBars.push({
+        dateStr: d.toDateString(),
+        label: d.toLocaleDateString("en-US", { weekday: "short" }),
+        value: 0,
+      })
+    }
+
+    for (const o of orders) {
+      if (o.status === "Cancelled") continue
+      let oDate = new Date()
+      try {
+        oDate = new Date(o.startDateRaw.replace(" ", "T"))
+      } catch (e) {}
+
+      const match = dayBars.find((b) => new Date(b.dateStr).toDateString() === oDate.toDateString())
+      if (match) {
+        const prodCount = o.item.split(", ").length
+        match.value += prodCount
+      }
+    }
+    barData = dayBars
+  } else if (barTimeframe === "monthly") {
+    // 4 weeks of the last 30 days
+    const weekBars = [
+      { label: "Wk 1", minDays: 22, maxDays: 30, value: 0 },
+      { label: "Wk 2", minDays: 15, maxDays: 21, value: 0 },
+      { label: "Wk 3", minDays: 8, maxDays: 14, value: 0 },
+      { label: "Wk 4", minDays: 0, maxDays: 7, value: 0 },
+    ]
+
+    for (const o of orders) {
+      if (o.status === "Cancelled") continue
+      let oDate = new Date()
+      try {
+        oDate = new Date(o.startDateRaw.replace(" ", "T"))
+      } catch (e) {}
+
+      const diffTime = now.getTime() - oDate.getTime()
+      const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000))
+
+      if (diffDays >= 0 && diffDays <= 30) {
+        const match = weekBars.find((b) => diffDays >= b.minDays && diffDays <= b.maxDays)
+        if (match) {
+          const prodCount = o.item.split(", ").length
+          match.value += prodCount
+        }
+      }
+    }
+    barData = weekBars
+  } else {
+    // 12 months of the current year
+    const monthBars = [
+      { label: "Jan", month: 0, value: 0 },
+      { label: "Feb", month: 1, value: 0 },
+      { label: "Mar", month: 2, value: 0 },
+      { label: "Apr", month: 3, value: 0 },
+      { label: "May", month: 4, value: 0 },
+      { label: "Jun", month: 5, value: 0 },
+      { label: "Jul", month: 6, value: 0 },
+      { label: "Aug", month: 7, value: 0 },
+      { label: "Sep", month: 8, value: 0 },
+      { label: "Oct", month: 9, value: 0 },
+      { label: "Nov", month: 10, value: 0 },
+      { label: "Dec", month: 11, value: 0 },
+    ]
+
+    const currentYear = now.getFullYear()
+    for (const o of orders) {
+      if (o.status === "Cancelled") continue
+      let oDate = new Date()
+      try {
+        oDate = new Date(o.startDateRaw.replace(" ", "T"))
+      } catch (e) {}
+
+      if (oDate.getFullYear() === currentYear) {
+        const match = monthBars.find((b) => b.month === oDate.getMonth())
+        if (match) {
+          const prodCount = o.item.split(", ").length
+          match.value += prodCount
+        }
+      }
+    }
+    barData = monthBars
+  }
+
+  // PIE CHART DYNAMIC DATA (PRODUCTS ORDERED COUNT BY TIMEFRAME)
+  const pieProductCounts: Record<string, number> = {}
+  let totalPieCount = 0
+  for (const o of orders) {
+    if (o.status === "Cancelled") continue
+    let oDate = new Date()
+    try {
+      oDate = new Date(o.startDateRaw.replace(" ", "T"))
+    } catch (e) {}
+
+    const diffTime = now.getTime() - oDate.getTime()
+    const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000))
+
+    let isWithin = false
+    if (pieTimeframe === "weekly") {
+      isWithin = diffDays >= 0 && diffDays <= 7
+    } else if (pieTimeframe === "monthly") {
+      isWithin = diffDays >= 0 && diffDays <= 30
+    } else {
+      isWithin = oDate.getFullYear() === now.getFullYear()
+    }
+
+    if (isWithin) {
+      const titles = o.item.split(", ")
+      for (const title of titles) {
+        pieProductCounts[title] = (pieProductCounts[title] || 0) + 1
+        totalPieCount += 1
+      }
+    }
+  }
+
+  const pieSlicesRaw = Object.entries(pieProductCounts)
+    .map(([product, value]) => ({ product, value }))
+    .sort((a, b) => b.value - a.value)
+
+  // Group top 4 + Other
+  let pieSlices = []
+  if (pieSlicesRaw.length > 4) {
+    pieSlices = pieSlicesRaw.slice(0, 4)
+    const otherCount = pieSlicesRaw.slice(4).reduce((sum, slice) => sum + slice.value, 0)
+    pieSlices.push({ product: "Other Products", value: otherCount })
+  } else {
+    pieSlices = pieSlicesRaw
+  }
+
+  let accumulatedPiePercent = 0
+  const pieColors = [
+    "#6366f1", // Indigo
+    "#10b981", // Emerald
+    "#f59e0b", // Amber
+    "#06b6d4", // Cyan
+    "#ec4899", // Pink
+  ]
+
+  const pieSlicesWithAngles = pieSlices.map((slice, idx) => {
+    const percent = totalPieCount ? Math.round((slice.value / totalPieCount) * 100) : 0
+    const start = accumulatedPiePercent
+    accumulatedPiePercent += percent
+    return {
+      ...slice,
+      percent,
+      color: pieColors[idx % pieColors.length],
+      start,
+      end: accumulatedPiePercent,
+    }
+  })
+
+  const pieConicGradientStyle = pieSlicesWithAngles.length > 0
+    ? `conic-gradient(${pieSlicesWithAngles.map(s => `${s.color} ${s.start}% ${s.end}%`).join(", ")})`
+    : `conic-gradient(#cbd5e1 0% 100%)`
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Overview Stats Grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:shadow-md group">
+          <div className="absolute right-0 top-0 size-24 rounded-bl-full bg-emerald-500/5 transition-all group-hover:scale-110" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+            <DollarSign className="size-5" />
+          </div>
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Sales</p>
+            <h4 className="mt-1 text-2xl font-extrabold text-slate-900">${sales}</h4>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:shadow-md group">
+          <div className="absolute right-0 top-0 size-24 rounded-bl-full bg-indigo-500/5 transition-all group-hover:scale-110" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+            <ShoppingBag className="size-5" />
+          </div>
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Orders Received</p>
+            <h4 className="mt-1 text-2xl font-extrabold text-slate-900">{totalOrders}</h4>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:shadow-md group">
+          <div className="absolute right-0 top-0 size-24 rounded-bl-full bg-amber-500/5 transition-all group-hover:scale-110" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+            <TrendingUp className="size-5" />
+          </div>
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Average Order Value</p>
+            <h4 className="mt-1 text-2xl font-extrabold text-slate-900">${avgOrderValue}</h4>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:shadow-md group">
+          <div className="absolute right-0 top-0 size-24 rounded-bl-full bg-sky-500/5 transition-all group-hover:scale-110" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+            <Calendar className="size-5" />
+          </div>
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active Rentals</p>
+            <h4 className="mt-1 text-2xl font-extrabold text-slate-900">{activeRentals}</h4>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Sales Performance Chart */}
+        <div className="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col justify-between space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">Products Ordered Trend</h3>
+              <p className="text-xs text-slate-500">Breakdown of total items ordered over selected timeframe</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={barTimeframe}
+                onChange={(e) => setBarTimeframe(e.target.value as any)}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+              >
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+                <Award className="size-3.5" /> Target {progressPercent}% Met
+              </span>
+            </div>
+          </div>
+
+          {/* Premium Gradient Bar Chart */}
+          <div className="h-60 flex items-end justify-between gap-3 pt-6 border-b border-slate-100 font-mono text-xs">
+            {barData.map((bar, idx) => {
+              const maxVal = Math.max(...barData.map((b) => b.value), 5)
+              const barHeight = Math.max(8, Math.min(100, Math.round((bar.value / maxVal) * 100)))
+
+              return (
+                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group animate-in fade-in duration-200">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded shadow-md font-bold mb-1 -translate-y-1">
+                    {bar.value} item{bar.value === 1 ? "" : "s"}
+                  </div>
+                  <div className="w-full relative rounded-t-lg overflow-hidden bg-slate-50 border border-slate-200/50 flex flex-col justify-end h-40">
+                    <div
+                      style={{ height: `${barHeight}%` }}
+                      className="w-full rounded-t-md bg-gradient-to-t from-indigo-500 to-indigo-600 transition-all duration-500 group-hover:from-indigo-600 group-hover:to-indigo-700"
+                    />
+                  </div>
+                  <span className="text-slate-500 text-[10px] font-semibold mt-1 font-sans">{bar.label}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-2 font-sans font-medium">
+            <span>Product inventory metrics active</span>
+            <span>Total units ordered</span>
+          </div>
+        </div>
+
+        {/* Pie/Donut Chart Card */}
+        <div className="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">Products Share</h3>
+              <p className="text-xs text-slate-500">Distribution of items ordered</p>
+            </div>
+            <select
+              value={pieTimeframe}
+              onChange={(e) => setPieTimeframe(e.target.value as any)}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col items-center justify-center py-2 relative">
+            <div
+              style={{ background: pieConicGradientStyle }}
+              className="rounded-full size-36 relative shadow-md transition-all hover:scale-105 flex items-center justify-center animate-in zoom-in duration-300"
+            >
+              <div className="absolute inset-5 rounded-full bg-white flex flex-col items-center justify-center shadow-inner">
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Total Items</span>
+                <span className="text-sm font-extrabold text-slate-900">{totalPieCount}</span>
               </div>
             </div>
           </div>
-        ) : viewMode === "kanban" ? (
-          /* ========================================================================= */
-          /* VIEW MODE 2: KANBAN VIEW GRID */
-          /* ========================================================================= */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrders.length === 0 ? (
-              <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200">
-                No orders found for Kanban view.
-              </div>
+
+          {/* Legend */}
+          <div className="space-y-1.5 pt-2 max-h-36 overflow-y-auto">
+            {pieSlicesWithAngles.length === 0 ? (
+              <p className="text-[10px] text-slate-500 text-center">No products ordered in this timeframe</p>
             ) : (
-              filteredOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 hover:border-indigo-300 hover:shadow-md transition-all shadow-xs group"
-                >
-                  {/* Card Top: Customer Name & Item Price */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
-                        {order.customer}
-                      </h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Package className="size-3 text-slate-400" />
-                        <span>{order.item}</span>
-                      </p>
-                    </div>
-                    <span className="font-mono font-extrabold text-indigo-600 text-sm">
-                      ${order.total}
-                    </span>
-                  </div>
-
-                  {/* Card Middle: Reference & Status Pill */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <span className="font-mono text-xs font-semibold text-slate-500">
-                      {order.reference}
-                    </span>
+              pieSlicesWithAngles.map((slice, idx) => (
+                <div key={idx} className="flex items-center justify-between text-[11px] font-sans">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(
-                        order.status
-                      )}`}
-                    >
-                      {order.status}
+                      className="size-2 rounded-full shrink-0"
+                      style={{ backgroundColor: slice.color }}
+                    />
+                    <span className="text-slate-600 font-medium truncate" title={slice.product}>
+                      {slice.product}
                     </span>
                   </div>
-
-                  {/* Card Bottom: Rental Duration */}
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3 text-slate-400" />
-                      <span>Pickup:</span>
-                    </div>
-                    <span className="font-mono text-slate-700">{order.pickupDate}</span>
-                  </div>
+                  <span className="font-mono text-slate-900 font-bold shrink-0">
+                    {slice.value}x ({slice.percent}%)
+                  </span>
                 </div>
               ))
             )}
           </div>
-        ) : (
-          /* ========================================================================= */
-          /* VIEW MODE 3: RENTAL SCHEDULER CALENDAR VIEW */
-          /* ========================================================================= */
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-            <VendorCalendar />
+        </div>
+      </div>
+
+      {/* Row 2: Most Rented list + Monthly target progress card */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Most Rented list */}
+        <div className="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+              <Award className="size-4 text-amber-500" />
+              <span>Most Rented Items Leaderboard</span>
+            </h4>
           </div>
-        )}
-      </main>
+
+          {mostRented.length === 0 ? (
+            <p className="text-xs text-slate-500 py-4 text-center">No sales records available.</p>
+          ) : (
+            <div className="space-y-3.5">
+              {mostRented.map((prod, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-800 truncate">{prod.title}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">{prod.count} reservation{prod.count === 1 ? "" : "s"}</p>
+                  </div>
+                  <span className="font-mono font-extrabold text-indigo-600 shrink-0">
+                    ${prod.revenue}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Monthly target progress card */}
+        <div className="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4 flex flex-col justify-between">
+          <div>
+            <h4 className="text-sm font-extrabold text-slate-900">Monthly Store Target</h4>
+            <p className="text-xs text-slate-500 mt-1">Goal tracking toward local target margins</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+              <span>Revenue Target</span>
+              <span>${sales} / ${targetRevenue}</span>
+            </div>
+            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+              <div
+                style={{ width: `${progressPercent}%` }}
+                className="h-full bg-indigo-600 rounded-full transition-all duration-700"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 italic mt-2">
+            *Calculated based on active and completed rental totals for the month.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

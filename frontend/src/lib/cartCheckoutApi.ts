@@ -485,6 +485,35 @@ export async function deleteSavedCard(cardId: string): Promise<SavedCard[]> {
   return [...cachedCards]
 }
 
+export async function updateExistingCard(
+  cardId: string,
+  cardData: Omit<SavedCard, "id" | "cardNumberLast4"> & { cardNumber?: string }
+): Promise<SavedCard[]> {
+  const user = getLoggedCustomer()
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/cards/${cardId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user?.id,
+        cardholderName: cardData.cardholderName,
+        cardNumber: cardData.cardNumber || "**** **** **** ****",
+        expiry: cardData.expiry || "12/28",
+        brand: cardData.brand || "Visa",
+        isDefault: Boolean(cardData.isDefault),
+      }),
+    })
+    if (res.ok) {
+      const cards: SavedCard[] = await res.json()
+      cachedCards = cards
+      return cards
+    }
+  } catch (err) {
+    console.warn("Failed to update card in backend:", err)
+  }
+  return fetchSavedCards()
+}
+
 export async function processFinalOrder(
   addressId: string,
   paymentDetails: PaymentDetails

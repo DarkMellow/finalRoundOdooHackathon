@@ -749,6 +749,61 @@ def save_card(payload: schemas.SaveCardSchema, db: Session = Depends(get_db)):
     ]
 
 
+@app.put(
+    "/api/v1/cards/{card_id}",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def update_card(
+    card_id: str,
+    payload: schemas.SaveCardSchema,
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+    card = db.query(models.UserCard).filter(models.UserCard.id == card_id, models.UserCard.user_id == target_user_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    raw_num = payload.cardNumber.replace(" ", "").replace("-", "")
+    if len(raw_num) >= 4 and not (raw_num.startswith("x") or raw_num.startswith("*")):
+        last4 = raw_num[-4:]
+        brand = payload.brand or "Visa"
+        if raw_num.startswith("5"):
+            brand = "Mastercard"
+        elif raw_num.startswith("3"):
+            brand = "Amex"
+        card.card_number_last4 = last4
+        card.brand = brand
+
+    card.cardholder_name = payload.cardholderName
+    card.expiry = payload.expiry or "12/28"
+    if payload.isDefault:
+        db.query(models.UserCard).filter(models.UserCard.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+        card.is_default = True
+
+    db.commit()
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
 @app.delete(
     "/api/v1/cards/{card_id}",
     response_model=list[schemas.SavedCardSchema],

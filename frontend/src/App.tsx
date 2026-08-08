@@ -26,7 +26,7 @@ function AppRoutes() {
       {!isStandalonePage && <Navbar />}
       <main>
         <Routes>
-          <Route path="/" element={<Navigate to="/customer/catalog" replace />} />
+          <Route path="/" element={<Navigate to="/customer/signin" replace />} />
           <Route path="/customer/signin" element={<CustomerSignIn />} />
           <Route path="/customer/signup" element={<CustomerSignUp />} />
           <Route path="/customer/catalog" element={<CustomerCatalog />} />
@@ -40,7 +40,7 @@ function AppRoutes() {
           <Route path="/vendor/products/edit/:id" element={<VendorAddProduct />} />
           {/* Legacy redirects */}
           <Route path="/admin/*" element={<Navigate to="/vendor/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/customer/catalog" replace />} />
+          <Route path="*" element={<Navigate to="/customer/signin" replace />} />
         </Routes>
       </main>
     </div>

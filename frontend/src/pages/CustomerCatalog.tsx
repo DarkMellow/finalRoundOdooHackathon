@@ -81,19 +81,23 @@ export function CustomerCatalog() {
   // Load logged customer user & cart summary
   useEffect(() => {
     const user = getLoggedCustomer()
+    if (!user) {
+      navigate("/customer/signin")
+      return
+    }
     setLoggedCustomer(user)
     refreshCartCount()
-  }, [])
+  }, [navigate])
 
-  const userFullName = loggedCustomer?.full_name || "Jane Doe"
-  const userEmail = loggedCustomer?.email || "jane.doe@example.com"
+  const userFullName = loggedCustomer?.full_name || "Customer"
+  const userEmail = loggedCustomer?.email || ""
   const userInitials = userFullName
     .split(" ")
     .map((n) => n[0])
     .filter(Boolean)
     .join("")
     .toUpperCase()
-    .slice(0, 2) || "JD"
+    .slice(0, 2) || "C"
 
   // Load live database products from all vendors
   useEffect(() => {

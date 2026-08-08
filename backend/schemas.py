@@ -88,9 +88,10 @@ class ProductCreateSchema(BaseModel):
     name: str
     product_type: str = "Goods"  # 'Goods' or 'Service'
     image_url: Optional[str] = None
-    quantity_on_hand: float = 0.0
-    sales_price: float = 0.0
-    cost_price: float = 0.0
+    quantity_on_hand: int = 0
+    rent_price: float = 0.0
+    sales_price: Optional[float] = 0.0
+    cost_price: Optional[float] = 0.0
     is_published: bool = False
     periodicity: str = "Hours"
     padding_time: Optional[str] = "2:00 H"
@@ -101,24 +102,44 @@ class ProductCreateSchema(BaseModel):
     attributes_json: Optional[str] = None
 
 
-class ProductResponseSchema(BaseModel):
-    id: int
-    vendor_id: int
-    name: str
-    product_type: str
+class ProductUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    product_type: Optional[str] = None
     image_url: Optional[str] = None
-    quantity_on_hand: float
-    sales_price: float
-    cost_price: float
-    is_published: bool
-    periodicity: str
+    quantity_on_hand: Optional[int] = None
+    rent_price: Optional[float] = None
+    sales_price: Optional[float] = None
+    cost_price: Optional[float] = None
+    is_published: Optional[bool] = None
+    periodicity: Optional[str] = None
     padding_time: Optional[str] = None
     pickup_time: Optional[str] = None
     return_time: Optional[str] = None
     late_fees: Optional[float] = None
     security_deposit: Optional[float] = None
     attributes_json: Optional[str] = None
-    created_at: datetime
+
+
+class ProductResponseSchema(BaseModel):
+    id: int
+    vendor_id: int
+    name: str
+    product_type: str = "Goods"
+    image_url: Optional[str] = None
+    quantity_on_hand: Optional[int] = 0
+    rent_price: Optional[float] = 0.0
+    sales_price: Optional[float] = 0.0
+    cost_price: Optional[float] = 0.0
+    is_published: Optional[bool] = True
+    periodicity: Optional[str] = "Hours"
+    padding_time: Optional[str] = None
+    pickup_time: Optional[str] = None
+    return_time: Optional[str] = None
+    late_fees: Optional[float] = None
+    security_deposit: Optional[float] = None
+    attributes_json: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
 

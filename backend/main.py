@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -23,10 +24,20 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"Global Exception Caught: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
 
 
 @app.get("/")
@@ -212,14 +223,17 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
             db.refresh(default_vendor)
             payload.vendor_id = default_vendor.id
 
+    rent_val = payload.rent_price if payload.rent_price else payload.sales_price or 0.0
+
     product = models.Product(
         vendor_id=payload.vendor_id,
         name=payload.name,
         product_type=payload.product_type,
         image_url=payload.image_url,
-        quantity_on_hand=payload.quantity_on_hand,
-        sales_price=payload.sales_price,
-        cost_price=payload.cost_price,
+        quantity_on_hand=int(payload.quantity_on_hand or 0),
+        rent_price=rent_val,
+        sales_price=rent_val,
+        cost_price=0.0,
         is_published=payload.is_published,
         periodicity=payload.periodicity,
         padding_time=payload.padding_time,
@@ -240,7 +254,73 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
     response_model=list[schemas.ProductResponseSchema],
     tags=["Products"],
 )
-def get_products(db: Session = Depends(get_db)):
-    return db.query(models.Product).order_by(models.Product.id.desc()).all()
+def get_products(vendor_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    try:
+        query = db.query(models.Product)
+        if vendor_id is not None and vendor_id > 0:
+            query = query.filter(models.Product.vendor_id == vendor_id)
+        return query.order_by(models.Product.id.desc()).all()
+    except Exception as e:
+        print(f"Error fetching products: {e}")
+        return []
+
+
+@app.get(
+    "/api/v1/products/{product_id}",
+    response_model=schemas.ProductResponseSchema,
+    tags=["Products"],
+)
+def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+    return product
+
+
+@app.put(
+    "/api/v1/products/{product_id}",
+    response_model=schemas.ProductResponseSchema,
+    tags=["Products"],
+)
+def update_product(
+    product_id: int,
+    payload: schemas.ProductUpdateSchema,
+    db: Session = Depends(get_db),
+):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(product, field, value)
+
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@app.delete(
+    "/api/v1/products/{product_id}",
+    status_code=status.HTTP_200_OK,
+    tags=["Products"],
+)
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+    db.delete(product)
+    db.commit()
+    return {"status": "success", "message": f"Product {product_id} deleted successfully"}
+
 
 

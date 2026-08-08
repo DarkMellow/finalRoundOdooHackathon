@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Input } from "@/components/ui/input"
+import { getLoggedVendor, type VendorUser } from "@/lib/api"
 import {
   Building2,
   Search,
@@ -126,6 +127,7 @@ const INITIAL_ORDERS: Order[] = [
 
 export function VendorDashboard() {
   const navigate = useNavigate()
+  const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -133,6 +135,10 @@ export function VendorDashboard() {
   const [activeNavTab, setActiveNavTab] = useState<"orders" | "schedule" | "products" | "reports" | "settings">("orders")
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [dateRange, setDateRange] = useState("Last 7 Days")
+
+  useEffect(() => {
+    setLoggedVendor(getLoggedVendor())
+  }, [])
 
   // Filtered Orders
   const filteredOrders = INITIAL_ORDERS.filter((order) => {
@@ -254,19 +260,25 @@ export function VendorDashboard() {
               onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
               className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
             >
-              <span className="font-semibold text-slate-900">Vendor Profile</span>
-              <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs">
-                V
+              <span className="font-semibold text-slate-900">
+                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Vendor Profile"}
+              </span>
+              <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs uppercase">
+                {(loggedVendor?.full_name || "V").charAt(0)}
               </div>
               <ChevronDown className="size-3.5 text-slate-400" />
             </button>
 
             {/* Profile Dropdown Popup */}
             {profileDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 text-xs z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                  <p className="font-semibold text-slate-900">Apex Rentals</p>
-                  <p className="text-[10px] text-slate-500">vendor@company.com</p>
+                  <p className="font-semibold text-slate-900">
+                    {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Apex Rentals"}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {loggedVendor?.email || "vendor@company.com"}
+                  </p>
                 </div>
                 <button
                   onClick={() => {

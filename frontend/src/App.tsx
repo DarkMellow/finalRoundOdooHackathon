@@ -30,6 +30,7 @@ function AppRoutes() {
           <Route path="/vendor/dashboard" element={<VendorDashboard />} />
           <Route path="/vendor/products" element={<VendorProductList />} />
           <Route path="/vendor/products/new" element={<VendorAddProduct />} />
+          <Route path="/vendor/products/edit/:id" element={<VendorAddProduct />} />
           {/* Legacy redirects */}
           <Route path="/admin/*" element={<Navigate to="/vendor/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/customer/catalog" replace />} />

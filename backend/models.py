@@ -93,9 +93,10 @@ class Product(Base):
     name = Column(String(200), nullable=False)
     product_type = Column(String(50), default="Goods", nullable=False)  # 'Goods' or 'Service'
     image_url = Column(Text, nullable=True)
-    quantity_on_hand = Column(Float, default=0.0, nullable=False)
-    sales_price = Column(Float, default=0.0, nullable=False)
-    cost_price = Column(Float, default=0.0, nullable=False)
+    quantity_on_hand = Column(Integer, default=0, nullable=False)
+    rent_price = Column(Float, default=0.0, nullable=False)
+    sales_price = Column(Float, default=0.0, nullable=True)
+    cost_price = Column(Float, default=0.0, nullable=True)
     is_published = Column(Boolean, default=False, nullable=False)
 
     # Sales / Rental parameters

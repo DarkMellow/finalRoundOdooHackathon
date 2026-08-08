@@ -105,3 +105,79 @@ export async function vendorSignIn(data: {
   })
   return handleResponse<VendorUser>(res)
 }
+
+// ==========================================
+// PRODUCT API FUNCTIONS
+// ==========================================
+
+export interface ApiProduct {
+  id: number
+  vendor_id: number
+  name: string
+  product_type: "Goods" | "Service"
+  image_url?: string
+  quantity_on_hand: number
+  rent_price: number
+  sales_price?: number
+  cost_price?: number
+  is_published: boolean
+  periodicity: "Hours" | "Day" | "Night" | "Weekly"
+  padding_time?: string
+  pickup_time?: string
+  return_time?: string
+  late_fees?: number
+  security_deposit?: number
+  attributes_json?: string
+  created_at: string
+}
+
+export function getLoggedVendor(): VendorUser | null {
+  try {
+    const data = localStorage.getItem("vendor_user")
+    if (data) {
+      return JSON.parse(data)
+    }
+  } catch (err) {
+    console.warn("Failed to parse vendor_user from localStorage:", err)
+  }
+  return null
+}
+
+export async function fetchProducts(vendorId?: number): Promise<ApiProduct[]> {
+  const url = vendorId
+    ? `${API_BASE_URL}/api/v1/products?vendor_id=${vendorId}`
+    : `${API_BASE_URL}/api/v1/products`
+  const res = await fetch(url)
+  return handleResponse<ApiProduct[]>(res)
+}
+
+export async function fetchProductById(id: number | string): Promise<ApiProduct> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/products/${id}`)
+  return handleResponse<ApiProduct>(res)
+}
+
+export async function createProduct(data: Partial<ApiProduct>): Promise<ApiProduct> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/products`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<ApiProduct>(res)
+}
+
+export async function updateProduct(id: number | string, data: Partial<ApiProduct>): Promise<ApiProduct> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/products/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<ApiProduct>(res)
+}
+
+export async function deleteProduct(id: number | string): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/products/${id}`, {
+    method: "DELETE",
+  })
+  return handleResponse<{ status: string; message: string }>(res)
+}
+

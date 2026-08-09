@@ -423,12 +423,6 @@ export function VendorDashboard() {
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
                   <span>Rental Sales Orders</span>
-                  <button
-                    onClick={() => setActiveFilter("all")}
-                    className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700"
-                  >
-                    {orders.length}
-                  </button>
                 </h1>
 
               </div>

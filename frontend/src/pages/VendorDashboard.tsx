@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import { Input } from "@/components/ui/input"
 import { getLoggedVendor, type VendorUser } from "@/lib/api"
 import { VendorCalendar } from "@/components/vendor/VendorCalendar"
@@ -140,6 +140,7 @@ import { useDebounce } from "@/hooks/useDebounce"
 
 export function VendorDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>("list")
@@ -151,6 +152,18 @@ export function VendorDashboard() {
   const [dateRange, setDateRange] = useState("Last 7 Days")
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [storeTarget, setStoreTarget] = useState<number>(10000)
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const tabParam = searchParams.get("tab")
+    if (tabParam === "pricelist" || (location.state as any)?.tab === "pricelist") {
+      setActiveNavTab("pricelist")
+    } else if (tabParam === "reports" || (location.state as any)?.tab === "reports") {
+      setActiveNavTab("reports")
+    } else if (tabParam === "dashboard" || (location.state as any)?.tab === "dashboard") {
+      setActiveNavTab("dashboard")
+    }
+  }, [location.search, location.state])
 
   const fetchStoreTarget = async (vendorId?: number) => {
     const API_BASE_URL =
@@ -1358,7 +1371,7 @@ function VendorReportsView({
   )
 }
 
-function VendorPricelistView({ loggedVendor }: { loggedVendor: any }) {
+export function VendorPricelistView({ loggedVendor }: { loggedVendor: any }) {
   const [subTab, setSubTab] = useState<"rules" | "promos">("rules")
   const [rules, setRules] = useState<any[]>([])
   const [promos, setPromos] = useState<any[]>([])

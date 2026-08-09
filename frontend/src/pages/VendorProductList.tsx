@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import {
   Package,
   Plus,
@@ -17,14 +17,17 @@ import {
   ChevronDown,
   LogOut,
   Settings as SettingsIcon,
+  Tag,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { fetchProducts, deleteProduct, createProduct, getLoggedVendor, type ApiProduct, type VendorUser } from "@/lib/api"
+import { VendorPricelistView } from "@/pages/VendorDashboard"
 
 import { useDebounce } from "@/hooks/useDebounce"
 
 export function VendorProductList() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [products, setProducts] = useState<ApiProduct[]>([])
@@ -38,6 +41,16 @@ export function VendorProductList() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [typeFilter, setTypeFilter] = useState<"all" | "Goods" | "Service">("all")
   const statusFilter = "all"
+  const [activeTab, setActiveTab] = useState<"products" | "pricelist">("products")
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    if (searchParams.get("tab") === "pricelist" || (location.state as any)?.tab === "pricelist") {
+      setActiveTab("pricelist")
+    } else {
+      setActiveTab("products")
+    }
+  }, [location.search, location.state])
 
   // Load active logged vendor
   useEffect(() => {
@@ -274,14 +287,34 @@ export function VendorProductList() {
               >
                 Dashboard
               </button>
-              <Link
-                to="/vendor/products"
-                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-900 font-bold transition-colors"
+              <button
+                onClick={() => {
+                  setActiveTab("products")
+                  navigate("/vendor/products")
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  activeTab === "products"
+                    ? "bg-slate-100 text-slate-900 font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
+                }`}
               >
                 Products
-              </Link>
+              </button>
               <button
-                onClick={() => navigate("/vendor/dashboard")}
+                onClick={() => {
+                  setActiveTab("pricelist")
+                  navigate("/vendor/products?tab=pricelist")
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  activeTab === "pricelist"
+                    ? "bg-slate-100 text-slate-900 font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
+                }`}
+              >
+                Pricelist
+              </button>
+              <button
+                onClick={() => navigate("/vendor/dashboard?tab=reports")}
                 className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-colors"
               >
                 Reports
@@ -344,39 +377,54 @@ export function VendorProductList() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Page Title & Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">Products & Rental Catalog</h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-extrabold text-xs">
-                {products.length} Items
-              </span>
+        {activeTab === "pricelist" ? (
+          <VendorPricelistView loggedVendor={loggedVendor} />
+        ) : (
+          <>
+            {/* Page Title & Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold tracking-tight text-slate-900">Products & Rental Catalog</h1>
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-extrabold text-xs">
+                    {products.length} Items
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Create, view, edit, or publish rental products and equipment for your vendor store.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setActiveTab("pricelist")
+                    navigate("/vendor/products?tab=pricelist")
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                  title="Pricelist & Discount Rules"
+                >
+                  <Tag className="size-4 text-indigo-600" />
+                  <span>Pricelist Rules</span>
+                </button>
+
+                <button
+                  onClick={loadProducts}
+                  className="p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
+                  title="Refresh Products"
+                >
+                  <RefreshCw className="size-4" />
+                </button>
+
+                <Link
+                  to="/vendor/products/new"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95"
+                >
+                  <Plus className="size-4" />
+                  <span>New Product</span>
+                </Link>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Create, view, edit, or publish rental products and equipment for your vendor store.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-
-            <button
-              onClick={loadProducts}
-              className="p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
-              title="Refresh Products"
-            >
-              <RefreshCw className="size-4" />
-            </button>
-
-            <Link
-              to="/vendor/products/new"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95"
-            >
-              <Plus className="size-4" />
-              <span>New Product</span>
-            </Link>
-          </div>
-        </div>
 
         {/* Toolbar & Filter Options */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">

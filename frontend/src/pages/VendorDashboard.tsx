@@ -431,14 +431,6 @@ export function VendorDashboard() {
                   </button>
                 </h1>
 
-                {/* Add Product Button */}
-                <button
-                  onClick={() => navigate("/vendor/products/new")}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all transform active:scale-95"
-                >
-                  <Plus className="size-3.5" />
-                  <span>+ Add Product</span>
-                </button>
               </div>
 
               {/* Search & View Switcher */}

@@ -1372,8 +1372,8 @@ def get_vendor_orders(
             status_map = {
                 "Active": "Reserved",
                 "Pending Pickup": "Quotation",
-                "Completed": "Picked Up",
-                "Returned": "Picked Up",
+                "Completed": "Returned",
+                "Returned": "Returned",
                 "Cancelled": "Cancelled"
             }
             mapped_status = status_map.get(order.status, "Reserved")

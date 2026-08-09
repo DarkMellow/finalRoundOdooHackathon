@@ -27,7 +27,7 @@ import {
 
 // Types
 type ViewMode = "list" | "kanban" | "calendar"
-type StatusFilter = "all" | "today" | "pickup" | "return" | "late"
+type StatusFilter = "all" | "reserved" | "returned" | "late" | "cancelled"
 
 interface Order {
   id: string
@@ -203,13 +203,10 @@ export function VendorDashboard() {
 
     if (!matchesSearch) return false
 
-    if (activeFilter === "today") {
-      const currentMonth = new Date().toLocaleString("en-US", { month: "short" })
-      return order.pickupDate.includes(currentMonth) || order.pickupDate.includes("Today")
-    }
-    if (activeFilter === "pickup") return order.status === "Reserved" || order.status === "Late pickup"
-    if (activeFilter === "return") return order.status === "Picked Up"
+    if (activeFilter === "reserved") return order.status === "Reserved" || order.status === "Late pickup"
+    if (activeFilter === "returned") return order.status === "Picked Up" || order.status === "Returned"
     if (activeFilter === "late") return order.status === "Late pickup" || order.status === "Late Return"
+    if (activeFilter === "cancelled") return order.status === "Cancelled"
 
     return true
   })
@@ -218,11 +215,10 @@ export function VendorDashboard() {
   const lateFees = Math.round(sales * 0.1)
   const deposit = Math.round(sales * 0.2)
 
-  const currentMonthName = new Date().toLocaleString("en-US", { month: "short" })
-  const todayCount = orders.filter((o) => o.pickupDate.includes(currentMonthName) || o.pickupDate.includes("Today")).length
-  const pickupCount = orders.filter((o) => o.status === "Reserved" || o.status === "Late pickup").length
-  const returnCount = orders.filter((o) => o.status === "Picked Up").length
-  const lateCount = orders.filter((o) => o.status === "Late pickup" || o.status === "Late Return").length
+  const reservedCount = orders.filter((o) => o.status === "Reserved" || o.status === "Late pickup").length
+  const returnedCount = orders.filter((o) => o.status === "Picked Up" || o.status === "Returned").length
+  const lateCount = orders.filter((o) => o.status === "Late Return" || o.status === "Late pickup").length
+  const cancelledCount = orders.filter((o) => o.status === "Cancelled").length
 
   // Select all checkbox handler
   const handleSelectAll = (checked: boolean) => {
@@ -501,43 +497,30 @@ export function VendorDashboard() {
                   All ({orders.length})
                 </button>
                 <button
-                  onClick={() => setActiveFilter(activeFilter === "today" ? "all" : "today")}
+                  onClick={() => setActiveFilter(activeFilter === "reserved" ? "all" : "reserved")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                    activeFilter === "today"
-                      ? "bg-amber-600 text-white border-amber-700 shadow-xs"
-                      : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
-                  }`}
-                >
-                  <span className="flex size-4 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-[10px]">
-                    {todayCount}
-                  </span>
-                  <span>Today</span>
-                </button>
-                <button
-                  onClick={() => setActiveFilter(activeFilter === "pickup" ? "all" : "pickup")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                    activeFilter === "pickup"
+                    activeFilter === "reserved"
                       ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
                       : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
                   }`}
                 >
                   <span className="flex size-4 items-center justify-center rounded-full bg-emerald-600 text-white font-bold text-[10px]">
-                    {pickupCount}
+                    {reservedCount}
                   </span>
-                  <span>To Pickup</span>
+                  <span>Reserved</span>
                 </button>
                 <button
-                  onClick={() => setActiveFilter(activeFilter === "return" ? "all" : "return")}
+                  onClick={() => setActiveFilter(activeFilter === "returned" ? "all" : "returned")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                    activeFilter === "return"
+                    activeFilter === "returned"
                       ? "bg-sky-600 text-white border-sky-700 shadow-xs"
                       : "bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100"
                   }`}
                 >
                   <span className="flex size-4 items-center justify-center rounded-full bg-sky-600 text-white font-bold text-[10px]">
-                    {returnCount}
+                    {returnedCount}
                   </span>
-                  <span>To Return</span>
+                  <span>Returned</span>
                 </button>
                 <button
                   onClick={() => setActiveFilter(activeFilter === "late" ? "all" : "late")}
@@ -551,6 +534,19 @@ export function VendorDashboard() {
                     {lateCount}
                   </span>
                   <span>Late</span>
+                </button>
+                <button
+                  onClick={() => setActiveFilter(activeFilter === "cancelled" ? "all" : "cancelled")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    activeFilter === "cancelled"
+                      ? "bg-slate-600 text-white border-slate-700 shadow-xs"
+                      : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                  }`}
+                >
+                  <span className="flex size-4 items-center justify-center rounded-full bg-slate-500 text-white font-bold text-[10px]">
+                    {cancelledCount}
+                  </span>
+                  <span>Cancelled</span>
                 </button>
               </div>
 
@@ -595,17 +591,6 @@ export function VendorDashboard() {
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
-                        <th className="p-3 w-10 text-center">
-                          <input
-                            type="checkbox"
-                            checked={
-                              selectedOrders.length > 0 &&
-                              selectedOrders.length === filteredOrders.length
-                            }
-                            onChange={(e) => handleSelectAll(e.target.checked)}
-                            className="size-3.5 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
-                          />
-                        </th>
                         <th className="p-3">Order Reference</th>
                         <th className="p-3">Customer</th>
                         <th className="p-3">Status</th>
@@ -618,29 +603,17 @@ export function VendorDashboard() {
                     <tbody className="divide-y divide-slate-200 font-mono">
                       {filteredOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="p-8 text-center text-slate-500 font-sans">
+                          <td colSpan={7} className="p-8 text-center text-slate-500 font-sans">
                             No orders match the current filter criteria.
                           </td>
                         </tr>
                       ) : (
-                        filteredOrders.map((order) => {
-                          const isSelected = selectedOrders.includes(order.id)
-                          return (
-                            <tr
-                              key={order.id}
-                              className={`hover:bg-slate-50/80 transition-colors ${
-                                isSelected ? "bg-indigo-50/50" : ""
-                              }`}
-                            >
-                              <td className="p-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={(e) => handleSelectOne(order.id, e.target.checked)}
-                                  className="size-3.5 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
-                                />
-                              </td>
-                              <td className="p-3 font-bold text-indigo-600">{order.reference}</td>
+                        filteredOrders.map((order) => (
+                          <tr
+                            key={order.id}
+                            className="hover:bg-slate-50/80 transition-colors"
+                          >
+                            <td className="p-3 font-bold text-indigo-600">{order.reference}</td>
                               <td className="p-3 font-sans font-medium text-slate-900">
                                 {order.customer}
                                 <span className="block text-[10px] text-slate-500">{order.item}</span>
@@ -667,9 +640,8 @@ export function VendorDashboard() {
                                 </span>
                               </td>
                             </tr>
-                          )
-                        })
-                      )}
+                          ))
+                        )}
                     </tbody>
                   </table>
                 </div>
@@ -1162,7 +1134,7 @@ function VendorReportsView({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Sales Performance Chart */}
         <div className="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col justify-between space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
               <h3 className="text-base font-extrabold text-slate-900">Products Ordered Trend</h3>
               <p className="text-xs text-slate-500">Breakdown of total items ordered over selected timeframe</p>
@@ -1217,7 +1189,7 @@ function VendorReportsView({
 
         {/* Pie/Donut Chart Card */}
         <div className="lg:col-span-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
               <h3 className="text-base font-extrabold text-slate-900">Products Share</h3>
               <p className="text-xs text-slate-500">Distribution of items ordered</p>

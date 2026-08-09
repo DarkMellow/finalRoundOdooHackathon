@@ -21,6 +21,8 @@ import {
   Edit2,
   Check,
   X,
+  Printer,
+  Download,
 } from "lucide-react"
 
 // Types
@@ -987,8 +989,143 @@ function VendorReportsView({
     ? `conic-gradient(${pieSlicesWithAngles.map(s => `${s.color} ${s.start}% ${s.end}%`).join(", ")})`
     : `conic-gradient(#cbd5e1 0% 100%)`
 
+  const handlePrintPDF = () => {
+    const originalTitle = document.title
+    document.title = `RMS_Vendor_Performance_Report_${new Date().toISOString().slice(0, 10)}`
+    window.print()
+    setTimeout(() => {
+      document.title = originalTitle
+    }, 100)
+  }
+
+  const handleExportCSV = () => {
+    const headers = ["Order Date", "Reference", "Customer", "Items", "Total Amount ($)", "Status", "Invoice Status"]
+    const rows = orders.map((o) => [
+      o.startDateRaw || "",
+      o.reference || "",
+      o.customer || "",
+      `"${(o.item || "").replace(/"/g, '""')}"`,
+      o.total || 0,
+      o.status || "",
+      o.invoiceStatus || "",
+    ])
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n")
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `vendor_sales_report_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div id="print-reports-container" className="space-y-6 animate-in fade-in duration-300">
+      <style>{`
+        .print-only {
+          display: none !important;
+        }
+        @media print {
+          /* Hide non-printable layout elements completely */
+          header, aside, footer, nav, .no-print, button, select, .profile-dropdown {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          /* Reset page container constraints for body, html and wrapper divs */
+          html, body, #root, #root > div, main {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          /* Ensure report container is full-width and visible */
+          #print-reports-container {
+            visibility: visible !important;
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          #print-reports-container * {
+            visibility: visible !important;
+          }
+          /* Show print-only elements in print preview */
+          .print-only {
+            display: block !important;
+            visibility: visible !important;
+          }
+          /* Ensure stats grid prints nicely in grid layouts */
+          #print-reports-container .grid {
+            display: grid !important;
+            gap: 15px !important;
+          }
+          /* Ensure charts and cards don't break across pages */
+          .rounded-2xl, .rounded-xl {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
+
+      {/* PDF Only Print Header */}
+      <div className="print-only border-b-2 border-indigo-600 pb-6 mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">RMS PERFORMANCE REPORT</h1>
+            <p className="text-xs text-slate-500 font-semibold mt-1">Vendor Analytics & Sales Audit Report</p>
+          </div>
+          <div className="text-right text-[11px] text-slate-500 font-mono">
+            <p className="font-bold text-slate-800">EasyRental Vendor Hub</p>
+            <p>Generated: {new Date().toLocaleString()}</p>
+            <p>Status: Authenticated</p>
+          </div>
+        </div>
+
+        <div className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] text-slate-600 leading-relaxed">
+          <p className="font-bold text-slate-800 uppercase tracking-wide text-[9px] mb-1">Executive Summary</p>
+          This document represents the official sales performance and product distribution audit report for the vendor. All metrics listed herein—including Total Sales, Orders Received, Average Order Value, and Active Rentals—are aggregated directly from verified customer bookings. Timeframe-based analytics for product distribution and order trends are detailed below.
+        </div>
+      </div>
+
+      {/* Report Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print border-b border-slate-200 pb-4">
+        <div>
+          <h2 className="text-lg font-extrabold text-slate-900">Rental Performance Report</h2>
+          <p className="text-xs text-slate-500">Generate, print, or download sales performance statistics</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrintPDF}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors shadow-xs"
+          >
+            <Printer className="size-3.5" />
+            <span>Print Report</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs"
+          >
+            <Download className="size-3.5" />
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
       {/* Overview Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:shadow-md group">
@@ -1043,6 +1180,9 @@ function VendorReportsView({
             <div>
               <h3 className="text-base font-extrabold text-slate-900">Products Ordered Trend</h3>
               <p className="text-xs text-slate-500">Breakdown of total items ordered over selected timeframe</p>
+              <p className="print-only text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+                <strong>Fig 1. Chronological Order Trend analysis:</strong> Shows checkout distribution frequency. This visual metric traces demand flow day-by-day, week-by-week, or month-by-month depending on the active performance filter.
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <select
@@ -1054,8 +1194,8 @@ function VendorReportsView({
                 <option value="monthly">Monthly</option>
                 <option value="yearly">Yearly</option>
               </select>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
-                <Award className="size-3.5" /> Target {progressPercent}% Met
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200 whitespace-nowrap shrink-0">
+                <Award className="size-3.5 shrink-0" /> Target {progressPercent}% Met
               </span>
             </div>
           </div>
@@ -1095,6 +1235,9 @@ function VendorReportsView({
             <div>
               <h3 className="text-base font-extrabold text-slate-900">Products Share</h3>
               <p className="text-xs text-slate-500">Distribution of items ordered</p>
+              <p className="print-only text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+                <strong>Fig 2. Product share distribution:</strong> Illustrates the percentage contribution of individual equipment items to total order volume, helping optimize stock allocation.
+              </p>
             </div>
             <select
               value={pieTimeframe}
@@ -1149,11 +1292,14 @@ function VendorReportsView({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Most Rented list */}
         <div className="lg:col-span-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div className="flex flex-col border-b border-slate-100 pb-2">
             <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
               <Award className="size-4 text-amber-500" />
               <span>Most Rented Items Leaderboard</span>
             </h4>
+            <p className="print-only text-[11px] text-slate-500 mt-2 font-medium leading-relaxed">
+              <strong>Table 1. High Velocity Rental Leaderboard:</strong> Tabulates the top 5 most frequently reserved equipment listings sorted by checkout frequency and accumulated gross rental sales.
+            </p>
           </div>
 
           {mostRented.length === 0 ? (

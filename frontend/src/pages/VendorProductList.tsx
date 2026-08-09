@@ -209,7 +209,7 @@ export function VendorProductList() {
                 Reports
               </button>
               <button
-                onClick={() => navigate("/vendor/dashboard")}
+                onClick={() => navigate("/vendor/profile")}
                 className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               >
                 Settings

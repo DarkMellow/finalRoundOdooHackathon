@@ -11,7 +11,7 @@ export function ProfileSidebar({ user }: ProfileSidebarProps) {
       <div className="relative mb-4">
         {user.avatarUrl ? (
           <img
-            src={user.avatarUrl}
+            src={user.avatarUrl} 
             alt={user.fullName}
             className="size-36 rounded-full border-2 border-slate-200 object-cover shadow-sm"
           />

@@ -238,8 +238,10 @@ export function VendorDashboard() {
                   onClick={() => {
                     if (tab.id === "products") {
                       navigate("/vendor/products")
+                    } else if (tab.id === "settings") {
+                      navigate("/vendor/profile")
                     } else {
-                      setActiveNavTab(tab.id as any)
+                      setActiveNavTab(tab.id as "orders" | "schedule" | "reports")
                     }
                   }}
                   className={`px-3 py-1.5 rounded-lg transition-colors ${
@@ -283,7 +285,7 @@ export function VendorDashboard() {
                 <button
                   onClick={() => {
                     setProfileDropdownOpen(false)
-                    alert("Vendor Profile Settings Opened")
+                    navigate("/vendor/profile")
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
                 >

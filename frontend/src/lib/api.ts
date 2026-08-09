@@ -189,12 +189,20 @@ export async function fetchProducts(
 export async function fetchProductsPaginated(
   vendorId?: number,
   skip: number = 0,
-  limit: number = 9
+  limit: number = 6,
+  search?: string,
+  category?: string,
+  brand?: string,
+  priceMax?: number
 ): Promise<{ items: ApiProduct[]; total: number }> {
   const params = new URLSearchParams()
   if (vendorId) params.append("vendor_id", String(vendorId))
   params.append("skip", String(skip))
   params.append("limit", String(limit))
+  if (search && search.trim()) params.append("search", search.trim())
+  if (category && category.trim() && category !== "All Tags") params.append("category", category.trim())
+  if (brand && brand.trim() && brand !== "all") params.append("brand", brand.trim())
+  if (priceMax !== undefined && priceMax < 2000) params.append("price_max", String(priceMax))
 
   const url = `${API_BASE_URL}/api/v1/products?${params.toString()}`
   const res = await fetch(url)

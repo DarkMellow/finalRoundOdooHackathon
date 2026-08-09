@@ -5,6 +5,7 @@ import json
 import time
 from datetime import datetime, timedelta
 import random
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from config import settings
@@ -294,6 +295,10 @@ def get_active_discount_for_product(product, db: Session):
 def get_products(
     response: Response,
     vendor_id: int | None = Query(default=None),
+    category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    brand: str | None = Query(default=None),
+    price_max: float | None = Query(default=None),
     skip: int | None = Query(default=None),
     limit: int | None = Query(default=None),
     db: Session = Depends(get_db)
@@ -309,13 +314,45 @@ def get_products(
             query = query.filter(models.Product.is_published == True)
             query = query.filter(models.Product.vendor.has(is_active=True))
 
+        if category and category.strip() and category != "All Tags":
+            cat_str = category.strip()
+            query = query.filter(
+                or_(
+                    models.Product.category.ilike(f"%{cat_str}%"),
+                    models.Product.product_type.ilike(f"%{cat_str}%")
+                )
+            )
+
+        if search and search.strip():
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                or_(
+                    models.Product.name.ilike(search_pattern),
+                    models.Product.category.ilike(search_pattern),
+                    models.Product.product_type.ilike(search_pattern),
+                    models.Product.attributes_json.ilike(search_pattern)
+                )
+            )
+
+        if brand and brand.strip() and brand != "all":
+            brand_str = brand.strip()
+            query = query.filter(
+                or_(
+                    models.Product.vendor.has(models.User.full_name.ilike(f"%{brand_str}%")),
+                    models.Product.vendor.has(models.User.vendor_profile.has(models.VendorProfile.company_name.ilike(f"%{brand_str}%")))
+                )
+            )
+
+        if price_max is not None and price_max < 2000:
+            query = query.filter(models.Product.sales_price <= price_max)
+
         total_count = query.count()
         response.headers["X-Total-Count"] = str(total_count)
         response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
 
         query = query.order_by(models.Product.id.desc())
 
-        if skip is not None and skip > 0:
+        if skip is not None and skip >= 0:
             query = query.offset(skip)
         if limit is not None and limit > 0:
             query = query.limit(limit)

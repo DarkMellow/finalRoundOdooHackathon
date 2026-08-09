@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { getLoggedCustomer, type CustomerUser, fetchProductsPaginated } from "@/lib/api"
+import { getLoggedCustomer, type CustomerUser } from "@/lib/api"
 import { fetchCartSummary } from "@/lib/cartCheckoutApi"
 import { fetchWishlistProducts, toggleWishlistApi } from "@/lib/wishlistFetcher"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
@@ -9,6 +9,8 @@ import { Wishlist } from "@/pages/Wishlist"
 import { CustomerOrdersView } from "@/pages/CustomerOrdersView"
 import { Input } from "@/components/ui/input"
 import { useDebounce } from "@/hooks/useDebounce"
+import { OptimizedCatalogImage } from "@/components/ui/OptimizedCatalogImage"
+import { useCatalogPrefetch } from "@/hooks/useCatalogPrefetch"
 import {
   Building2,
   Search,
@@ -25,22 +27,26 @@ import {
   Tag,
 } from "lucide-react"
 
-interface Product {
-  id: string
-  title: string
-  description: string
-  category: string // Primary Tag / Class
-  brand: string
-  image: string
-  price: number
-  originalPrice?: number
-  discount?: number
-  discountName?: string
-  billingPeriod: "per Month" | "per day" | "per hour"
-  sizeVariants?: string[] // e.g. ["43\"", "55\"", "65\""]
-  tags: string[]
-  inStock: boolean
-  rating: number
+function CatalogCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs flex flex-col justify-between animate-pulse">
+      <div className="relative aspect-4/3 w-full bg-slate-200" />
+      <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-16 bg-slate-200 rounded-md" />
+            <div className="h-3 w-8 bg-slate-200 rounded-md" />
+          </div>
+          <div className="h-4 w-3/4 bg-slate-200 rounded-md" />
+          <div className="h-3 w-full bg-slate-200 rounded-md" />
+          <div className="h-3 w-1/2 bg-slate-200 rounded-md" />
+        </div>
+        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
+          <div className="h-5 w-20 bg-slate-200 rounded-md" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const ALL_CATALOG_TAGS = [
@@ -64,15 +70,29 @@ export function CustomerCatalog() {
   const [wishlist, setWishlist] = useState<string[]>([])
   const [cartItemCount, setCartItemCount] = useState<number>(0)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-
-  const [dbProducts, setDbProducts] = useState<Product[]>([])
-  const [totalProductCount, setTotalProductCount] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
   const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false)
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState<boolean>(false)
   const [isMyOrdersModalOpen, setIsMyOrdersModalOpen] = useState<boolean>(false)
+
+  const ITEMS_PER_PAGE = 6
+
+  // React-based smart prefetching hook: loads Page 1, Page N (last page), and Page +/- 1, 2 in background
+  const {
+    currentPage,
+    setCurrentPage,
+    products: paginatedProducts,
+    totalCount: totalCountToDisplay,
+    totalPages,
+    initialLoading,
+    pageLoading,
+  } = useCatalogPrefetch({
+    itemsPerPage: ITEMS_PER_PAGE,
+    searchQuery: debouncedSearchQuery,
+    selectedTag,
+    selectedBrand,
+    priceMax,
+  })
 
   const refreshCartCount = () => {
     fetchCartSummary()
@@ -93,9 +113,7 @@ export function CustomerCatalog() {
     .toUpperCase()
     .slice(0, 2) || "C"
 
-  const ITEMS_PER_PAGE = 9
-
-  // Load paginated products on mount or page change (9 products per request)
+  // Initial customer auth check, wishlist & cart summary loading
   useEffect(() => {
     const user = getLoggedCustomer()
     if (!user) {
@@ -104,89 +122,21 @@ export function CustomerCatalog() {
     }
     setLoggedCustomer(user)
 
-    let isMounted = true
-    setLoading(true)
-
-    const skip = (currentPage - 1) * ITEMS_PER_PAGE
-
     Promise.all([
-      fetchProductsPaginated(undefined, skip, ITEMS_PER_PAGE),
       fetchWishlistProducts().catch(() => []),
       fetchCartSummary().catch(() => null),
-    ])
-      .then(([response, wishlistItems, cartSummary]) => {
-        if (!isMounted) return
-        
-        const { items, total } = response
-        setTotalProductCount(total)
-
-        // 1. Map Products
-        const publishedItems = items.filter((item: any) => item.is_published !== false)
-        const mapped: Product[] = publishedItems.map((item: any) => {
-          let hasStock = true
-          let price = item.sales_price || 0
-          let coverImg = "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80"
-          if (item.attributes_json) {
-            try {
-              const parsed = JSON.parse(item.attributes_json)
-              if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
-                hasStock = parsed.variants.some((v: any) => (parseInt(v.stockQuantity || "0", 10) || 0) > 0)
-                const firstPrice = parseFloat(parsed.variants[0].price)
-                if (!isNaN(firstPrice) && firstPrice > 0) price = firstPrice
-                const variantWithImg = parsed.variants.find((v: any) => v.imageUrl && v.imageUrl.trim() !== "")
-                if (variantWithImg) coverImg = variantWithImg.imageUrl
-              }
-            } catch {
-              // Ignore
-            }
-          }
-          const brandName = item.vendor_brand || item.vendor_name || `Vendor #${item.vendor_id}`
-          return {
-            id: `db-${item.id}`,
-            title: item.name,
-            description: `${brandName} • ${item.product_type}`,
-            category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
-            brand: brandName,
-            image: coverImg,
-            price: item.discounted_price || price,
-            originalPrice: item.discount_percent && item.discount_percent > 0 ? (item.sales_price || price) : undefined,
-            discount: item.discount_percent || undefined,
-            discountName: item.discount_name || undefined,
-            billingPeriod: "per Month",
-            tags: [item.category || "Electronics", item.product_type, brandName],
-            inStock: hasStock,
-            rating: 5.0,
-          }
-        })
-        setDbProducts(mapped)
-
-        // 2. Map Wishlist
-        if (wishlistItems) {
-          setWishlist(wishlistItems.map((i: any) => i.id))
-        }
-
-        // 3. Cart Summary
-        if (cartSummary && Array.isArray(cartSummary.items)) {
-          const totalCount = cartSummary.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
-          setCartItemCount(totalCount)
-        }
-      })
-      .catch((err) => console.warn("Failed to fetch catalog data:", err))
-      .finally(() => {
-        if (isMounted) setLoading(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [navigate, currentPage])
-
-  // Only display actual products from database across all vendors
-  const allProducts = dbProducts
+    ]).then(([wishlistItems, cartSummary]) => {
+      if (wishlistItems) setWishlist(wishlistItems.map((i: any) => i.id))
+      if (cartSummary && Array.isArray(cartSummary.items)) {
+        const totalCount = cartSummary.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+        setCartItemCount(totalCount)
+      }
+    })
+  }, [navigate])
 
   // Toggle wishlist
   const toggleWishlist = async (id: string) => {
-    const prod = allProducts.find((p) => p.id === id)
+    const prod = paginatedProducts.find((p) => p.id === id)
     if (wishlist.includes(id)) {
       setWishlist(wishlist.filter((item) => item !== id))
     } else {
@@ -214,42 +164,6 @@ export function CustomerCatalog() {
       console.warn("Failed to sync wishlist toggle with backend:", err)
     }
   }
-
-  // Filter products by search query, brand, price, AND primary tag / category
-  const filteredProducts = allProducts.filter((product) => {
-    const query = debouncedSearchQuery.toLowerCase()
-    const matchesSearch =
-      product.title.toLowerCase().includes(query) ||
-      product.description.toLowerCase().includes(query) ||
-      product.category.toLowerCase().includes(query) ||
-      product.brand.toLowerCase().includes(query) ||
-      product.tags.some((t) => t.toLowerCase().includes(query))
-
-    if (!matchesSearch) return false
-
-    // Primary tag / class filter matching
-    if (selectedTag !== "All Tags") {
-      const isMatch =
-        product.category.toLowerCase() === selectedTag.toLowerCase() ||
-        product.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
-      if (!isMatch) return false
-    }
-
-    if (selectedBrand !== "all" && product.brand !== selectedBrand) return false
-    if (product.price > priceMax && priceMax < 2000) return false
-
-    return true
-  })
-
-  // Reset pagination on filter or search changes
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [debouncedSearchQuery, selectedTag, selectedBrand, priceMax])
-
-  // Pagination calculation: server-paginated 9 items per page
-  const totalCountToDisplay = totalProductCount || filteredProducts.length
-  const totalPages = Math.max(1, Math.ceil(totalCountToDisplay / ITEMS_PER_PAGE))
-  const paginatedProducts = filteredProducts
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-500 selection:text-white">
@@ -468,7 +382,7 @@ export function CustomerCatalog() {
               className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="all">All Brands</option>
-              {Array.from(new Set(allProducts.map((p) => p.brand).filter(Boolean))).map((brand) => (
+              {Array.from(new Set(paginatedProducts.map((p) => p.brand).filter(Boolean))).map((brand) => (
                 <option key={brand} value={brand}>
                   {brand}
                 </option>
@@ -498,9 +412,10 @@ export function CustomerCatalog() {
         </aside>
 
         {/* ========================================================================= */}
+        {/* ========================================================================= */}
         {/* RIGHT PRODUCT GRID (Main catalog grid) */}
         {/* ========================================================================= */}
-        <section className="flex-1 space-y-6">
+        <section id="catalog-grid-header" className="flex-1 space-y-6 scroll-mt-20">
           {/* Top Bar Summary */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -522,10 +437,10 @@ export function CustomerCatalog() {
 
             {/* Product Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {loading ? (
-                <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-semibold">
-                  Loading products from database...
-                </div>
+              {initialLoading || pageLoading ? (
+                Array.from({ length: ITEMS_PER_PAGE }).map((_, idx) => (
+                  <CatalogCardSkeleton key={idx} />
+                ))
               ) : paginatedProducts.length === 0 ? (
                 <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
                   No products match your selected catalog tag or filter criteria.
@@ -541,14 +456,11 @@ export function CustomerCatalog() {
                   >
                     {/* Image Container */}
                     <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
-                      <img
+                      <OptimizedCatalogImage
                         src={product.image}
                         alt={product.title}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80"
-                        }}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        containerClassName="h-full w-full"
+                        className="group-hover:scale-105"
                       />
 
                       {/* TOP LEFT PRIMARY CATALOG TAG / CLASS BADGE */}
@@ -664,7 +576,11 @@ export function CustomerCatalog() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-6">
               <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                onClick={() => {
+                  const targetPage = Math.max(1, currentPage - 1)
+                  setCurrentPage(targetPage)
+                  document.getElementById("catalog-grid-header")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
                 disabled={currentPage === 1}
                 className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 title="Previous Page"
@@ -693,7 +609,10 @@ export function CustomerCatalog() {
                 return (
                   <button
                     key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
+                    onClick={() => {
+                      setCurrentPage(pageNum)
+                      document.getElementById("catalog-grid-header")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }}
                     className={`size-8 rounded-xl font-semibold text-xs transition-all ${
                       isActive
                         ? "bg-blue-600 text-white shadow-xs"
@@ -706,7 +625,11 @@ export function CustomerCatalog() {
               })}
 
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => {
+                  const targetPage = Math.min(totalPages, currentPage + 1)
+                  setCurrentPage(targetPage)
+                  document.getElementById("catalog-grid-header")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
                 disabled={currentPage === totalPages}
                 className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 title="Next Page"

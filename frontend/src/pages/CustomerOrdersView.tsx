@@ -370,11 +370,11 @@ export function CustomerOrdersView({
                     {/* Rented Items List */}
                     <div className="space-y-3">
                       {order.items.map((item) => {
-                        const itemTotal = (
+                        const itemTotal = Math.round(
                           item.hourlyRate *
                           order.totalHours *
                           item.quantity
-                        ).toFixed(2)
+                        )
                         return (
                           <div
                             key={item.id}
@@ -409,7 +409,7 @@ export function CustomerOrdersView({
                                 )}
 
                                 <div className="flex items-center gap-1.5 text-xs text-slate-600 pt-0.5">
-                                  <span className="font-bold text-primary">${item.hourlyRate}/hr</span>
+                                  <span className="font-bold text-primary">₹{Math.round(item.hourlyRate)}/hr</span>
                                   <span>×</span>
                                   <span>{order.totalHours} hrs</span>
                                   <span>×</span>
@@ -420,7 +420,7 @@ export function CustomerOrdersView({
 
                             <div className="text-right shrink-0">
                               <span className="font-mono text-sm font-extrabold text-slate-900">
-                                ${itemTotal}
+                                ₹{itemTotal}
                               </span>
                             </div>
                           </div>
@@ -444,7 +444,7 @@ export function CustomerOrdersView({
                       <div className="flex items-baseline gap-2 self-end sm:self-center">
                         <span className="text-xs font-semibold text-slate-500">Order Total:</span>
                         <span className="font-mono text-lg font-black text-primary">
-                          ${order.total.toFixed(2)}
+                          ₹{Math.round(order.total)}
                         </span>
                       </div>
                     </div>

@@ -431,7 +431,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                 ) : (
                   <div className="space-y-3">
                     {cartSummary.items.map((item) => {
-                      const itemTotal = (item.hourlyRate * cartSummary.totalHours * item.quantity).toFixed(2)
+                      const itemTotal = Math.round(item.hourlyRate * cartSummary.totalHours * item.quantity)
                       return (
                         <div
                           key={item.id}
@@ -456,11 +456,11 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                               )}
 
                               <div className="flex flex-wrap items-center gap-1.5 text-xs pt-0.5">
-                                <span className="font-bold text-slate-900">${item.hourlyRate}/hr</span>
+                                <span className="font-bold text-slate-900">₹{Math.round(item.hourlyRate)}/hr</span>
                                 <span className="text-slate-400">×</span>
                                 <span className="font-semibold text-slate-700">{cartSummary.totalHours} hrs</span>
                                 <span className="text-slate-400">=</span>
-                                <span className="font-black text-slate-900">${itemTotal}</span>
+                                <span className="font-black text-slate-900">₹{itemTotal}</span>
                               </div>
 
                               <div className="flex items-center gap-3 pt-1 text-xs">
@@ -560,19 +560,19 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                   <div className="border-t border-slate-100 pt-3 space-y-2 text-xs">
                     <div className="flex items-center justify-between text-slate-500">
                       <span>Sub Total</span>
-                      <span className="font-mono font-bold text-slate-900">${cartSummary.subtotal.toFixed(2)}</span>
+                      <span className="font-mono font-bold text-slate-900">₹{Math.round(cartSummary.subtotal)}</span>
                     </div>
 
                     {cartSummary.discount > 0 && (
                       <div className="flex items-center justify-between text-emerald-600">
                         <span>Coupon Discount ({cartSummary.couponCode})</span>
-                        <span className="font-mono font-bold">-${cartSummary.discount.toFixed(2)}</span>
+                        <span className="font-mono font-bold">-₹{Math.round(cartSummary.discount)}</span>
                       </div>
                     )}
 
                     <div className="flex items-center justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
                       <span className="text-base font-bold">Total</span>
-                      <span className="font-mono text-xl font-black text-slate-900">${cartSummary.total.toFixed(2)}</span>
+                      <span className="font-mono text-xl font-black text-slate-900">₹{Math.round(cartSummary.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -849,7 +849,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                     </div>
                     <div className="flex justify-between border-t border-slate-100 pt-3 text-sm font-bold text-slate-900">
                       <span>Total Payable</span>
-                      <span className="font-mono text-base font-extrabold text-slate-900">${cartSummary.total.toFixed(2)}</span>
+                      <span className="font-mono text-base font-extrabold text-slate-900">₹{Math.round(cartSummary.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -1136,7 +1136,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                     </div>
                     <div className="flex justify-between border-t border-slate-100 pt-3 font-bold text-slate-900 text-sm">
                       <span>Total Amount</span>
-                      <span className="font-mono text-base font-extrabold text-slate-900">${cartSummary.total.toFixed(2)}</span>
+                      <span className="font-mono text-base font-extrabold text-slate-900">₹{Math.round(cartSummary.total)}</span>
                     </div>
                   </div>
                 </div>
@@ -1148,7 +1148,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
                   className="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-black text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ShieldCheck className="size-4" />
-                  <span>Confirm & Pay ${cartSummary.total.toFixed(2)}</span>
+                  <span>Confirm & Pay ₹{Math.round(cartSummary.total)}</span>
                 </button>
               </div>
             </div>

@@ -122,10 +122,10 @@ function computeCartSummary(items: CartItem[] = cachedCartItems): CartSummary {
     startDate: currentStartDate,
     endDate: currentEndDate,
     totalHours,
-    subtotal: Math.round(subtotal * 100) / 100,
-    discount: Math.round(activeDiscount * 100) / 100,
+    subtotal: Math.round(subtotal),
+    discount: Math.round(activeDiscount),
     couponCode: activeCouponCode,
-    total: Math.round(total * 100) / 100,
+    total: Math.round(total),
   }
 }
 
@@ -325,7 +325,7 @@ export async function applyCouponCode(
     if (res.ok) {
       const data = await res.json()
       const currentSummary = computeCartSummary()
-      const discountAmount = Number(((currentSummary.subtotal * data.discount_percent) / 100).toFixed(2))
+      const discountAmount = Math.round((currentSummary.subtotal * data.discount_percent) / 100)
       activeDiscount = discountAmount
       activeCouponCode = data.code
       return {
@@ -351,7 +351,7 @@ export async function applyCouponCode(
   if (cleanCode === "RENTAL10" || cleanCode === "SAVE20") {
     const pct = cleanCode === "SAVE20" ? 20 : 10
     const currentSummary = computeCartSummary()
-    const discountAmount = Number(((currentSummary.subtotal * pct) / 100).toFixed(2))
+    const discountAmount = Math.round((currentSummary.subtotal * pct) / 100)
     activeDiscount = discountAmount
     activeCouponCode = cleanCode
     return {

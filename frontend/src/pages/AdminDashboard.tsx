@@ -591,7 +591,7 @@ export function AdminDashboard() {
                             </div>
                           </td>
                           <td className="p-3.5 font-mono font-extrabold text-slate-900 text-sm">
-                            ${p.sales_price}/hr
+                            ₹{Math.round(p.sales_price)}/hr
                           </td>
                           <td className="p-3.5">
                             {p.is_published ? (

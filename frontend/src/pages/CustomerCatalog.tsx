@@ -394,7 +394,7 @@ export function CustomerCatalog() {
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-slate-700 uppercase tracking-wider">Price Range</span>
-              <span className="font-mono font-bold text-blue-600">${priceMax}</span>
+              <span className="font-mono font-bold text-blue-600">₹{Math.round(priceMax)}</span>
             </div>
             <input
               type="range"
@@ -405,8 +405,8 @@ export function CustomerCatalog() {
               className="w-full accent-blue-600 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-              <span>$5</span>
-              <span>$100</span>
+              <span>₹5</span>
+              <span>₹100</span>
             </div>
           </div>
         </aside>
@@ -520,7 +520,7 @@ export function CustomerCatalog() {
                         <div className="absolute bottom-2.5 right-2.5 z-10">
                           <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[10px] font-mono shadow-md flex items-center gap-1">
                             <Tag className="size-2.5" />
-                            -{product.discount}%
+                            -{Math.round(product.discount)}%
                           </span>
                         </div>
                       )}
@@ -551,11 +551,11 @@ export function CustomerCatalog() {
                       <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
                         <div className="flex items-baseline gap-1.5">
                           <span className="font-mono text-base font-extrabold text-slate-900">
-                            ${product.price}
+                            ₹{Math.round(product.price)}
                           </span>
                           {product.originalPrice && product.originalPrice > product.price && (
                             <span className="font-mono text-xs text-slate-400 line-through">
-                              ${product.originalPrice}
+                              ₹{Math.round(product.originalPrice)}
                             </span>
                           )}
                           <span className="text-xs text-slate-500 font-medium ml-1">

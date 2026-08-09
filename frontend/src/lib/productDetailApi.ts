@@ -145,13 +145,13 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
           realProduct.product_type,
           vendorBrand,
         ],
-        rentPrice: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
+        rentPrice: Math.round(Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
           ? parseFloat(parsedAttr.variants[0].price) || realProduct.sales_price || 0
-          : realProduct.sales_price || 0,
+          : realProduct.sales_price || 0),
         billingPeriod: "per Month",
-        salesPrice: realProduct.sales_price,
-        securityDeposit: realProduct.security_deposit || 0,
-        lateFees: realProduct.late_fees || 0,
+        salesPrice: Math.round(realProduct.sales_price || 0),
+        securityDeposit: Math.round(realProduct.security_deposit || 0),
+        lateFees: Math.round(realProduct.late_fees || 0),
         inStock: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
           ? parsedAttr.variants.some((v: any) => (parseInt(v.stockQuantity || "0", 10) || 0) > 0)
           : true,
@@ -163,8 +163,8 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
         vendorName: vendorFullName,
         vendorId: realProduct.vendor_id,
         productType: realProduct.product_type as "Goods" | "Service",
-        discountedPrice: realProduct.discounted_price,
-        discountPercent: realProduct.discount_percent,
+        discountedPrice: realProduct.discounted_price ? Math.round(realProduct.discounted_price) : undefined,
+        discountPercent: realProduct.discount_percent ? Math.round(realProduct.discount_percent) : undefined,
         discountName: realProduct.discount_name,
         variants: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
           ? parsedAttr.variants.map((v: any, idx: number) => {
@@ -178,7 +178,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
                   (Array.isArray(v.attributes)
                     ? v.attributes.map((a: any) => `${a.name}: ${a.value}`).join(" • ")
                     : "Standard rental configuration"),
-                rentPrice: parseFloat(v.price) || 0,
+                rentPrice: Math.round(parseFloat(v.price) || 0),
                 billingPeriod: "per Month",
                 inStock: qty > 0,
                 stockQuantity: qty,
@@ -190,7 +190,7 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
                 id: `v-${realProduct.id}-1`,
                 name: `${realProduct.name} - Standard Package`,
                 specifications: "Standard rental configuration",
-                rentPrice: realProduct.sales_price || 100,
+                rentPrice: Math.round(realProduct.sales_price || 100),
                 billingPeriod: "per Month",
                 inStock: true,
                 stockQuantity: 15,

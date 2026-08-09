@@ -567,7 +567,7 @@ export function VendorProductList() {
                               </td>
 
                               <td className="p-3.5 font-mono font-extrabold text-slate-900">
-                                ${displayRentPrice.toFixed(2)}
+                                ₹{Math.round(displayRentPrice)}
                               </td>
                               <td className="p-3.5 text-center">
                                 {product.is_published ? (
@@ -697,7 +697,7 @@ export function VendorProductList() {
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase font-semibold">Rent Price</span>
-                          <span className="font-mono font-extrabold text-slate-900 text-base">${displayRentPrice.toFixed(2)}</span>
+                          <span className="font-mono font-extrabold text-slate-900 text-base">₹{Math.round(displayRentPrice)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button

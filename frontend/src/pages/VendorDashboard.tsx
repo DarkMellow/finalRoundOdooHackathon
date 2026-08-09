@@ -581,17 +581,17 @@ export function VendorDashboard() {
                 <div className="flex items-center gap-3 bg-slate-50 px-3.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 shadow-xs">
                   <div>
                     <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Sales</span>
-                    <span className="font-bold text-emerald-700">${sales}</span>
+                    <span className="font-bold text-emerald-700">₹{Math.round(sales)}</span>
                   </div>
                   <div className="h-6 w-px bg-slate-200" />
                   <div>
                     <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Late Fees</span>
-                    <span className="font-bold text-rose-700">${lateFees}</span>
+                    <span className="font-bold text-rose-700">₹{Math.round(lateFees)}</span>
                   </div>
                   <div className="h-6 w-px bg-slate-200" />
                   <div>
                     <span className="text-[10px] text-slate-500 block uppercase font-sans font-semibold">Deposit</span>
-                    <span className="font-bold text-amber-700">${deposit}</span>
+                    <span className="font-bold text-amber-700">₹{Math.round(deposit)}</span>
                   </div>
                 </div>
               </div>
@@ -642,7 +642,7 @@ export function VendorDashboard() {
                               </td>
                               <td className="p-3 text-slate-600 text-[11px]">{order.pickupDate}</td>
                               <td className="p-3 text-slate-600 text-[11px]">{order.returnDate}</td>
-                              <td className="p-3 font-bold text-slate-900">${order.total}</td>
+                              <td className="p-3 font-bold text-slate-900">₹{Math.round(order.total)}</td>
                               <td className="p-3 text-right font-sans">
                                 <span
                                   className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] ${getInvoiceStatusBadge(

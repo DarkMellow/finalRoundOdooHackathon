@@ -376,9 +376,10 @@ def get_products(
             elif p.vendor_id in global_rules:
                 pct, name = global_rules[p.vendor_id].discount_percent, global_rules[p.vendor_id].name
 
-            p.discount_percent = pct
+            p.discount_percent = round(pct)
             p.discount_name = name
-            p.discounted_price = p.sales_price * (1.0 - pct / 100.0) if pct > 0 else p.sales_price
+            p.sales_price = round(p.sales_price)
+            p.discounted_price = round(p.sales_price * (1.0 - pct / 100.0)) if pct > 0 else round(p.sales_price)
 
         return products
     except Exception as e:
@@ -404,9 +405,10 @@ def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
             detail="Product not found or currently unavailable.",
         )
     pct, name = get_active_discount_for_product(product, db)
-    product.discount_percent = pct
+    product.discount_percent = round(pct)
     product.discount_name = name
-    product.discounted_price = product.sales_price * (1.0 - pct / 100.0) if pct > 0 else product.sales_price
+    product.sales_price = round(product.sales_price)
+    product.discounted_price = round(product.sales_price * (1.0 - pct / 100.0)) if pct > 0 else round(product.sales_price)
     return product
 
 

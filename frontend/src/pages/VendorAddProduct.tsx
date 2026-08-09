@@ -509,13 +509,13 @@ export function VendorAddProduct() {
 
                           {/* Variant Rent Price */}
                           <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-slate-700 block">Rent Price ($) *</label>
+                            <label className="text-[11px] font-semibold text-slate-700 block">Rent Price (₹) *</label>
                             <div className="relative">
-                              <span className="absolute left-2.5 top-2 text-xs text-slate-400 font-mono">$</span>
+                              <span className="absolute left-2.5 top-2 text-xs text-slate-400 font-mono">₹</span>
                               <Input
                                 type="number"
-                                step="0.01"
-                                placeholder="0.00"
+                                step="1"
+                                placeholder="0"
                                 value={variant.price}
                                 onChange={(e) => handleUpdateVariant(variant.id, "price", e.target.value)}
                                 className="pl-6 h-9 text-xs bg-white border-slate-300 font-mono font-bold"
@@ -602,12 +602,12 @@ export function VendorAddProduct() {
 
               {/* Security Deposit */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-700 block">Security Deposit ($)</label>
+                <label className="text-xs font-semibold text-slate-700 block">Security Deposit (₹)</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">$</span>
+                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">₹</span>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="1"
                     value={securityDeposit}
                     onChange={(e) => setSecurityDeposit(e.target.value)}
                     className="pl-7 h-10 bg-white border-slate-300 text-xs text-slate-900 font-mono font-bold"
@@ -618,7 +618,7 @@ export function VendorAddProduct() {
               {/* Late Return Fee */}
               <div className="space-y-2 md:col-span-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 block">Late Return Fee ($ / day)</label>
+                  <label className="text-xs font-semibold text-slate-700 block">Late Return Fee (₹ / day)</label>
                   <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 cursor-pointer">
                     <input
                       type="checkbox"
@@ -631,10 +631,10 @@ export function VendorAddProduct() {
                 </div>
                 {enableLateFees && (
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">$</span>
+                    <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">₹</span>
                     <Input
                       type="number"
-                      step="0.01"
+                      step="1"
                       value={lateFees}
                       onChange={(e) => setLateFees(e.target.value)}
                       className="pl-7 h-10 bg-white border-slate-300 text-xs text-slate-900 font-mono font-bold"

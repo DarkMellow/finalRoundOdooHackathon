@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { getLoggedCustomer, type CustomerUser, fetchProducts } from "@/lib/api"
+import { getLoggedCustomer, type CustomerUser, fetchProductsPaginated } from "@/lib/api"
 import { fetchCartSummary } from "@/lib/cartCheckoutApi"
 import { fetchWishlistProducts, toggleWishlistApi } from "@/lib/wishlistFetcher"
 import { ProductExpansionView } from "@/pages/ProductExpansionView"
@@ -67,6 +67,7 @@ export function CustomerCatalog() {
   const [currentPage, setCurrentPage] = useState(1)
 
   const [dbProducts, setDbProducts] = useState<Product[]>([])
+  const [totalProductCount, setTotalProductCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false)
@@ -82,17 +83,6 @@ export function CustomerCatalog() {
       .catch((err) => console.warn("Failed to load cart summary:", err))
   }
 
-  // Load logged customer user & cart summary
-  useEffect(() => {
-    const user = getLoggedCustomer()
-    if (!user) {
-      navigate("/customer/signin")
-      return
-    }
-    setLoggedCustomer(user)
-    refreshCartCount()
-  }, [navigate])
-
   const userFullName = loggedCustomer?.full_name || "Customer"
   const userEmail = loggedCustomer?.email || ""
   const userInitials = userFullName
@@ -103,14 +93,36 @@ export function CustomerCatalog() {
     .toUpperCase()
     .slice(0, 2) || "C"
 
-  // Load live database products from all vendors
+  const ITEMS_PER_PAGE = 9
+
+  // Load paginated products on mount or page change (9 products per request)
   useEffect(() => {
+    const user = getLoggedCustomer()
+    if (!user) {
+      navigate("/customer/signin")
+      return
+    }
+    setLoggedCustomer(user)
+
+    let isMounted = true
     setLoading(true)
-    fetchProducts()
-      .then((items) => {
-        // Filter only published products for customer catalog
-        const publishedItems = items.filter((item) => item.is_published !== false)
-        const mapped: Product[] = publishedItems.map((item) => {
+
+    const skip = (currentPage - 1) * ITEMS_PER_PAGE
+
+    Promise.all([
+      fetchProductsPaginated(undefined, skip, ITEMS_PER_PAGE),
+      fetchWishlistProducts().catch(() => []),
+      fetchCartSummary().catch(() => null),
+    ])
+      .then(([response, wishlistItems, cartSummary]) => {
+        if (!isMounted) return
+        
+        const { items, total } = response
+        setTotalProductCount(total)
+
+        // 1. Map Products
+        const publishedItems = items.filter((item: any) => item.is_published !== false)
+        const mapped: Product[] = publishedItems.map((item: any) => {
           let hasStock = true
           let price = item.sales_price || 0
           let coverImg = "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80"
@@ -147,21 +159,27 @@ export function CustomerCatalog() {
           }
         })
         setDbProducts(mapped)
-      })
-      .catch((err) => {
-        console.warn("Could not fetch database products for catalog:", err)
-      })
-      .finally(() => setLoading(false))
-  }, [])
 
-  // Load wishlist from database
-  useEffect(() => {
-    fetchWishlistProducts()
-      .then((items) => {
-        setWishlist(items.map((i) => i.id))
+        // 2. Map Wishlist
+        if (wishlistItems) {
+          setWishlist(wishlistItems.map((i: any) => i.id))
+        }
+
+        // 3. Cart Summary
+        if (cartSummary && Array.isArray(cartSummary.items)) {
+          const totalCount = cartSummary.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+          setCartItemCount(totalCount)
+        }
       })
-      .catch((err) => console.warn("Failed to fetch wishlist:", err))
-  }, [isWishlistModalOpen])
+      .catch((err) => console.warn("Failed to fetch catalog data:", err))
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [navigate, currentPage])
 
   // Only display actual products from database across all vendors
   const allProducts = dbProducts
@@ -228,11 +246,10 @@ export function CustomerCatalog() {
     setCurrentPage(1)
   }, [debouncedSearchQuery, selectedTag, selectedBrand, priceMax])
 
-  // Pagination calculation
-  const ITEMS_PER_PAGE = 6
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE))
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  // Pagination calculation: server-paginated 9 items per page
+  const totalCountToDisplay = totalProductCount || filteredProducts.length
+  const totalPages = Math.max(1, Math.ceil(totalCountToDisplay / ITEMS_PER_PAGE))
+  const paginatedProducts = filteredProducts
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-500 selection:text-white">
@@ -488,7 +505,7 @@ export function CustomerCatalog() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                Featured Products ({filteredProducts.length})
+                Featured Products ({totalCountToDisplay})
               </h1>
               {selectedTag !== "All Tags" && (
                 <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center gap-1">
@@ -499,7 +516,7 @@ export function CustomerCatalog() {
             </div>
             <span className="text-xs text-slate-500">
               Showing page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
-              <span className="font-bold text-slate-800">{totalPages}</span> ({filteredProducts.length} total)
+              <span className="font-bold text-slate-800">{totalPages}</span> ({totalCountToDisplay} total)
             </span>
           </div>
 
@@ -527,6 +544,10 @@ export function CustomerCatalog() {
                       <img
                         src={product.image}
                         alt={product.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80"
+                        }}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
 

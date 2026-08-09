@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import json
@@ -291,7 +291,13 @@ def get_active_discount_for_product(product, db: Session):
     response_model=list[schemas.ProductResponseSchema],
     tags=["Products"],
 )
-def get_products(vendor_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+def get_products(
+    response: Response,
+    vendor_id: int | None = Query(default=None),
+    skip: int | None = Query(default=None),
+    limit: int | None = Query(default=None),
+    db: Session = Depends(get_db)
+):
     try:
         query = db.query(models.Product).options(
             joinedload(models.Product.vendor).joinedload(models.User.vendor_profile)
@@ -301,14 +307,42 @@ def get_products(vendor_id: int | None = Query(default=None), db: Session = Depe
         else:
             # Customer catalog only sees published listings from active vendors
             query = query.filter(models.Product.is_published == True)
-            query = query.join(models.User, models.Product.vendor_id == models.User.id).filter(models.User.is_active == True)
+            query = query.filter(models.Product.vendor.has(is_active=True))
 
-        products = query.order_by(models.Product.id.desc()).all()
+        total_count = query.count()
+        response.headers["X-Total-Count"] = str(total_count)
+        response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+
+        query = query.order_by(models.Product.id.desc())
+
+        if skip is not None and skip > 0:
+            query = query.offset(skip)
+        if limit is not None and limit > 0:
+            query = query.limit(limit)
+
+        products = query.all()
+
+        # Batch fetch active pricelist rules in ONE query instead of N+1 queries per product
+        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        active_rules = db.query(models.PricelistRule).filter(
+            models.PricelistRule.start_date <= current_date_str,
+            models.PricelistRule.end_date >= current_date_str
+        ).all()
+
+        prod_rules = {r.product_id: r for r in active_rules if r.product_id}
+        global_rules = {r.vendor_id: r for r in active_rules if r.is_global and r.vendor_id}
+
         for p in products:
-            pct, name = get_active_discount_for_product(p, db)
+            pct, name = 0.0, None
+            if p.id in prod_rules:
+                pct, name = prod_rules[p.id].discount_percent, prod_rules[p.id].name
+            elif p.vendor_id in global_rules:
+                pct, name = global_rules[p.vendor_id].discount_percent, global_rules[p.vendor_id].name
+
             p.discount_percent = pct
             p.discount_name = name
             p.discounted_price = p.sales_price * (1.0 - pct / 100.0) if pct > 0 else p.sales_price
+
         return products
     except Exception as e:
         print(f"Error fetching products: {e}")

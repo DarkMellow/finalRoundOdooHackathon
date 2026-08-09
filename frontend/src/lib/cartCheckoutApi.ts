@@ -176,8 +176,14 @@ export async function addItemToCart(payload: AddToCartPayload): Promise<CartSumm
       const items: CartItem[] = await res.json()
       cachedCartItems = items
       return computeCartSummary(items)
+    } else {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.detail || errData.message || "Requested quantity exceeds available stock.")
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message && (err.message.includes("stock") || err.message.includes("quantity"))) {
+      throw err
+    }
     console.warn("Failed to post cart item to backend:", err)
   }
 
@@ -590,8 +596,14 @@ export async function processFinalOrder(
         orderId: createdOrder.reference || createdOrder.id,
         message: `Order #${createdOrder.reference || createdOrder.id} confirmed! Delivering to ${createdOrder.deliveryAddress} via ${createdOrder.paymentMethod}.`,
       }
+    } else {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.detail || errData.message || "Order placement failed. Items in your cart may be out of stock.")
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message && (err.message.includes("stock") || err.message.includes("failed") || err.message.includes("Order"))) {
+      throw err
+    }
     console.warn("Failed to create order on backend:", err)
   }
 

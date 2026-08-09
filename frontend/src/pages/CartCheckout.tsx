@@ -86,8 +86,9 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
   const [upiId, setUpiId] = useState<string>("")
 
-  // Order Success state
+  // Order Success & Error states
   const [orderSuccess, setOrderSuccess] = useState<{ orderId: string; message: string } | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   // Load initial cart summary, addresses, and saved cards
   useEffect(() => {
@@ -95,6 +96,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
     setLoading(true)
     setOrderSuccess(null)
+    setCheckoutError(null)
     setCouponMessage(null)
     setActiveStep("cart")
     setShowNewAddressForm(false)
@@ -276,8 +278,9 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
 
   // Handle Final Order Placement
   const handleFinalOrderSubmit = async () => {
-    if (!selectedAddressId) return
+    if (!selectedAddressId || actionLoading) return
     setActionLoading(true)
+    setCheckoutError(null)
 
     const selectedCard = savedCards.find((c) => c.id === selectedCardId)
 
@@ -293,8 +296,9 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
       const res = await processFinalOrder(selectedAddressId, paymentDetails)
       setOrderSuccess({ orderId: res.orderId, message: res.message })
       setActiveStep("confirmed")
-    } catch (err) {
+    } catch (err: any) {
       console.error("Order placement failed:", err)
+      setCheckoutError(err?.message || "Order placement failed due to item availability. Please check your cart items.")
     } finally {
       setActionLoading(false)
     }
@@ -858,6 +862,13 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left Column: Payment Options & Selectable Saved Cards */}
               <div className="lg:col-span-7 flex flex-col space-y-6">
+                {checkoutError && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in">
+                    <span className="flex size-2 rounded-full bg-rose-600 shrink-0" />
+                    <span>{checkoutError}</span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h2 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
                     <CreditCard className="size-5 text-slate-900" />

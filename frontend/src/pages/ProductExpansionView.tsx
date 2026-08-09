@@ -41,6 +41,8 @@ export function ProductExpansionView({
   const [quantity, setQuantity] = useState<number>(1)
   const [localWishlist, setLocalWishlist] = useState<boolean>(isWishlisted)
   const [addedToast, setAddedToast] = useState<boolean>(false)
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [addToCartError, setAddToCartError] = useState<string | null>(null)
 
   // Sync wishlist prop
   useEffect(() => {
@@ -55,6 +57,7 @@ export function ProductExpansionView({
     setSelectedImageIndex(0)
     setQuantity(1)
     setAddedToast(false)
+    setAddToCartError(null)
 
     fetchProductDetails(productId)
       .then((data) => {
@@ -100,7 +103,10 @@ export function ProductExpansionView({
   }
 
   const handleAddToCartClick = async () => {
-    if (!product) return
+    if (!product || isSubmitting) return
+
+    setIsSubmitting(true)
+    setAddToCartError(null)
 
     const rentPrice = activePrice
     const hourlyRate = Math.max(1, Math.round((rentPrice / 24) * 10) / 10)
@@ -116,15 +122,19 @@ export function ProductExpansionView({
         hourlyRate: hourlyRate,
         variantName: selectedVariant?.name || `${product.productType} Standard Edition`,
       })
-    } catch (err) {
-      console.warn("Failed to add to cart:", err)
-    }
 
-    if (onAddToCart) {
-      onAddToCart(product.id, selectedVariant?.id, quantity)
+      if (onAddToCart) {
+        onAddToCart(product.id, selectedVariant?.id, quantity)
+      }
+      setAddedToast(true)
+      setTimeout(() => setAddedToast(false), 3000)
+    } catch (err: any) {
+      console.warn("Failed to add to cart:", err)
+      setAddToCartError(err?.message || "Item is out of stock or requested quantity exceeds available inventory.")
+      setTimeout(() => setAddToCartError(null), 4000)
+    } finally {
+      setIsSubmitting(false)
     }
-    setAddedToast(true)
-    setTimeout(() => setAddedToast(false), 3000)
   }
 
   // Handle selecting a specific variant
@@ -479,22 +489,38 @@ export function ProductExpansionView({
                   {/* Add To Cart Button */}
                   <Button
                     onClick={handleAddToCartClick}
-                    disabled={!activeInStock || activeStockQty === 0 || quantity === 0}
+                    disabled={isSubmitting || !activeInStock || activeStockQty === 0 || quantity === 0}
                     size="lg"
                     className="flex-1 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50"
                   >
-                    <ShoppingCart className="size-5 mr-2" />
-                    {!activeInStock || activeStockQty === 0
-                      ? "Out of Stock"
-                      : `Add To Cart • $${(activePrice * quantity).toFixed(2)}`}
+                    {isSubmitting ? (
+                      <>
+                        <span className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+                        <span>Adding to Cart...</span>
+                      </>
+                    ) : !activeInStock || activeStockQty === 0 ? (
+                      "Out of Stock"
+                    ) : (
+                      <>
+                        <ShoppingCart className="size-5 mr-2" />
+                        {`Add To Cart • $${(activePrice * quantity).toFixed(2)}`}
+                      </>
+                    )}
                   </Button>
                 </div>
 
-                {/* Toast Notification */}
+                {/* Toast & Error Notifications */}
                 {addedToast && (
                   <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
                     <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
                     <span>Item added to cart successfully!</span>
+                  </div>
+                )}
+
+                {addToCartError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                    <span className="flex size-2 rounded-full bg-rose-600 shrink-0" />
+                    <span>{addToCartError}</span>
                   </div>
                 )}
               </div>

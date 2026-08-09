@@ -170,12 +170,38 @@ export function getLoggedCustomer(): CustomerUser | null {
   return null
 }
 
-export async function fetchProducts(vendorId?: number): Promise<ApiProduct[]> {
-  const url = vendorId
-    ? `${API_BASE_URL}/api/v1/products?vendor_id=${vendorId}`
-    : `${API_BASE_URL}/api/v1/products`
+export async function fetchProducts(
+  vendorId?: number,
+  skip?: number,
+  limit?: number
+): Promise<ApiProduct[]> {
+  const params = new URLSearchParams()
+  if (vendorId) params.append("vendor_id", String(vendorId))
+  if (skip !== undefined) params.append("skip", String(skip))
+  if (limit !== undefined) params.append("limit", String(limit))
+
+  const queryString = params.toString()
+  const url = queryString ? `${API_BASE_URL}/api/v1/products?${queryString}` : `${API_BASE_URL}/api/v1/products`
   const res = await fetch(url)
   return handleResponse<ApiProduct[]>(res)
+}
+
+export async function fetchProductsPaginated(
+  vendorId?: number,
+  skip: number = 0,
+  limit: number = 9
+): Promise<{ items: ApiProduct[]; total: number }> {
+  const params = new URLSearchParams()
+  if (vendorId) params.append("vendor_id", String(vendorId))
+  params.append("skip", String(skip))
+  params.append("limit", String(limit))
+
+  const url = `${API_BASE_URL}/api/v1/products?${params.toString()}`
+  const res = await fetch(url)
+  const totalHeader = res.headers.get("X-Total-Count")
+  const total = totalHeader ? parseInt(totalHeader, 10) : 0
+  const items = await handleResponse<ApiProduct[]>(res)
+  return { items, total: total || items.length }
 }
 
 export async function fetchProductById(id: number | string): Promise<ApiProduct> {

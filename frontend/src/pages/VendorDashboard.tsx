@@ -11,7 +11,6 @@ import {
   ChevronDown,
   LogOut,
   Settings as SettingsIcon,
-  Plus,
   Calendar,
   Package,
   TrendingUp,
@@ -34,7 +33,7 @@ interface Order {
   reference: string
   customer: string
   item: string
-  status: "Reserved" | "Picked Up" | "Late pickup" | "Late Return" | "Quotation" | "Cancelled"
+  status: "Reserved" | "Picked Up" | "Returned" | "Late pickup" | "Late Return" | "Quotation" | "Cancelled"
   pickupDate: string
   returnDate: string
   total: number
@@ -238,6 +237,9 @@ export function VendorDashboard() {
     }
   }
 
+  void handleSelectAll
+  void handleSelectOne
+
   // Get status pill color styling for light theme
   const getStatusBadge = (status: Order["status"]) => {
     switch (status) {
@@ -352,7 +354,7 @@ export function VendorDashboard() {
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false)
-                      alert("Vendor settings page")
+                      navigate("/vendor/settings")
                     }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors font-medium text-left"
                   >

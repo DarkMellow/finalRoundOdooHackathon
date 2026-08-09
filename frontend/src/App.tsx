@@ -12,6 +12,7 @@ import { Wishlist } from "@/pages/Wishlist"
 import { Profile } from "@/pages/Profile"
 import { AboutUs } from "@/pages/AboutUs"
 import { ContactUs } from "@/pages/ContactUs"
+import { VendorProfile } from "@/pages/VendorProfilePage"
 
 
 function AppRoutes() {
@@ -19,6 +20,8 @@ function AppRoutes() {
   const isStandalonePage =
     location.pathname.startsWith("/vendor/dashboard") ||
     location.pathname.startsWith("/vendor/products") ||
+    location.pathname.startsWith("/vendor/settings") ||
+    location.pathname.startsWith("/vendor/profile") ||
     location.pathname.startsWith("/customer/catalog") ||
     location.pathname.startsWith("/customer/about") ||
     location.pathname.startsWith("/customer/contact") ||
@@ -44,6 +47,8 @@ function AppRoutes() {
           <Route path="/vendor/products" element={<VendorProductList />} />
           <Route path="/vendor/products/new" element={<VendorAddProduct />} />
           <Route path="/vendor/products/edit/:id" element={<VendorAddProduct />} />
+          <Route path="/vendor/settings" element={<VendorProfile />} />
+          <Route path="/vendor/profile" element={<VendorProfile />} />
           {/* Legacy redirects */}
           <Route path="/admin/*" element={<Navigate to="/vendor/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/customer/signin" replace />} />

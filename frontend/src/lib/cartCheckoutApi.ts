@@ -47,13 +47,14 @@ export interface SavedCard {
 }
 
 export interface PaymentDetails {
-  method: "card" | "upi" | "cod"
+  method: "card" | "upi" | "cod" | "netbanking"
   cardId?: string
   cardName?: string
   cardNumber?: string
   expiry?: string
   cvv?: string
   upiId?: string
+  bank?: string
 }
 
 export interface AddToCartPayload {
@@ -530,7 +531,7 @@ export async function processFinalOrder(
 
   let paymentMethodStr = "Credit Card"
   if (paymentDetails.method === "card") {
-    paymentMethodStr = `Card ending in ${paymentDetails.cardNumber.slice(-4) || "4242"}`
+    paymentMethodStr = `Card ending in ${paymentDetails.cardNumber?.slice(-4) || "4242"}`
   } else if (paymentDetails.method === "upi") {
     paymentMethodStr = `UPI ID (${paymentDetails.upiId || "user@upi"})`
   } else if (paymentDetails.method === "netbanking") {

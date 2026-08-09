@@ -312,7 +312,7 @@ export function VendorProductList() {
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false)
-                      alert("Vendor settings page")
+                      navigate("/vendor/settings")
                     }}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors font-medium text-left"
                   >

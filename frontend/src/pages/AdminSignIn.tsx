@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ShieldCheck, Lock, Mail, ArrowRight, Building2, KeyRound, AlertCircle } from "lucide-react"
+import { SplashScreen } from "@/components/SplashScreen"
 
 export function AdminSignIn() {
   const navigate = useNavigate()
@@ -48,9 +49,11 @@ export function AdminSignIn() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-slate-900 relative overflow-hidden">
-      {/* Decorative subtle background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-70 pointer-events-none" />
+    <>
+      <SplashScreen role="admin" />
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-slate-900 relative overflow-hidden animate-in fade-in duration-300">
+        {/* Decorative subtle background pattern */}
+        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-70 pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center items-center gap-3 mb-4">
@@ -158,7 +161,8 @@ export function AdminSignIn() {
         </div>
       </div>
     </div>
-  )
+  </>
+)
 }
 
 export default AdminSignIn

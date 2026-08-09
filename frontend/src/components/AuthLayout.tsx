@@ -1,5 +1,6 @@
 import React from "react"
 import { Store, UserCheck, Sparkles, Building2, CheckCircle2 } from "lucide-react"
+import { SplashScreen } from "@/components/SplashScreen"
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -19,8 +20,10 @@ export function AuthLayout({
   const isVendor = role === "vendor" || role === "admin"
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-background via-muted/20 to-muted/40">
-      <div className="mx-auto flex w-full max-w-5xl overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl min-h-[580px]">
+    <>
+      <SplashScreen role={role} />
+      <div className="flex min-h-[calc(100vh-4rem)] w-full items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-background via-muted/20 to-muted/40 animate-in fade-in duration-300">
+        <div className="mx-auto flex w-full max-w-5xl overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl min-h-[580px]">
         {/* Left Decorative Banner Panel */}
         <div
           className={`hidden lg:flex flex-col justify-between w-5/12 p-8 text-white relative overflow-hidden ${
@@ -115,5 +118,6 @@ export function AuthLayout({
         </div>
       </div>
     </div>
-  )
+  </>
+)
 }

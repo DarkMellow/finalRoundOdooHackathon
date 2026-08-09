@@ -505,10 +505,7 @@ export function VendorProductList() {
             <Loader2 className="size-6 animate-spin text-purple-600" />
             <span className="text-xs font-semibold">Fetching products from database...</span>
           </div>
-        ) : (
-          <>
-            {/* LIST VIEW TABLE */}
-            {viewMode === "list" ? (
+        ) : viewMode === "list" ? (
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">

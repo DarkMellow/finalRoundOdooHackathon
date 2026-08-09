@@ -12,6 +12,8 @@ from database import engine, Base, get_db, test_db_connection
 import models
 import schemas
 
+from auth_utils import hash_password, verify_password
+
 # Create database tables automatically if connection succeeds
 try:
     Base.metadata.create_all(bind=engine)
@@ -89,7 +91,7 @@ def customer_signup(payload: schemas.CustomerSignUpSchema, db: Session = Depends
     user = models.User(
         full_name=payload.full_name,
         email=payload.email,
-        hashed_password=f"hashed_{payload.password}",
+        hashed_password=hash_password(payload.password),
         phone_number=payload.phone_number,
         role="customer",
         is_active=True,
@@ -117,7 +119,7 @@ def customer_signin(payload: schemas.CustomerSignInSchema, db: Session = Depends
         .filter(models.User.email == payload.email, models.User.role == "customer")
         .first()
     )
-    if not user or user.hashed_password != f"hashed_{payload.password}":
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
@@ -151,7 +153,7 @@ def vendor_signup(payload: schemas.VendorSignUpSchema, db: Session = Depends(get
     user = models.User(
         full_name=payload.full_name,
         email=payload.email,
-        hashed_password=f"hashed_{payload.password}",
+        hashed_password=hash_password(payload.password),
         role="vendor",
         is_active=True,
     )
@@ -186,7 +188,7 @@ def vendor_signin(payload: schemas.VendorSignInSchema, db: Session = Depends(get
         )
         .first()
     )
-    if not user or user.hashed_password != f"hashed_{payload.password}":
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid vendor credentials. Please check your email and password.",

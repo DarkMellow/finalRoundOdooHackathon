@@ -232,11 +232,6 @@ export function VendorCalendar() {
                   </div>
                 ))}
               </div>
-
-              {/* Wireframe Footnote */}
-              <p className="text-[11px] text-slate-500 italic text-center pt-2">
-                *(all the status mentioned in the brackets are showing the product availability)*
-              </p>
             </div>
           )}
         </div>

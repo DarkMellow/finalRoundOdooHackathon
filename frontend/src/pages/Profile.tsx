@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowLeft, CreditCard, Trash2, Edit2, Check, X, PlusCircle } from "lucide-react"
+import { ArrowLeft, CreditCard, Trash2, PlusCircle } from "lucide-react"
 import { ProfileSidebar } from "@/components/profile/ProfileSidebar"
 import { InfoSection } from "@/components/profile/InfoSection"
 import { AddressCard } from "@/components/profile/AddressCard"
@@ -16,7 +16,6 @@ import {
 import {
   saveNewCard,
   deleteSavedCard,
-  updateExistingCard,
 } from "@/lib/cartCheckoutApi"
 
 const RENTED_PAGE_SIZE = 4
@@ -60,7 +59,7 @@ function PaymentMethodsList({
         cardholderName: newName || "Cardholder",
         cardNumber: newNumber,
         expiry: newExpiry || "12/28",
-        brand: newBrand,
+        brand: newBrand as "Visa" | "Mastercard" | "Amex",
         isDefault: false,
       })
       setNewName("")

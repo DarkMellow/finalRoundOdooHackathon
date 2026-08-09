@@ -84,7 +84,7 @@ export function CartCheckout({ isOpen, onClose }: CartCheckoutProps) {
   const [newCardExpiry, setNewCardExpiry] = useState<string>("")
   const [newCardCvv, setNewCardCvv] = useState<string>("")
 
-  const [upiId, setUpiId] = useState<string>("janedoe@upi")
+  const [upiId, setUpiId] = useState<string>("")
 
   // Order Success state
   const [orderSuccess, setOrderSuccess] = useState<{ orderId: string; message: string } | null>(null)

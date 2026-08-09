@@ -13,7 +13,6 @@ import {
   Edit,
   Loader2,
   RefreshCw,
-  Sparkles,
   Layers,
   ChevronDown,
   LogOut,
@@ -35,7 +34,7 @@ export function VendorProductList() {
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [typeFilter, setTypeFilter] = useState<"all" | "Goods" | "Service">("all")
-  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all")
+  const statusFilter = "all"
 
   // Load active logged vendor
   useEffect(() => {
@@ -138,6 +137,7 @@ export function VendorProductList() {
 
   // Seed demo products if database is empty for this vendor
   const handleSeedDemoProducts = async () => {
+    if (isSeeding) return
     setIsSeeding(true)
     const vendorId = loggedVendor?.id || 1
     const seedData = [

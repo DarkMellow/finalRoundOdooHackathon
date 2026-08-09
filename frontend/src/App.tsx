@@ -10,6 +10,8 @@ import { VendorAddProduct } from "@/pages/VendorAddProduct"
 import { VendorProductList } from "@/pages/VendorProductList"
 import { Wishlist } from "@/pages/Wishlist"
 import { Profile } from "@/pages/Profile"
+import { AboutUs } from "@/pages/AboutUs"
+import { ContactUs } from "@/pages/ContactUs"
 
 
 function AppRoutes() {
@@ -18,6 +20,8 @@ function AppRoutes() {
     location.pathname.startsWith("/vendor/dashboard") ||
     location.pathname.startsWith("/vendor/products") ||
     location.pathname.startsWith("/customer/catalog") ||
+    location.pathname.startsWith("/customer/about") ||
+    location.pathname.startsWith("/customer/contact") ||
     location.pathname.startsWith("/customer/wishlist") ||
     location.pathname.startsWith("/customer/profile")
 
@@ -30,6 +34,8 @@ function AppRoutes() {
           <Route path="/customer/signin" element={<CustomerSignIn />} />
           <Route path="/customer/signup" element={<CustomerSignUp />} />
           <Route path="/customer/catalog" element={<CustomerCatalog />} />
+          <Route path="/customer/about" element={<AboutUs />} />
+          <Route path="/customer/contact" element={<ContactUs />} />
           <Route path="/customer/wishlist" element={<Wishlist />} />
           <Route path="/customer/profile" element={<Profile />} />
           <Route path="/vendor/signin" element={<VendorSignIn />} />

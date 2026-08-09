@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "@/lib/api"
 import { fetchSavedAddresses, fetchSavedCards } from "@/lib/cartCheckoutApi"
 import { fetchCustomerOrders } from "@/lib/customerOrdersApi"
 

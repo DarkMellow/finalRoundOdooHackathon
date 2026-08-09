@@ -40,7 +40,7 @@ interface Order {
 }
 
 // Rich Dummy Orders Data matching the wireframe
-const INITIAL_ORDERS: Order[] = [
+export const INITIAL_ORDERS: Order[] = [
   {
     id: "1",
     reference: "S00001",

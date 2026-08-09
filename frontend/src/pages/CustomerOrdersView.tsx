@@ -26,6 +26,8 @@ interface CustomerOrdersViewProps {
   onSelectProduct?: (productId: string) => void
 }
 
+import { useDebounce } from "@/hooks/useDebounce"
+
 export function CustomerOrdersView({
   isOpen,
   onClose,
@@ -36,6 +38,7 @@ export function CustomerOrdersView({
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "completed" | "cancelled">("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Load orders using the API mimicking function
@@ -95,8 +98,8 @@ export function CustomerOrdersView({
 
   // Filtered orders list by search query
   const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return orders
-    const query = searchQuery.toLowerCase()
+    if (!debouncedSearchQuery.trim()) return orders
+    const query = debouncedSearchQuery.toLowerCase()
     return orders.filter((order) => {
       const matchesRef = order.reference.toLowerCase().includes(query)
       const matchesItem = order.items.some(
@@ -104,7 +107,7 @@ export function CustomerOrdersView({
       )
       return matchesRef || matchesItem
     })
-  }, [orders, searchQuery])
+  }, [orders, debouncedSearchQuery])
 
   if (!isOpen) return null
 

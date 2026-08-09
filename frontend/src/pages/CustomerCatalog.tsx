@@ -8,6 +8,7 @@ import { CartCheckout } from "@/pages/CartCheckout"
 import { Wishlist } from "@/pages/Wishlist"
 import { CustomerOrdersView } from "@/pages/CustomerOrdersView"
 import { Input } from "@/components/ui/input"
+import { useDebounce } from "@/hooks/useDebounce"
 import {
   Building2,
   Search,
@@ -55,6 +56,7 @@ export function CustomerCatalog() {
   const navigate = useNavigate()
   const [loggedCustomer, setLoggedCustomer] = useState<CustomerUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
   const [selectedTag, setSelectedTag] = useState<string>("All Tags")
   const [selectedBrand, setSelectedBrand] = useState<string>("all")
   const [priceMax, setPriceMax] = useState<number>(2000)
@@ -197,12 +199,13 @@ export function CustomerCatalog() {
 
   // Filter products by search query, brand, price, AND primary tag / category
   const filteredProducts = allProducts.filter((product) => {
+    const query = debouncedSearchQuery.toLowerCase()
     const matchesSearch =
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+      product.title.toLowerCase().includes(query) ||
+      product.description.toLowerCase().includes(query) ||
+      product.category.toLowerCase().includes(query) ||
+      product.brand.toLowerCase().includes(query) ||
+      product.tags.some((t) => t.toLowerCase().includes(query))
 
     if (!matchesSearch) return false
 
@@ -223,7 +226,7 @@ export function CustomerCatalog() {
   // Reset pagination on filter or search changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedTag, selectedBrand, priceMax])
+  }, [debouncedSearchQuery, selectedTag, selectedBrand, priceMax])
 
   // Pagination calculation
   const ITEMS_PER_PAGE = 6

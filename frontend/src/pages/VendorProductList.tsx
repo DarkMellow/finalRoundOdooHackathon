@@ -21,6 +21,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { fetchProducts, deleteProduct, createProduct, getLoggedVendor, type ApiProduct, type VendorUser } from "@/lib/api"
 
+import { useDebounce } from "@/hooks/useDebounce"
+
 export function VendorProductList() {
   const navigate = useNavigate()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
@@ -32,6 +34,7 @@ export function VendorProductList() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [typeFilter, setTypeFilter] = useState<"all" | "Goods" | "Service">("all")
   const statusFilter = "all"
@@ -233,7 +236,7 @@ export function VendorProductList() {
 
   // Filter products
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     const matchesType = typeFilter === "all" || product.product_type === typeFilter
     const matchesStatus =
       statusFilter === "all" ||

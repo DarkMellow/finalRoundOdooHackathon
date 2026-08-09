@@ -136,6 +136,8 @@ export const INITIAL_ORDERS: Order[] = [
   },
 ]
 
+import { useDebounce } from "@/hooks/useDebounce"
+
 export function VendorDashboard() {
   const navigate = useNavigate()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
@@ -144,6 +146,7 @@ export function VendorDashboard() {
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all")
   const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "products" | "reports" | "pricelist">("dashboard")
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [dateRange, setDateRange] = useState("Last 7 Days")
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
@@ -199,10 +202,11 @@ export function VendorDashboard() {
 
   // Filter orders by status & search query
   const filteredOrders = orders.filter((order) => {
+    const query = debouncedSearchQuery.toLowerCase()
     const matchesSearch =
-      order.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.item.toLowerCase().includes(searchQuery.toLowerCase())
+      order.reference.toLowerCase().includes(query) ||
+      order.customer.toLowerCase().includes(query) ||
+      order.item.toLowerCase().includes(query)
 
     if (!matchesSearch) return false
 

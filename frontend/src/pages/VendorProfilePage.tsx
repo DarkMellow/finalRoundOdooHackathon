@@ -62,6 +62,8 @@ function FormField({
   )
 }
 
+import { useDebounce } from "@/hooks/useDebounce"
+
 export function VendorProfile() {
   const [original, setOriginal] = useState<VendorProfileData | null>(null)
   const [form, setForm] = useState<VendorProfileData | null>(null)
@@ -71,6 +73,8 @@ export function VendorProfile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
+  void debouncedSearchQuery
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {

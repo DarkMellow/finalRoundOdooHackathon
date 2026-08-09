@@ -102,7 +102,7 @@ export function ProductExpansionView({
   const handleAddToCartClick = async () => {
     if (!product) return
 
-    const rentPrice = selectedVariant?.rentPrice || product.rentPrice || 60
+    const rentPrice = activePrice
     const hourlyRate = Math.max(1, Math.round((rentPrice / 24) * 10) / 10)
 
     try {
@@ -172,7 +172,11 @@ export function ProductExpansionView({
     }
   }
 
-  const activePrice = selectedVariant ? selectedVariant.rentPrice : product?.rentPrice || 0
+  const hasDiscount = Boolean(product?.discountPercent && product.discountPercent > 0)
+  const discountPercent = product?.discountPercent || 0
+  const rawBasePrice = selectedVariant ? selectedVariant.rentPrice : product?.rentPrice || 0
+  const activePrice = hasDiscount ? Number((rawBasePrice * (1 - discountPercent / 100)).toFixed(2)) : rawBasePrice
+  const originalPrice = hasDiscount ? rawBasePrice : undefined
   const activeBillingPeriod = selectedVariant ? selectedVariant.billingPeriod : product?.billingPeriod || "per Month"
   const activeInStock = selectedVariant ? selectedVariant.inStock : product?.inStock || false
   const activeStockQty = selectedVariant ? selectedVariant.stockQuantity : product?.stockQuantity || 0
@@ -311,14 +315,31 @@ export function ProductExpansionView({
                 </div>
 
                 {/* Pricing Banner */}
-                <div className="flex items-baseline gap-2 p-4 rounded-xl bg-purple-50/80 border border-purple-100">
-                  <span className="text-3xl font-black text-purple-700">${activePrice}</span>
-                  <span className="text-sm font-semibold text-slate-600">{activeBillingPeriod}</span>
-                  {product.securityDeposit && product.securityDeposit > 0 ? (
-                    <span className="ml-auto text-xs text-slate-500 font-medium">
-                      +${product.securityDeposit} deposit
-                    </span>
-                  ) : null}
+                <div className="flex flex-col gap-1 p-4 rounded-xl bg-purple-50/80 border border-purple-100">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-purple-700">${activePrice}</span>
+                    {originalPrice && originalPrice > activePrice && (
+                      <span className="text-base font-bold text-slate-400 line-through">
+                        ${originalPrice}
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold text-slate-600">{activeBillingPeriod}</span>
+                    {hasDiscount && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-xs font-mono shadow-xs">
+                        -{discountPercent}% OFF
+                      </span>
+                    )}
+                    {product.securityDeposit && product.securityDeposit > 0 ? (
+                      <span className="ml-auto text-xs text-slate-500 font-medium">
+                        +${product.securityDeposit} deposit
+                      </span>
+                    ) : null}
+                  </div>
+                  {product.discountName && (
+                    <div className="text-[11px] font-bold text-emerald-700">
+                      Active Campaign: {product.discountName}
+                    </div>
+                  )}
                 </div>
 
                 {/* DESCRIPTION */}

@@ -122,6 +122,11 @@ def customer_signin(payload: schemas.CustomerSignInSchema, db: Session = Depends
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
         )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your customer account has been suspended or disabled by the administrator.",
+        )
     return user
 
 
@@ -187,6 +192,12 @@ def vendor_signin(payload: schemas.VendorSignInSchema, db: Session = Depends(get
             detail="Invalid vendor credentials. Please check your email and password.",
         )
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your vendor store account has been suspended or disabled by the administrator.",
+        )
+
     # Auto-migrate legacy 'admin' role to 'vendor'
     if user.role == "admin":
         user.role = "vendor"
@@ -248,6 +259,31 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
     return product
 
 
+def get_active_discount_for_product(product, db: Session):
+    current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    # 1. Product specific discount
+    prod_rule = db.query(models.PricelistRule).filter(
+        models.PricelistRule.product_id == product.id,
+        models.PricelistRule.start_date <= current_date_str,
+        models.PricelistRule.end_date >= current_date_str
+    ).first()
+    if prod_rule:
+        return prod_rule.discount_percent, prod_rule.name
+
+    # 2. Global discount
+    global_rule = db.query(models.PricelistRule).filter(
+        models.PricelistRule.is_global == True,
+        models.PricelistRule.vendor_id == product.vendor_id,
+        models.PricelistRule.start_date <= current_date_str,
+        models.PricelistRule.end_date >= current_date_str
+    ).first()
+    if global_rule:
+        return global_rule.discount_percent, global_rule.name
+
+    return 0.0, None
+
+
 @app.get(
     "/api/v1/products",
     response_model=list[schemas.ProductResponseSchema],
@@ -260,7 +296,18 @@ def get_products(vendor_id: int | None = Query(default=None), db: Session = Depe
         )
         if vendor_id is not None and vendor_id > 0:
             query = query.filter(models.Product.vendor_id == vendor_id)
-        return query.order_by(models.Product.id.desc()).all()
+        else:
+            # Customer catalog only sees published listings from active vendors
+            query = query.filter(models.Product.is_published == True)
+            query = query.join(models.User, models.Product.vendor_id == models.User.id).filter(models.User.is_active == True)
+
+        products = query.order_by(models.Product.id.desc()).all()
+        for p in products:
+            pct, name = get_active_discount_for_product(p, db)
+            p.discount_percent = pct
+            p.discount_name = name
+            p.discounted_price = p.sales_price * (1.0 - pct / 100.0) if pct > 0 else p.sales_price
+        return products
     except Exception as e:
         print(f"Error fetching products: {e}")
         return []
@@ -278,11 +325,15 @@ def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
         .filter(models.Product.id == product_id)
         .first()
     )
-    if not product:
+    if not product or not product.is_published or (product.vendor and not product.vendor.is_active):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found",
+            detail="Product not found or currently unavailable.",
         )
+    pct, name = get_active_discount_for_product(product, db)
+    product.discount_percent = pct
+    product.discount_name = name
+    product.discounted_price = product.sales_price * (1.0 - pct / 100.0) if pct > 0 else product.sales_price
     return product
 
 
@@ -1092,15 +1143,27 @@ def create_customer_order(
 ):
     target_user_id = resolve_target_user_id(payload.user_id, db)
 
-    # 1. Resolve Cart or provided items
+    # 1. Resolve Cart or provided items and apply promo/discounts
+    promo_discount_percent = 0.0
+    promo_code_obj = None
+    if payload.promoCode:
+        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        promo_code_obj = db.query(models.PromoCode).filter(
+            models.PromoCode.code == payload.promoCode.upper(),
+            models.PromoCode.is_active == True,
+            models.PromoCode.start_date <= current_date_str,
+            models.PromoCode.end_date >= current_date_str
+        ).first()
+        if promo_code_obj and promo_code_obj.uses_count < promo_code_obj.max_uses:
+            promo_discount_percent = promo_code_obj.discount_percent
+
     items_list = []
     subtotal = 0.0
     total_hours = payload.totalHours or 24
 
+    input_items = []
     if payload.items and len(payload.items) > 0:
-        for it in payload.items:
-            items_list.append(it.model_dump())
-            subtotal += it.hourlyRate * total_hours * it.quantity
+        input_items = payload.items
     else:
         # Load from carts table
         cart, _ = get_or_create_user_cart(target_user_id, db)
@@ -1109,20 +1172,56 @@ def create_customer_order(
         except Exception:
             cart_items = []
         for it in cart_items:
-            h_rate = float(it.get("hourlyRate") or 0.0)
-            qty = int(it.get("quantity") or 1)
-            d_hours = int(it.get("durationHours") or total_hours)
-            subtotal += h_rate * d_hours * qty
-            items_list.append({
-                "id": str(it.get("id") or f"item-{random.randint(100, 999)}"),
-                "productId": str(it.get("productId") or it.get("id") or "p1"),
-                "title": str(it.get("title") or it.get("name") or "Rental Item"),
-                "brand": str(it.get("brand") or "Equipment Brand"),
-                "image": str(it.get("image") or "https://images.unsplash.com/photo-1580481072645-022f9a6d83d0?auto=format&fit=crop&w=600&q=80"),
-                "hourlyRate": h_rate,
-                "quantity": qty,
-                "variantName": it.get("variantName") or it.get("variantTitle") or "Standard",
-            })
+            class DummyItem:
+                def __init__(self, d):
+                    self.id = d.get("id", "")
+                    self.productId = d.get("productId", "")
+                    self.title = d.get("title", "")
+                    self.brand = d.get("brand", "")
+                    self.image = d.get("image", "")
+                    self.hourlyRate = float(d.get("hourlyRate") or 0.0)
+                    self.quantity = int(d.get("quantity") or 1)
+                    self.variantName = d.get("variantName", "Standard")
+            input_items.append(DummyItem(it))
+
+    for it in input_items:
+        clean_prod_id = None
+        prod_id_str = str(it.productId)
+        if prod_id_str.startswith("db-"):
+            prod_id_str = prod_id_str.replace("db-", "")
+        if prod_id_str.isdigit():
+            clean_prod_id = int(prod_id_str)
+
+        db_product = None
+        if clean_prod_id:
+            db_product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+
+        base_rate = db_product.sales_price if db_product else it.hourlyRate
+        applied_discount_pct = 0.0
+        if promo_discount_percent > 0.0:
+            applied_discount_pct = promo_discount_percent
+        elif db_product:
+            pct, _ = get_active_discount_for_product(db_product, db)
+            applied_discount_pct = pct
+
+        final_rate = base_rate * (1.0 - applied_discount_pct / 100.0)
+        qty = it.quantity
+        subtotal += final_rate * total_hours * qty
+        items_list.append({
+            "id": getattr(it, "id", None) or str(it.productId),
+            "productId": str(it.productId),
+            "title": getattr(it, "title", "Rental Item"),
+            "brand": getattr(it, "brand", "Equipment Brand"),
+            "image": getattr(it, "image", ""),
+            "hourlyRate": final_rate,
+            "quantity": qty,
+            "variantName": getattr(it, "variantName", "Standard"),
+        })
+
+    if promo_code_obj:
+        promo_code_obj.uses_count += 1
+        db.add(promo_code_obj)
+        db.commit()
 
     discount = float(payload.discount or 0.0)
     total = max(0.0, subtotal - discount)
@@ -1469,3 +1568,469 @@ def update_vendor_target(
 
     db.commit()
     return {"targetValue": target.target_value}
+
+
+# ==========================================
+# PRICELIST RULES ENDPOINTS
+# ==========================================
+
+@app.get(
+    "/api/v1/vendor/pricelist-rules",
+    response_model=list[schemas.PricelistRuleResponseSchema],
+    tags=["Vendor Pricelist"],
+)
+def get_pricelist_rules(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return []
+        vendor_id = vendor.id
+
+    rules = db.query(models.PricelistRule).filter(models.PricelistRule.vendor_id == vendor_id).all()
+    # Add product name to each response rule
+    for r in rules:
+        if r.product:
+            r.product_name = r.product.name
+    return rules
+
+
+@app.post(
+    "/api/v1/vendor/pricelist-rules",
+    response_model=schemas.PricelistRuleResponseSchema,
+    tags=["Vendor Pricelist"],
+)
+def create_pricelist_rule(
+    payload: schemas.PricelistRuleCreateSchema,
+    db: Session = Depends(get_db),
+):
+    vendor_id = payload.vendor_id
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_id = vendor.id
+
+    new_rule = models.PricelistRule(
+        vendor_id=vendor_id,
+        name=payload.name,
+        discount_percent=payload.discount_percent,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        is_global=payload.is_global,
+        product_id=payload.product_id,
+    )
+    db.add(new_rule)
+    db.commit()
+    db.refresh(new_rule)
+    if new_rule.product:
+        new_rule.product_name = new_rule.product.name
+    return new_rule
+
+
+@app.put(
+    "/api/v1/vendor/pricelist-rules/{rule_id}",
+    response_model=schemas.PricelistRuleResponseSchema,
+    tags=["Vendor Pricelist"],
+)
+def update_pricelist_rule(
+    rule_id: int,
+    payload: schemas.PricelistRuleCreateSchema,
+    db: Session = Depends(get_db),
+):
+    rule = db.query(models.PricelistRule).filter(models.PricelistRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    rule.name = payload.name
+    rule.discount_percent = payload.discount_percent
+    rule.start_date = payload.start_date
+    rule.end_date = payload.end_date
+    rule.is_global = payload.is_global
+    rule.product_id = payload.product_id
+
+    db.commit()
+    db.refresh(rule)
+    if rule.product:
+        rule.product_name = rule.product.name
+    return rule
+
+
+@app.delete(
+    "/api/v1/vendor/pricelist-rules/{rule_id}",
+    tags=["Vendor Pricelist"],
+)
+def delete_pricelist_rule(
+    rule_id: int,
+    db: Session = Depends(get_db),
+):
+    rule = db.query(models.PricelistRule).filter(models.PricelistRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    db.delete(rule)
+    db.commit()
+    return {"message": "Rule deleted successfully"}
+
+
+# ==========================================
+# PROMO CODES ENDPOINTS
+# ==========================================
+
+@app.get(
+    "/api/v1/vendor/promo-codes",
+    response_model=list[schemas.PromoCodeResponseSchema],
+    tags=["Vendor Promos"],
+)
+def get_promo_codes(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return []
+        vendor_id = vendor.id
+
+    return db.query(models.PromoCode).filter(models.PromoCode.vendor_id == vendor_id).all()
+
+
+@app.post(
+    "/api/v1/vendor/promo-codes",
+    response_model=schemas.PromoCodeResponseSchema,
+    tags=["Vendor Promos"],
+)
+def create_promo_code(
+    payload: schemas.PromoCodeCreateSchema,
+    db: Session = Depends(get_db),
+):
+    vendor_id = payload.vendor_id
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_id = vendor.id
+
+    new_promo = models.PromoCode(
+        vendor_id=vendor_id,
+        code=payload.code.upper(),
+        discount_percent=payload.discount_percent,
+        max_uses=payload.max_uses,
+        uses_count=payload.uses_count,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        is_active=payload.is_active,
+    )
+    db.add(new_promo)
+    db.commit()
+    db.refresh(new_promo)
+    return new_promo
+
+
+@app.put(
+    "/api/v1/vendor/promo-codes/{promo_id}",
+    response_model=schemas.PromoCodeResponseSchema,
+    tags=["Vendor Promos"],
+)
+def update_promo_code(
+    promo_id: int,
+    payload: schemas.PromoCodeCreateSchema,
+    db: Session = Depends(get_db),
+):
+    promo = db.query(models.PromoCode).filter(models.PromoCode.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+
+    promo.code = payload.code.upper()
+    promo.discount_percent = payload.discount_percent
+    promo.max_uses = payload.max_uses
+    promo.uses_count = payload.uses_count
+    promo.start_date = payload.start_date
+    promo.end_date = payload.end_date
+    promo.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(promo)
+    return promo
+
+
+@app.delete(
+    "/api/v1/vendor/promo-codes/{promo_id}",
+    tags=["Vendor Promos"],
+)
+def delete_promo_code(
+    promo_id: int,
+    db: Session = Depends(get_db),
+):
+    promo = db.query(models.PromoCode).filter(models.PromoCode.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+
+    db.delete(promo)
+    db.commit()
+    return {"message": "Promo code deleted successfully"}
+
+
+@app.get(
+    "/api/v1/promo-codes/validate",
+    tags=["Vendor Promos"],
+)
+def validate_promo_code(
+    code: str,
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    query = db.query(models.PromoCode).filter(
+        models.PromoCode.code == code.upper(),
+        models.PromoCode.is_active == True,
+        models.PromoCode.start_date <= current_date_str,
+        models.PromoCode.end_date >= current_date_str
+    )
+    if vendor_id:
+        query = query.filter(models.PromoCode.vendor_id == vendor_id)
+        
+    promo = query.first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Invalid or expired promo code")
+        
+    if promo.uses_count >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="Promo code has reached its usage limit")
+        
+    return {
+        "id": promo.id,
+        "code": promo.code,
+        "discount_percent": promo.discount_percent,
+        "vendor_id": promo.vendor_id
+    }
+
+
+# ==========================================
+# ADMIN AUTH & MANAGEMENT ENDPOINTS
+# ==========================================
+
+ADMIN_SECRET_EMAILS = ["admin@easyrental.com", "admin", "admin@rms.com"]
+ADMIN_SECRET_PASSWORDS = ["admin123", "admin", "Admin@EasyRental2026", "secretadmin", "admin@123"]
+
+@app.post(
+    "/api/v1/admin/signin",
+    response_model=schemas.AdminUserResponseSchema,
+    tags=["Admin Auth"],
+)
+def admin_signin(payload: schemas.AdminSignInSchema, db: Session = Depends(get_db)):
+    clean_email = payload.email.strip().lower()
+    clean_pwd = payload.password.strip()
+
+    if clean_email not in ADMIN_SECRET_EMAILS or clean_pwd not in ADMIN_SECRET_PASSWORDS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Admin Secret ID or Password.",
+        )
+
+    # Ensure admin user exists in DB or return admin schema
+    admin_user = db.query(models.User).filter(models.User.email == "admin@easyrental.com").first()
+    if not admin_user:
+        admin_user = models.User(
+            full_name="System Administrator",
+            email="admin@easyrental.com",
+            hashed_password="hashed_admin123",
+            role="admin",
+            is_active=True,
+        )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+
+    return schemas.AdminUserResponseSchema(
+        id=admin_user.id,
+        full_name=admin_user.full_name,
+        email=admin_user.email,
+        role="admin",
+        is_active=True,
+        created_at=admin_user.created_at,
+    )
+
+
+@app.get(
+    "/api/v1/admin/stats",
+    tags=["Admin Management"],
+)
+def get_admin_stats(db: Session = Depends(get_db)):
+    total_prods = db.query(models.Product).count()
+    active_prods = db.query(models.Product).filter(models.Product.is_published == True).count()
+    
+    total_consumers = db.query(models.User).filter(models.User.role == "customer").count()
+    active_consumers = db.query(models.User).filter(models.User.role == "customer", models.User.is_active == True).count()
+    
+    total_vendors = db.query(models.User).filter(models.User.role == "vendor").count()
+    active_vendors = db.query(models.User).filter(models.User.role == "vendor", models.User.is_active == True).count()
+    
+    total_orders = db.query(models.Order).count()
+
+    return {
+        "total_products": total_prods,
+        "active_products": active_prods,
+        "disabled_products": total_prods - active_prods,
+        "total_consumers": total_consumers,
+        "active_consumers": active_consumers,
+        "disabled_consumers": total_consumers - active_consumers,
+        "total_vendors": total_vendors,
+        "active_vendors": active_vendors,
+        "disabled_vendors": total_vendors - active_vendors,
+        "total_orders": total_orders,
+    }
+
+
+@app.get(
+    "/api/v1/admin/products",
+    tags=["Admin Management"],
+)
+def get_admin_products(db: Session = Depends(get_db)):
+    products = (
+        db.query(models.Product)
+        .options(joinedload(models.Product.vendor).joinedload(models.User.vendor_profile))
+        .order_by(models.Product.id.desc())
+        .all()
+    )
+    result = []
+    for p in products:
+        vendor_name = p.vendor.full_name if p.vendor else "Unknown Vendor"
+        vendor_email = p.vendor.email if p.vendor else "N/A"
+        vendor_active = p.vendor.is_active if p.vendor else True
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "category": p.category,
+            "product_type": p.product_type,
+            "sales_price": p.sales_price,
+            "cost_price": p.cost_price,
+            "is_published": p.is_published,
+            "attributes_json": p.attributes_json,
+            "vendor_id": p.vendor_id,
+            "vendor_name": vendor_name,
+            "vendor_email": vendor_email,
+            "vendor_active": vendor_active,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        })
+    return result
+
+
+@app.put(
+    "/api/v1/admin/products/{product_id}/toggle-status",
+    tags=["Admin Management"],
+)
+def toggle_product_status(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    product.is_published = not product.is_published
+    db.commit()
+    db.refresh(product)
+    return {
+        "id": product.id,
+        "name": product.name,
+        "is_published": product.is_published,
+        "message": f"Product '{product.name}' is now {'Published / Active' if product.is_published else 'Disabled / Hidden'}."
+    }
+
+
+@app.get(
+    "/api/v1/admin/consumers",
+    tags=["Admin Management"],
+)
+def get_admin_consumers(db: Session = Depends(get_db)):
+    consumers = (
+        db.query(models.User)
+        .options(joinedload(models.User.customer_profile))
+        .filter(models.User.role == "customer")
+        .order_by(models.User.id.desc())
+        .all()
+    )
+    result = []
+    for c in consumers:
+        order_count = db.query(models.Order).filter(models.Order.user_id == c.id).count()
+        result.append({
+            "id": c.id,
+            "full_name": c.full_name,
+            "email": c.email,
+            "phone_number": c.phone_number,
+            "is_active": c.is_active,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "order_count": order_count,
+            "city": c.customer_profile.city if c.customer_profile else None,
+            "state": c.customer_profile.state if c.customer_profile else None,
+        })
+    return result
+
+
+@app.put(
+    "/api/v1/admin/consumers/{user_id}/toggle-status",
+    tags=["Admin Management"],
+)
+def toggle_consumer_status(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id, models.User.role == "customer").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Consumer not found")
+    
+    user.is_active = not user.is_active
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "is_active": user.is_active,
+        "message": f"Consumer '{user.full_name}' has been {'Activated' if user.is_active else 'Disabled / Suspended'}."
+    }
+
+
+@app.get(
+    "/api/v1/admin/vendors",
+    tags=["Admin Management"],
+)
+def get_admin_vendors(db: Session = Depends(get_db)):
+    vendors = (
+        db.query(models.User)
+        .options(joinedload(models.User.vendor_profile))
+        .filter(models.User.role == "vendor")
+        .order_by(models.User.id.desc())
+        .all()
+    )
+    result = []
+    for v in vendors:
+        product_count = db.query(models.Product).filter(models.Product.vendor_id == v.id).count()
+        result.append({
+            "id": v.id,
+            "full_name": v.full_name,
+            "email": v.email,
+            "company_name": v.vendor_profile.company_name if v.vendor_profile else v.full_name,
+            "category": v.vendor_profile.category if v.vendor_profile else "General Rental",
+            "is_verified": v.vendor_profile.is_verified if v.vendor_profile else False,
+            "is_active": v.is_active,
+            "product_count": product_count,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        })
+    return result
+
+
+@app.put(
+    "/api/v1/admin/vendors/{user_id}/toggle-status",
+    tags=["Admin Management"],
+)
+def toggle_vendor_status(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id, models.User.role == "vendor").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    user.is_active = not user.is_active
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "is_active": user.is_active,
+        "message": f"Vendor '{user.full_name}' has been {'Activated' if user.is_active else 'Disabled / Suspended'}."
+    }

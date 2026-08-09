@@ -32,6 +32,9 @@ interface Product {
   brand: string
   image: string
   price: number
+  originalPrice?: number
+  discount?: number
+  discountName?: string
   billingPeriod: "per Month" | "per day" | "per hour"
   sizeVariants?: string[] // e.g. ["43\"", "55\"", "65\""]
   tags: string[]
@@ -131,7 +134,10 @@ export function CustomerCatalog() {
             category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
             brand: brandName,
             image: coverImg,
-            price: price,
+            price: item.discounted_price || price,
+            originalPrice: item.discount_percent && item.discount_percent > 0 ? (item.sales_price || price) : undefined,
+            discount: item.discount_percent || undefined,
+            discountName: item.discount_name || undefined,
             billingPeriod: "per Month",
             tags: [item.category || "Electronics", item.product_type, brandName],
             inStock: hasStock,
@@ -572,6 +578,16 @@ export function CustomerCatalog() {
                           ))}
                         </div>
                       )}
+
+                      {/* Active Discount Badge */}
+                      {product.discount && product.discount > 0 && (
+                        <div className="absolute bottom-2.5 right-2.5 z-10">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[10px] font-mono shadow-md flex items-center gap-1">
+                            <Tag className="size-2.5" />
+                            -{product.discount}%
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Content Section */}
@@ -597,10 +613,15 @@ export function CustomerCatalog() {
 
                       {/* Price & Billing Period */}
                       <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                        <div>
+                        <div className="flex items-baseline gap-1.5">
                           <span className="font-mono text-base font-extrabold text-slate-900">
                             ${product.price}
                           </span>
+                          {product.originalPrice && product.originalPrice > product.price && (
+                            <span className="font-mono text-xs text-slate-400 line-through">
+                              ${product.originalPrice}
+                            </span>
+                          )}
                           <span className="text-xs text-slate-500 font-medium ml-1">
                             / {product.billingPeriod}
                           </span>

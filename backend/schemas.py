@@ -80,6 +80,26 @@ class VendorUserResponseSchema(BaseModel):
 
 
 # ==========================================
+# ADMIN SCHEMAS
+# ==========================================
+
+class AdminSignInSchema(BaseModel):
+    email: str
+    password: str
+
+
+class AdminUserResponseSchema(BaseModel):
+    id: int = 1
+    full_name: str = "System Administrator"
+    email: str = "admin@easyrental.com"
+    role: str = "admin"
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
 # PRODUCT & VARIANT SCHEMAS
 # ==========================================
 
@@ -145,6 +165,9 @@ class ProductResponseSchema(BaseModel):
     created_at: Optional[datetime] = None
     vendor_name: Optional[str] = None
     vendor_brand: Optional[str] = None
+    discounted_price: Optional[float] = None
+    discount_percent: Optional[float] = None
+    discount_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -306,6 +329,60 @@ class CreateOrderSchema(BaseModel):
     totalHours: Optional[int] = 24
     discount: Optional[float] = 0.0
     items: Optional[List[OrderItemSchema]] = None
+    promoCode: Optional[str] = None
+
+
+# ==========================================
+# PRICELIST & PROMO SCHEMAS
+# ==========================================
+
+class PricelistRuleCreateSchema(BaseModel):
+    vendor_id: Optional[int] = None
+    name: str
+    discount_percent: float
+    start_date: str
+    end_date: str
+    is_global: bool = True
+    product_id: Optional[int] = None
+
+
+class PricelistRuleResponseSchema(BaseModel):
+    id: int
+    vendor_id: int
+    name: str
+    discount_percent: float
+    start_date: str
+    end_date: str
+    is_global: bool
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PromoCodeCreateSchema(BaseModel):
+    vendor_id: Optional[int] = None
+    code: str
+    discount_percent: float
+    max_uses: int = 100
+    uses_count: int = 0
+    start_date: str
+    end_date: str
+    is_active: bool = True
+
+
+class PromoCodeResponseSchema(BaseModel):
+    id: int
+    vendor_id: int
+    code: str
+    discount_percent: float
+    max_uses: int
+    uses_count: int
+    start_date: str
+    end_date: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 

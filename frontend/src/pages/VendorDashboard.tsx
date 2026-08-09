@@ -11,6 +11,7 @@ import {
   ChevronDown,
   LogOut,
   Settings as SettingsIcon,
+  Plus,
   Calendar,
   Package,
   TrendingUp,
@@ -22,6 +23,9 @@ import {
   X,
   Printer,
   Download,
+  Tag,
+  Percent,
+  Trash2,
 } from "lucide-react"
 
 // Types
@@ -138,7 +142,7 @@ export function VendorDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("all")
-  const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "products" | "reports">("dashboard")
+  const [activeNavTab, setActiveNavTab] = useState<"dashboard" | "products" | "reports" | "pricelist">("dashboard")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
   const [dateRange, setDateRange] = useState("Last 7 Days")
@@ -302,6 +306,7 @@ export function VendorDashboard() {
               {[
                 { id: "dashboard", label: "Dashboard" },
                 { id: "products", label: "Products" },
+                { id: "pricelist", label: "Pricelist" },
                 { id: "reports", label: "Reports" },
               ].map((tab) => (
                 <button
@@ -385,7 +390,9 @@ export function VendorDashboard() {
       {/* MAIN DASHBOARD CONTENT */}
       {/* ========================================================================= */}
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-6 space-y-6">
-        {activeNavTab === "reports" ? (
+        {activeNavTab === "pricelist" ? (
+          <VendorPricelistView loggedVendor={loggedVendor} />
+        ) : activeNavTab === "reports" ? (
           <VendorReportsView
             orders={orders}
             sales={sales}
@@ -1346,5 +1353,681 @@ function VendorReportsView({
     </div>
   )
 }
+
+function VendorPricelistView({ loggedVendor }: { loggedVendor: any }) {
+  const [subTab, setSubTab] = useState<"rules" | "promos">("rules")
+  const [rules, setRules] = useState<any[]>([])
+  const [promos, setPromos] = useState<any[]>([])
+  const [vendorProducts, setVendorProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  // Modals state
+  const [ruleModalOpen, setRuleModalOpen] = useState(false)
+  const [editingRule, setEditingRule] = useState<any | null>(null)
+  const [ruleForm, setRuleForm] = useState({
+    name: "",
+    discount_percent: 10,
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    is_global: true,
+    product_id: "" as string | number,
+  })
+
+  const [promoModalOpen, setPromoModalOpen] = useState(false)
+  const [editingPromo, setEditingPromo] = useState<any | null>(null)
+  const [promoForm, setPromoForm] = useState({
+    code: "",
+    discount_percent: 15,
+    max_uses: 100,
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    is_active: true,
+  })
+
+  const API_BASE_URL =
+    import.meta.env.VITE_SERVER_URL ||
+    (typeof window !== "undefined" && window.location.hostname !== "localhost"
+      ? `http://${window.location.hostname}:8000`
+      : "http://127.0.0.1:8000")
+
+  const fetchRules = async () => {
+    try {
+      const vId = loggedVendor?.id || ""
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/pricelist-rules?vendor_id=${vId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setRules(data)
+      }
+    } catch (err) {
+      console.warn("Failed to fetch rules:", err)
+    }
+  }
+
+  const fetchPromos = async () => {
+    try {
+      const vId = loggedVendor?.id || ""
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/promo-codes?vendor_id=${vId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPromos(data)
+      }
+    } catch (err) {
+      console.warn("Failed to fetch promos:", err)
+    }
+  }
+
+  const fetchProducts = async () => {
+    try {
+      const vId = loggedVendor?.id || ""
+      const res = await fetch(`${API_BASE_URL}/api/v1/products?vendor_id=${vId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setVendorProducts(data)
+      }
+    } catch (err) {
+      console.warn("Failed to fetch products:", err)
+    }
+  }
+
+  useEffect(() => {
+    if (loggedVendor) {
+      setLoading(true)
+      Promise.all([fetchRules(), fetchPromos(), fetchProducts()]).finally(() => setLoading(false))
+    }
+  }, [loggedVendor])
+
+  // Save Rule
+  const handleSaveRule = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!ruleForm.name) return
+
+    const payload = {
+      vendor_id: loggedVendor?.id,
+      name: ruleForm.name,
+      discount_percent: Number(ruleForm.discount_percent),
+      start_date: ruleForm.start_date,
+      end_date: ruleForm.end_date,
+      is_global: ruleForm.is_global,
+      product_id: ruleForm.is_global ? null : ruleForm.product_id ? Number(ruleForm.product_id) : null,
+    }
+
+    try {
+      let url = `${API_BASE_URL}/api/v1/vendor/pricelist-rules`
+      let method = "POST"
+      if (editingRule) {
+        url = `${API_BASE_URL}/api/v1/vendor/pricelist-rules/${editingRule.id}`
+        method = "PUT"
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (res.ok) {
+        setRuleModalOpen(false)
+        setEditingRule(null)
+        fetchRules()
+      }
+    } catch (err) {
+      console.error("Error saving rule:", err)
+    }
+  }
+
+  // Delete Rule
+  const handleDeleteRule = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this pricelist rule?")) return
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/pricelist-rules/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        fetchRules()
+      }
+    } catch (err) {
+      console.error("Error deleting rule:", err)
+    }
+  }
+
+  // Save Promo
+  const handleSavePromo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!promoForm.code) return
+
+    const payload = {
+      vendor_id: loggedVendor?.id,
+      code: promoForm.code,
+      discount_percent: Number(promoForm.discount_percent),
+      max_uses: Number(promoForm.max_uses),
+      start_date: promoForm.start_date,
+      end_date: promoForm.end_date,
+      is_active: promoForm.is_active,
+    }
+
+    try {
+      let url = `${API_BASE_URL}/api/v1/vendor/promo-codes`
+      let method = "POST"
+      if (editingPromo) {
+        url = `${API_BASE_URL}/api/v1/vendor/promo-codes/${editingPromo.id}`
+        method = "PUT"
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (res.ok) {
+        setPromoModalOpen(false)
+        setEditingPromo(null)
+        fetchPromos()
+      }
+    } catch (err) {
+      console.error("Error saving promo:", err)
+    }
+  }
+
+  // Toggle active state of promo
+  const handleTogglePromoActive = async (promo: any) => {
+    const payload = {
+      vendor_id: loggedVendor?.id,
+      code: promo.code,
+      discount_percent: promo.discount_percent,
+      max_uses: promo.max_uses,
+      uses_count: promo.uses_count,
+      start_date: promo.start_date,
+      end_date: promo.end_date,
+      is_active: !promo.is_active,
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/promo-codes/${promo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        fetchPromos()
+      }
+    } catch (err) {
+      console.error("Error toggling promo active status:", err)
+    }
+  }
+
+  // Delete Promo
+  const handleDeletePromo = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this promo code?")) return
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/vendor/promo-codes/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        fetchPromos()
+      }
+    } catch (err) {
+      console.error("Error deleting promo:", err)
+    }
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Top Header Card */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <Percent className="size-5 text-indigo-600" />
+            <span>Pricelist & Discount Rules</span>
+          </h2>
+          <p className="text-xs text-slate-500">Manage campaign discounts, product-specific rates, and promotional coupons.</p>
+        </div>
+        
+        {/* Sub-tab navigation */}
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+          <button
+            onClick={() => setSubTab("rules")}
+            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+              subTab === "rules" ? "bg-white text-indigo-600 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Percent className="size-3.5" />
+            <span>Discount Rules</span>
+          </button>
+          <button
+            onClick={() => setSubTab("promos")}
+            className={`px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
+              subTab === "promos" ? "bg-white text-indigo-600 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Tag className="size-3.5" />
+            <span>Promo Codes</span>
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-20 text-center text-xs font-semibold text-slate-500">
+          Loading pricing configuration...
+        </div>
+      ) : subTab === "rules" ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Active Campaigns</h3>
+            <button
+              onClick={() => {
+                setEditingRule(null)
+                setRuleForm({
+                  name: "",
+                  discount_percent: 10,
+                  start_date: new Date().toISOString().slice(0, 10),
+                  end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+                  is_global: true,
+                  product_id: vendorProducts[0]?.id || "",
+                })
+                setRuleModalOpen(true)
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors"
+            >
+              <Plus className="size-3.5" />
+              <span>New Discount Rule</span>
+            </button>
+          </div>
+
+          {rules.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-xs">
+              No active discount campaigns configured. Create a rule to offer automated discounts!
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
+                    <th className="p-3">Rule Name</th>
+                    <th className="p-3">Scope</th>
+                    <th className="p-3">Target Product</th>
+                    <th className="p-3">Discount</th>
+                    <th className="p-3">Duration</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                  {rules.map((rule) => (
+                    <tr key={rule.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="p-3 font-bold text-slate-900">{rule.name}</td>
+                      <td className="p-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
+                          rule.is_global ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-purple-50 text-purple-700 border border-purple-200"
+                        }`}>
+                          {rule.is_global ? "Global" : "Product Specific"}
+                        </span>
+                      </td>
+                      <td className="p-3 font-sans max-w-xs truncate">
+                        {rule.is_global ? "All Store Listings" : rule.product_name || `Listing ID: ${rule.product_id}`}
+                      </td>
+                      <td className="p-3 font-bold text-emerald-600 font-mono">-{rule.discount_percent}%</td>
+                      <td className="p-3 font-mono text-[11px] text-slate-500">
+                        {rule.start_date} to {rule.end_date}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingRule(rule)
+                              setRuleForm({
+                                name: rule.name,
+                                discount_percent: rule.discount_percent,
+                                start_date: rule.start_date,
+                                end_date: rule.end_date,
+                                is_global: rule.is_global,
+                                product_id: rule.product_id || "",
+                              })
+                              setRuleModalOpen(true)
+                            }}
+                            className="p-1 rounded text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+                            title="Edit rule"
+                          >
+                            <Edit2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRule(rule.id)}
+                            className="p-1 rounded text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            title="Delete rule"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Active Promo Codes</h3>
+            <button
+              onClick={() => {
+                setEditingPromo(null)
+                setPromoForm({
+                  code: "",
+                  discount_percent: 15,
+                  max_uses: 100,
+                  start_date: new Date().toISOString().slice(0, 10),
+                  end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+                  is_active: true,
+                })
+                setPromoModalOpen(true)
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors"
+            >
+              <Plus className="size-3.5" />
+              <span>New Promo Code</span>
+            </button>
+          </div>
+
+          {promos.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-xs">
+              No active promo codes generated. Generate code tokens for social media or target checkout vouchers!
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
+                    <th className="p-3">Promo Code</th>
+                    <th className="p-3">Discount</th>
+                    <th className="p-3">Usages</th>
+                    <th className="p-3">Validity</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
+                  {promos.map((promo) => (
+                    <tr key={promo.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="p-3 font-mono font-extrabold text-slate-900 tracking-wider text-sm select-all">{promo.code}</td>
+                      <td className="p-3 font-bold text-emerald-600 font-mono">-{promo.discount_percent}%</td>
+                      <td className="p-3 font-mono text-[11px] text-slate-600">
+                        <div className="flex flex-col gap-1 w-24">
+                          <div className="flex justify-between font-bold text-[10px]">
+                            <span>{promo.uses_count}</span>
+                            <span className="text-slate-400">/ {promo.max_uses}</span>
+                          </div>
+                          <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                            <div
+                              style={{ width: `${Math.min(100, Math.round((promo.uses_count / promo.max_uses) * 100))}%` }}
+                              className="h-full bg-indigo-600 rounded-full"
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 font-mono text-[11px] text-slate-500">
+                        {promo.start_date} to {promo.end_date}
+                      </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => handleTogglePromoActive(promo)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                            promo.is_active
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span className={`size-1.5 rounded-full ${promo.is_active ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                          <span>{promo.is_active ? "Active" : "Inactive"}</span>
+                        </button>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingPromo(promo)
+                              setPromoForm({
+                                code: promo.code,
+                                discount_percent: promo.discount_percent,
+                                max_uses: promo.max_uses,
+                                start_date: promo.start_date,
+                                end_date: promo.end_date,
+                                is_active: promo.is_active,
+                              })
+                              setPromoModalOpen(true)
+                            }}
+                            className="p-1 rounded text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+                            title="Edit promo"
+                          >
+                            <Edit2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePromo(promo.id)}
+                            className="p-1 rounded text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            title="Delete promo"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* RULE MODAL OVERLAY */}
+      {ruleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="font-extrabold text-slate-900">
+                {editingRule ? "Modify Discount Rule" : "Configure New Discount Rule"}
+              </h4>
+              <button onClick={() => setRuleModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRule} className="space-y-4 text-xs font-semibold text-slate-700">
+              <div className="space-y-1">
+                <label>Rule Campaign Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Summer Special 15%"
+                  value={ruleForm.name}
+                  onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label>Discount Percentage (%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    required
+                    value={ruleForm.discount_percent}
+                    onChange={(e) => setRuleForm({ ...ruleForm, discount_percent: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>Campaign Scope</label>
+                  <select
+                    value={ruleForm.is_global ? "true" : "false"}
+                    onChange={(e) => setRuleForm({ ...ruleForm, is_global: e.target.value === "true" })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  >
+                    <option value="true">Global (All Listings)</option>
+                    <option value="false">Product Specific</option>
+                  </select>
+                </div>
+              </div>
+
+              {!ruleForm.is_global && (
+                <div className="space-y-1">
+                  <label>Target Listing Product</label>
+                  <select
+                    required
+                    value={ruleForm.product_id}
+                    onChange={(e) => setRuleForm({ ...ruleForm, product_id: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  >
+                    {vendorProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (${p.sales_price}/hr)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label>Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={ruleForm.start_date}
+                    onChange={(e) => setRuleForm({ ...ruleForm, start_date: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={ruleForm.end_date}
+                    onChange={(e) => setRuleForm({ ...ruleForm, end_date: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRuleModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors shadow-sm"
+                >
+                  {editingRule ? "Save Changes" : "Create Rule"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PROMO MODAL OVERLAY */}
+      {promoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="font-extrabold text-slate-900">
+                {editingPromo ? "Modify Promo Code" : "Generate Promo Code"}
+              </h4>
+              <button onClick={() => setPromoModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePromo} className="space-y-4 text-xs font-semibold text-slate-700">
+              <div className="space-y-1">
+                <label>Promo Code Token</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. EXTRA20"
+                  value={promoForm.code}
+                  onChange={(e) => setPromoForm({ ...promoForm, code: e.target.value.toUpperCase() })}
+                  className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold font-mono tracking-wider"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label>Discount Percentage (%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    required
+                    value={promoForm.discount_percent}
+                    onChange={(e) => setPromoForm({ ...promoForm, discount_percent: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>Usage Limit (Max Claims)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={promoForm.max_uses}
+                    onChange={(e) => setPromoForm({ ...promoForm, max_uses: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label>Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={promoForm.start_date}
+                    onChange={(e) => setPromoForm({ ...promoForm, start_date: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={promoForm.end_date}
+                    onChange={(e) => setPromoForm({ ...promoForm, end_date: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 p-2 outline-none focus:border-indigo-500 bg-white font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPromoModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors shadow-sm"
+                >
+                  {editingPromo ? "Save Changes" : "Generate Token"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 export default VendorDashboard

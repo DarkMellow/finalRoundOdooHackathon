@@ -29,6 +29,8 @@ class User(Base):
     cards = relationship("UserCard", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     store_target = relationship("MonthlyStoreTarget", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    pricelist_rules = relationship("PricelistRule", back_populates="vendor", cascade="all, delete-orphan")
+    promo_codes = relationship("PromoCode", back_populates="vendor", cascade="all, delete-orphan")
 
 
 class CustomerProfile(Base):
@@ -226,6 +228,42 @@ class MonthlyStoreTarget(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="store_target")
+
+
+class PricelistRule(Base):
+    __tablename__ = "pricelist_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    discount_percent = Column(Float, default=0.0, nullable=False)
+    start_date = Column(String(50), nullable=False)
+    end_date = Column(String(50), nullable=False)
+    is_global = Column(Boolean, default=True, nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vendor = relationship("User", back_populates="pricelist_rules")
+    product = relationship("Product", backref="pricelist_rules")
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    code = Column(String(50), nullable=False)
+    discount_percent = Column(Float, default=0.0, nullable=False)
+    max_uses = Column(Integer, default=100, nullable=False)
+    uses_count = Column(Integer, default=0, nullable=False)
+    start_date = Column(String(50), nullable=False)
+    end_date = Column(String(50), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vendor = relationship("User", back_populates="promo_codes")
 
 
 

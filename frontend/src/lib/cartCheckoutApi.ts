@@ -305,23 +305,53 @@ export async function applyCouponCode(
   code: string
 ): Promise<{ success: boolean; discountAmount: number; message: string; summary: CartSummary }> {
   const cleanCode = code.trim().toUpperCase()
-
-  if (cleanCode === "RENTAL10") {
-    activeDiscount = 10
-    activeCouponCode = "RENTAL10"
+  if (!cleanCode) {
     return {
-      success: true,
-      discountAmount: 10,
-      message: "$10 discount applied successfully!",
+      success: false,
+      discountAmount: 0,
+      message: "Please enter a valid promo code.",
       summary: computeCartSummary(),
     }
-  } else if (cleanCode === "SAVE20") {
-    activeDiscount = 20
-    activeCouponCode = "SAVE20"
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/promo-codes/validate?code=${encodeURIComponent(cleanCode)}`)
+    if (res.ok) {
+      const data = await res.json()
+      const currentSummary = computeCartSummary()
+      const discountAmount = Number(((currentSummary.subtotal * data.discount_percent) / 100).toFixed(2))
+      activeDiscount = discountAmount
+      activeCouponCode = data.code
+      return {
+        success: true,
+        discountAmount,
+        message: `${data.discount_percent}% discount applied with promo code ${data.code}!`,
+        summary: computeCartSummary(),
+      }
+    } else {
+      const errData = await res.json().catch(() => ({}))
+      return {
+        success: false,
+        discountAmount: 0,
+        message: errData.detail || "Invalid or expired promo code.",
+        summary: computeCartSummary(),
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to validate promo code via backend:", err)
+  }
+
+  // Fallback for offline/mock codes
+  if (cleanCode === "RENTAL10" || cleanCode === "SAVE20") {
+    const pct = cleanCode === "SAVE20" ? 20 : 10
+    const currentSummary = computeCartSummary()
+    const discountAmount = Number(((currentSummary.subtotal * pct) / 100).toFixed(2))
+    activeDiscount = discountAmount
+    activeCouponCode = cleanCode
     return {
       success: true,
-      discountAmount: 20,
-      message: "$20 discount applied successfully!",
+      discountAmount,
+      message: `${pct}% discount applied!`,
       summary: computeCartSummary(),
     }
   }
@@ -329,7 +359,7 @@ export async function applyCouponCode(
   return {
     success: false,
     discountAmount: 0,
-    message: "Invalid coupon code. Try 'RENTAL10' or 'SAVE20'.",
+    message: "Invalid promo code.",
     summary: computeCartSummary(),
   }
 }
@@ -548,6 +578,8 @@ export async function processFinalOrder(
         deliveryAddress: addrStr,
         paymentMethod: paymentMethodStr,
         totalHours: 24,
+        discount: activeDiscount,
+        promoCode: activeCouponCode || undefined,
       }),
     })
     if (res.ok) {

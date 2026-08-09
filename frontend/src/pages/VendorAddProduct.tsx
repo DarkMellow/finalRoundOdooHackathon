@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Building2,
   Upload,
-  ShieldAlert,
   ArrowLeft,
   Plus,
   Trash2,
@@ -401,31 +400,6 @@ export function VendorAddProduct() {
                   </label>
                 </div>
               </div>
-            </div>
-
-            {/* Publish Toggle */}
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-xs text-slate-900">Publish Status</span>
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-[10px] font-bold">
-                    <ShieldAlert className="size-3" /> Admin Feature
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  Only Admin should have the right to publish or unpublish a product.
-                </p>
-              </div>
-
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isPublished}
-                  onChange={(e) => setIsPublished(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-              </label>
             </div>
           </div>
         )}

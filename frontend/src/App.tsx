@@ -13,11 +13,14 @@ import { Profile } from "@/pages/Profile"
 import { AboutUs } from "@/pages/AboutUs"
 import { ContactUs } from "@/pages/ContactUs"
 import { VendorProfile } from "@/pages/VendorProfilePage"
+import { AdminSignIn } from "@/pages/AdminSignIn"
+import { AdminDashboard } from "@/pages/AdminDashboard"
 
 
 function AppRoutes() {
   const location = useLocation()
   const isStandalonePage =
+    location.pathname.startsWith("/admin") ||
     location.pathname.startsWith("/vendor/dashboard") ||
     location.pathname.startsWith("/vendor/products") ||
     location.pathname.startsWith("/vendor/settings") ||
@@ -49,8 +52,12 @@ function AppRoutes() {
           <Route path="/vendor/products/edit/:id" element={<VendorAddProduct />} />
           <Route path="/vendor/settings" element={<VendorProfile />} />
           <Route path="/vendor/profile" element={<VendorProfile />} />
-          {/* Legacy redirects */}
-          <Route path="/admin/*" element={<Navigate to="/vendor/dashboard" replace />} />
+          
+          {/* Admin routes */}
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/signin" element={<AdminSignIn />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          
           <Route path="*" element={<Navigate to="/customer/signin" replace />} />
         </Routes>
       </main>

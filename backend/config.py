@@ -30,11 +30,13 @@ class Settings(BaseSettings):
             # Check if specified MySQL database is reachable
             if "mysql" in self.DATABASE_URL:
                 try:
+                    import urllib.parse
+                    parsed = urllib.parse.urlparse(self.DATABASE_URL)
+                    host = parsed.hostname or self.DB_HOST or "127.0.0.1"
+                    port = parsed.port or int(self.DB_PORT or 3306)
+
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    sock.settimeout(0.5)
-                    # Extract host from DB_HOST or DATABASE_URL
-                    host = self.DB_HOST if self.DB_HOST != "localhost" else "127.0.0.1"
-                    port = int(self.DB_PORT)
+                    sock.settimeout(1.0)
                     res = sock.connect_ex((host, port))
                     sock.close()
                     if res == 0:

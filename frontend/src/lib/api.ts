@@ -141,6 +141,9 @@ export interface ApiProduct {
   created_at: string
   vendor_name?: string
   vendor_brand?: string
+  discounted_price?: number
+  discount_percent?: number
+  discount_name?: string
 }
 
 export function getLoggedVendor(): VendorUser | null {

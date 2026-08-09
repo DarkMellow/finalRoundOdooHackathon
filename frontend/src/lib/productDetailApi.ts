@@ -31,6 +31,9 @@ export interface ProductDetail {
   vendorName: string
   vendorId?: number
   productType?: "Goods" | "Service"
+  discountedPrice?: number
+  discountPercent?: number
+  discountName?: string
   variants: ProductVariant[]
 }
 
@@ -160,6 +163,9 @@ export async function fetchProductDetails(productId: string): Promise<ProductDet
         vendorName: vendorFullName,
         vendorId: realProduct.vendor_id,
         productType: realProduct.product_type as "Goods" | "Service",
+        discountedPrice: realProduct.discounted_price,
+        discountPercent: realProduct.discount_percent,
+        discountName: realProduct.discount_name,
         variants: Array.isArray(parsedAttr.variants) && parsedAttr.variants.length > 0
           ? parsedAttr.variants.map((v: any, idx: number) => {
               const qty = parseInt(v.stockQuantity || "10", 10) || 0

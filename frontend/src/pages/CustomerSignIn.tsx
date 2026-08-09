@@ -161,6 +161,12 @@ export function CustomerSignIn() {
               Vendor Sign In
             </Link>
           </div>
+
+          <div className="pt-1 flex items-center justify-center gap-1 text-[11px] text-muted-foreground/80">
+            <Link to="/admin/signin" className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium hover:underline">
+              • Administrator Portal Access •
+            </Link>
+          </div>
         </div>
       </form>
     </AuthLayout>

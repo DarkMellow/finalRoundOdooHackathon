@@ -1,12 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Request, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+import json
+import time
+from datetime import datetime, timedelta
+import random
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
 
 from config import settings
 from database import engine, Base, get_db, test_db_connection
 import models
 import schemas
+
+from auth_utils import hash_password, verify_password
 
 # Create database tables automatically if connection succeeds
 try:
@@ -85,7 +92,7 @@ def customer_signup(payload: schemas.CustomerSignUpSchema, db: Session = Depends
     user = models.User(
         full_name=payload.full_name,
         email=payload.email,
-        hashed_password=f"hashed_{payload.password}",
+        hashed_password=hash_password(payload.password),
         phone_number=payload.phone_number,
         role="customer",
         is_active=True,
@@ -113,10 +120,15 @@ def customer_signin(payload: schemas.CustomerSignInSchema, db: Session = Depends
         .filter(models.User.email == payload.email, models.User.role == "customer")
         .first()
     )
-    if not user or user.hashed_password != f"hashed_{payload.password}":
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your customer account has been suspended or disabled by the administrator.",
         )
     return user
 
@@ -142,7 +154,7 @@ def vendor_signup(payload: schemas.VendorSignUpSchema, db: Session = Depends(get
     user = models.User(
         full_name=payload.full_name,
         email=payload.email,
-        hashed_password=f"hashed_{payload.password}",
+        hashed_password=hash_password(payload.password),
         role="vendor",
         is_active=True,
     )
@@ -177,10 +189,16 @@ def vendor_signin(payload: schemas.VendorSignInSchema, db: Session = Depends(get
         )
         .first()
     )
-    if not user or user.hashed_password != f"hashed_{payload.password}":
+    if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid vendor credentials. Please check your email and password.",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your vendor store account has been suspended or disabled by the administrator.",
         )
 
     # Auto-migrate legacy 'admin' role to 'vendor'
@@ -223,20 +241,14 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
             db.refresh(default_vendor)
             payload.vendor_id = default_vendor.id
 
-    rent_val = payload.rent_price if payload.rent_price else payload.sales_price or 0.0
-
     product = models.Product(
         vendor_id=payload.vendor_id,
         name=payload.name,
         category=payload.category or "Electronics",
         product_type=payload.product_type,
-        image_url=payload.image_url,
-        quantity_on_hand=int(payload.quantity_on_hand or 0),
-        rent_price=rent_val,
-        sales_price=rent_val,
+        sales_price=payload.sales_price or 0.0,
         cost_price=0.0,
         is_published=payload.is_published,
-        periodicity=payload.periodicity,
         padding_time=payload.padding_time,
         pickup_time=payload.pickup_time,
         return_time=payload.return_time,
@@ -250,17 +262,126 @@ def create_product(payload: schemas.ProductCreateSchema, db: Session = Depends(g
     return product
 
 
+def get_active_discount_for_product(product, db: Session):
+    current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    # 1. Product specific discount
+    prod_rule = db.query(models.PricelistRule).filter(
+        models.PricelistRule.product_id == product.id,
+        models.PricelistRule.start_date <= current_date_str,
+        models.PricelistRule.end_date >= current_date_str
+    ).first()
+    if prod_rule:
+        return prod_rule.discount_percent, prod_rule.name
+
+    # 2. Global discount
+    global_rule = db.query(models.PricelistRule).filter(
+        models.PricelistRule.is_global == True,
+        models.PricelistRule.vendor_id == product.vendor_id,
+        models.PricelistRule.start_date <= current_date_str,
+        models.PricelistRule.end_date >= current_date_str
+    ).first()
+    if global_rule:
+        return global_rule.discount_percent, global_rule.name
+
+    return 0.0, None
+
+
 @app.get(
     "/api/v1/products",
     response_model=list[schemas.ProductResponseSchema],
     tags=["Products"],
 )
-def get_products(vendor_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+def get_products(
+    response: Response,
+    vendor_id: int | None = Query(default=None),
+    category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    brand: str | None = Query(default=None),
+    price_max: float | None = Query(default=None),
+    skip: int | None = Query(default=None),
+    limit: int | None = Query(default=None),
+    db: Session = Depends(get_db)
+):
     try:
-        query = db.query(models.Product)
+        query = db.query(models.Product).options(
+            joinedload(models.Product.vendor).joinedload(models.User.vendor_profile)
+        )
         if vendor_id is not None and vendor_id > 0:
             query = query.filter(models.Product.vendor_id == vendor_id)
-        return query.order_by(models.Product.id.desc()).all()
+        else:
+            # Customer catalog only sees published listings from active vendors
+            query = query.filter(models.Product.is_published == True)
+            query = query.filter(models.Product.vendor.has(is_active=True))
+
+        if category and category.strip() and category != "All Tags":
+            cat_str = category.strip()
+            query = query.filter(
+                or_(
+                    models.Product.category.ilike(f"%{cat_str}%"),
+                    models.Product.product_type.ilike(f"%{cat_str}%")
+                )
+            )
+
+        if search and search.strip():
+            search_pattern = f"%{search.strip()}%"
+            query = query.filter(
+                or_(
+                    models.Product.name.ilike(search_pattern),
+                    models.Product.category.ilike(search_pattern),
+                    models.Product.product_type.ilike(search_pattern),
+                    models.Product.attributes_json.ilike(search_pattern)
+                )
+            )
+
+        if brand and brand.strip() and brand != "all":
+            brand_str = brand.strip()
+            query = query.filter(
+                or_(
+                    models.Product.vendor.has(models.User.full_name.ilike(f"%{brand_str}%")),
+                    models.Product.vendor.has(models.User.vendor_profile.has(models.VendorProfile.company_name.ilike(f"%{brand_str}%")))
+                )
+            )
+
+        if price_max is not None and price_max < 2000:
+            query = query.filter(models.Product.sales_price <= price_max)
+
+        total_count = query.count()
+        response.headers["X-Total-Count"] = str(total_count)
+        response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+
+        query = query.order_by(models.Product.id.desc())
+
+        if skip is not None and skip >= 0:
+            query = query.offset(skip)
+        if limit is not None and limit > 0:
+            query = query.limit(limit)
+
+        products = query.all()
+
+        # Batch fetch active pricelist rules in ONE query instead of N+1 queries per product
+        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        active_rules = db.query(models.PricelistRule).filter(
+            models.PricelistRule.start_date <= current_date_str,
+            models.PricelistRule.end_date >= current_date_str
+        ).all()
+
+        prod_rules = {r.product_id: r for r in active_rules if r.product_id}
+        global_rules = {r.vendor_id: r for r in active_rules if r.is_global and r.vendor_id}
+
+        for p in products:
+            pct, name = 0.0, None
+            if p.id in prod_rules:
+                pct, name = prod_rules[p.id].discount_percent, prod_rules[p.id].name
+            elif p.vendor_id in global_rules:
+                pct, name = global_rules[p.vendor_id].discount_percent, global_rules[p.vendor_id].name
+
+            p.discount_percent = round(pct)
+            p.discount_name = name
+            p.sales_price = round(p.sales_price)
+            p.discounted_price = round(p.sales_price * (1.0 - pct / 100.0)) if pct > 0 else round(p.sales_price)
+
+        return products
     except Exception as e:
         print(f"Error fetching products: {e}")
         return []
@@ -272,12 +393,22 @@ def get_products(vendor_id: int | None = Query(default=None), db: Session = Depe
     tags=["Products"],
 )
 def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
+    product = (
+        db.query(models.Product)
+        .options(joinedload(models.Product.vendor).joinedload(models.User.vendor_profile))
+        .filter(models.Product.id == product_id)
+        .first()
+    )
+    if not product or not product.is_published or (product.vendor and not product.vendor.is_active):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found",
+            detail="Product not found or currently unavailable.",
         )
+    pct, name = get_active_discount_for_product(product, db)
+    product.discount_percent = round(pct)
+    product.discount_name = name
+    product.sales_price = round(product.sales_price)
+    product.discounted_price = round(product.sales_price * (1.0 - pct / 100.0)) if pct > 0 else round(product.sales_price)
     return product
 
 
@@ -324,4 +455,1657 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     return {"status": "success", "message": f"Product {product_id} deleted successfully"}
 
 
+# ==========================================
+# CART ENDPOINTS
+# ==========================================
 
+def get_or_create_user_cart(user_id: int | None, db: Session) -> tuple[models.Cart, int]:
+    if not user_id:
+        first_cust = db.query(models.User).filter(models.User.role == "customer").first()
+        if not first_cust:
+            first_cust = db.query(models.User).first()
+        if first_cust:
+            user_id = first_cust.id
+        else:
+            default_u = models.User(
+                full_name="Jane Doe",
+                email="jane.doe@example.com",
+                hashed_password="hashed_customer123",
+                role="customer",
+                is_active=True,
+            )
+            db.add(default_u)
+            db.commit()
+            db.refresh(default_u)
+            user_id = default_u.id
+
+    cart = db.query(models.Cart).filter(models.Cart.user_id == user_id).first()
+    if not cart:
+        cart = models.Cart(user_id=user_id, items_json="[]")
+        db.add(cart)
+        db.commit()
+        db.refresh(cart)
+    return cart, user_id
+
+
+@app.get(
+    "/api/v1/cart",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def get_cart(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+        return items
+    except Exception as e:
+        print(f"Error parsing cart items: {e}")
+        return []
+
+
+@app.post(
+    "/api/v1/cart/items",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def add_to_cart(payload: schemas.AddToCartSchema, db: Session = Depends(get_db)):
+    cart, _ = get_or_create_user_cart(payload.user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    # Check if item with matching productId AND variantId exists
+    matched = False
+    for item in items:
+        if str(item.get("productId")) == str(payload.productId) and str(item.get("variantId", "")) == str(payload.variantId or ""):
+            item["quantity"] = int(item.get("quantity", 1)) + int(payload.quantity or 1)
+            item["savedForLater"] = False
+            matched = True
+            break
+
+    if not matched:
+        new_item = {
+            "id": f"cart-{int(time.time() * 1000)}",
+            "productId": str(payload.productId),
+            "variantId": payload.variantId,
+            "title": payload.title or "Equipment Rental",
+            "brand": payload.brand or "Verified Vendor",
+            "image": payload.image or "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
+            "hourlyRate": float(payload.hourlyRate if payload.hourlyRate is not None else 5.0),
+            "quantity": int(payload.quantity or 1),
+            "variantName": payload.variantName or "Standard Package",
+            "savedForLater": False,
+        }
+        items.insert(0, new_item)
+
+    cart.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(cart)
+    return items
+
+
+@app.put(
+    "/api/v1/cart/items/{item_id}",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def update_cart_item(
+    item_id: str,
+    payload: schemas.UpdateCartItemSchema,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    for item in items:
+        if str(item.get("id")) == str(item_id):
+            if payload.quantity is not None:
+                item["quantity"] = max(1, int(payload.quantity))
+            if payload.savedForLater is not None:
+                item["savedForLater"] = bool(payload.savedForLater)
+            break
+
+    cart.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(cart)
+    return items
+
+
+@app.delete(
+    "/api/v1/cart/items/{item_id}",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def remove_cart_item(
+    item_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    try:
+        items = json.loads(cart.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    items = [i for i in items if str(i.get("id")) != str(item_id)]
+    cart.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(cart)
+    return items
+
+
+@app.delete(
+    "/api/v1/cart",
+    response_model=list[schemas.CartItemSchema],
+    tags=["Cart"],
+)
+def clear_cart(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    cart, _ = get_or_create_user_cart(user_id, db)
+    cart.items_json = "[]"
+    db.commit()
+    db.refresh(cart)
+    return []
+
+
+# ==========================================
+# ADDRESS ENDPOINTS
+# ==========================================
+
+DEFAULT_INITIAL_ADDRESSES = [
+    {
+        "id": "addr-1",
+        "fullName": "Jane Doe",
+        "label": "Home",
+        "street": "742 Evergreen Terrace",
+        "city": "Springfield",
+        "state": "IL",
+        "zipCode": "62701",
+        "phone": "+1 (555) 019-2834",
+        "isDefault": True,
+    },
+    {
+        "id": "addr-2",
+        "fullName": "Jane Doe (Office)",
+        "label": "Work",
+        "street": "100 Innovation Way, Suite 400",
+        "city": "Chicago",
+        "state": "IL",
+        "zipCode": "60601",
+        "phone": "+1 (555) 012-9988",
+        "isDefault": False,
+    },
+]
+
+
+def resolve_target_user_id(user_id: int | None, db: Session) -> int:
+    if user_id and user_id > 0:
+        return user_id
+    first_cust = db.query(models.User).filter(models.User.role == "customer").first()
+    if not first_cust:
+        first_cust = db.query(models.User).first()
+    if first_cust:
+        return first_cust.id
+    default_u = models.User(
+        full_name="Jane Doe",
+        email="jane.doe@example.com",
+        hashed_password="hashed_customer123",
+        role="customer",
+        is_active=True,
+    )
+    db.add(default_u)
+    db.commit()
+    db.refresh(default_u)
+    return default_u.id
+
+
+@app.get(
+    "/api/v1/addresses",
+    response_model=list[schemas.DeliveryAddressSchema],
+    tags=["Addresses"],
+)
+def get_addresses(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(user_id, db)
+    rows = (
+        db.query(models.UserAddress)
+        .filter(models.UserAddress.user_id == target_user_id)
+        .order_by(models.UserAddress.id.desc())
+        .all()
+    )
+    return [
+        schemas.DeliveryAddressSchema(
+            id=str(row.id),
+            fullName=row.full_name,
+            label=row.label,
+            street=row.street,
+            city=row.city,
+            state=row.state or "IL",
+            zipCode=row.zip_code or "60601",
+            phone=row.phone,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.post(
+    "/api/v1/addresses",
+    response_model=list[schemas.DeliveryAddressSchema],
+    tags=["Addresses"],
+)
+def save_address(payload: schemas.SaveAddressSchema, db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+
+    if payload.isDefault:
+        db.query(models.UserAddress).filter(models.UserAddress.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+
+    new_addr = models.UserAddress(
+        user_id=target_user_id,
+        full_name=payload.fullName,
+        label=payload.label or "Home",
+        street=payload.street,
+        city=payload.city,
+        state=payload.state or "IL",
+        zip_code=payload.zipCode or "60601",
+        phone=payload.phone or "+1 (555) 000-1122",
+        is_default=bool(payload.isDefault),
+    )
+    db.add(new_addr)
+    db.commit()
+    db.refresh(new_addr)
+
+    rows = (
+        db.query(models.UserAddress)
+        .filter(models.UserAddress.user_id == target_user_id)
+        .order_by(models.UserAddress.id.desc())
+        .all()
+    )
+    return [
+        schemas.DeliveryAddressSchema(
+            id=str(row.id),
+            fullName=row.full_name,
+            label=row.label,
+            street=row.street,
+            city=row.city,
+            state=row.state or "IL",
+            zipCode=row.zip_code or "60601",
+            phone=row.phone,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.delete(
+    "/api/v1/addresses/{address_id}",
+    response_model=list[schemas.DeliveryAddressSchema],
+    tags=["Addresses"],
+)
+def delete_address(
+    address_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    addr_query = db.query(models.UserAddress).filter(models.UserAddress.id == address_id)
+    if user_id:
+        addr_query = addr_query.filter(models.UserAddress.user_id == target_user_id)
+    addr = addr_query.first()
+    if addr:
+        db.delete(addr)
+        db.commit()
+
+    rows = (
+        db.query(models.UserAddress)
+        .filter(models.UserAddress.user_id == target_user_id)
+        .order_by(models.UserAddress.id.desc())
+        .all()
+    )
+    return [
+        schemas.DeliveryAddressSchema(
+            id=str(row.id),
+            fullName=row.full_name,
+            label=row.label,
+            street=row.street,
+            city=row.city,
+            state=row.state or "IL",
+            zipCode=row.zip_code or "60601",
+            phone=row.phone,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+# ==========================================
+# CARD ENDPOINTS
+# ==========================================
+
+@app.get(
+    "/api/v1/cards",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def get_cards(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(user_id, db)
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.post(
+    "/api/v1/cards",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def save_card(payload: schemas.SaveCardSchema, db: Session = Depends(get_db)):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+
+    raw_num = payload.cardNumber.replace(" ", "").replace("-", "")
+    last4 = raw_num[-4:] if len(raw_num) >= 4 else "4242"
+
+    # Infer brand if simple detection possible
+    brand = payload.brand or "Visa"
+    if raw_num.startswith("5"):
+        brand = "Mastercard"
+    elif raw_num.startswith("3"):
+        brand = "Amex"
+
+    if payload.isDefault:
+        db.query(models.UserCard).filter(models.UserCard.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+
+    new_card = models.UserCard(
+        user_id=target_user_id,
+        cardholder_name=payload.cardholderName,
+        card_number_last4=last4,
+        expiry=payload.expiry or "12/28",
+        brand=brand,
+        is_default=bool(payload.isDefault),
+    )
+    db.add(new_card)
+    db.commit()
+    db.refresh(new_card)
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.put(
+    "/api/v1/cards/{card_id}",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def update_card(
+    card_id: str,
+    payload: schemas.SaveCardSchema,
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+    card = db.query(models.UserCard).filter(models.UserCard.id == card_id, models.UserCard.user_id == target_user_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    raw_num = payload.cardNumber.replace(" ", "").replace("-", "")
+    if len(raw_num) >= 4 and not (raw_num.startswith("x") or raw_num.startswith("*")):
+        last4 = raw_num[-4:]
+        brand = payload.brand or "Visa"
+        if raw_num.startswith("5"):
+            brand = "Mastercard"
+        elif raw_num.startswith("3"):
+            brand = "Amex"
+        card.card_number_last4 = last4
+        card.brand = brand
+
+    card.cardholder_name = payload.cardholderName
+    card.expiry = payload.expiry or "12/28"
+    if payload.isDefault:
+        db.query(models.UserCard).filter(models.UserCard.user_id == target_user_id).update(
+            {"is_default": False}
+        )
+        card.is_default = True
+
+    db.commit()
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+@app.delete(
+    "/api/v1/cards/{card_id}",
+    response_model=list[schemas.SavedCardSchema],
+    tags=["Cards"],
+)
+def delete_card(
+    card_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    card_query = db.query(models.UserCard).filter(models.UserCard.id == card_id)
+    if user_id:
+        card_query = card_query.filter(models.UserCard.user_id == target_user_id)
+    card = card_query.first()
+    if card:
+        db.delete(card)
+        db.commit()
+
+    rows = (
+        db.query(models.UserCard)
+        .filter(models.UserCard.user_id == target_user_id)
+        .order_by(models.UserCard.id.desc())
+        .all()
+    )
+    return [
+        schemas.SavedCardSchema(
+            id=str(row.id),
+            cardholderName=row.cardholder_name,
+            cardNumberLast4=row.card_number_last4,
+            expiry=row.expiry,
+            brand=row.brand,
+            isDefault=row.is_default,
+        )
+        for row in rows
+    ]
+
+
+# ==========================================
+# WISHLIST ENDPOINTS & HELPERS
+# ==========================================
+
+DEFAULT_INITIAL_WISHLIST = []
+
+
+def get_or_create_user_wishlist(user_id: int | None, db: Session) -> tuple[models.Wishlist, int]:
+    target_user_id = resolve_target_user_id(user_id, db)
+    wishlist = db.query(models.Wishlist).filter(models.Wishlist.user_id == target_user_id).first()
+    if not wishlist:
+        wishlist = models.Wishlist(
+            user_id=target_user_id,
+            items_json="[]",
+        )
+        db.add(wishlist)
+        db.commit()
+        db.refresh(wishlist)
+    return wishlist, target_user_id
+
+
+@app.get(
+    "/api/v1/wishlist",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def get_wishlist(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    wishlist, _ = get_or_create_user_wishlist(user_id, db)
+    try:
+        items = json.loads(wishlist.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+        return items
+    except Exception as e:
+        print(f"Error parsing wishlist: {e}")
+        return []
+
+
+@app.post(
+    "/api/v1/wishlist/toggle",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def toggle_wishlist_item(payload: schemas.WishlistToggleSchema, db: Session = Depends(get_db)):
+    wishlist, target_user_id = get_or_create_user_wishlist(payload.user_id, db)
+    try:
+        items = json.loads(wishlist.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    existing_idx = next((i for i, item in enumerate(items) if str(item.get("id")) == str(payload.productId)), -1)
+
+    if existing_idx >= 0:
+        # Remove from wishlist
+        items.pop(existing_idx)
+    else:
+        # Add to wishlist
+        if payload.item:
+            new_item = payload.item.model_dump()
+        else:
+            # Fallback search product in db
+            product = db.query(models.Product).filter(models.Product.id == payload.productId).first()
+            if product:
+                img = None
+                if product.variants and len(product.variants) > 0 and product.variants[0].images:
+                    img = product.variants[0].images[0].image_url
+                new_item = {
+                    "id": str(product.id),
+                    "title": product.name,
+                    "image": img or "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80",
+                    "inStock": True,
+                    "price": float(product.rental_plans[0].rate if product.rental_plans else 500),
+                    "originalPrice": None,
+                    "discount": None,
+                    "rating": 4.5,
+                    "reviews": 10,
+                    "assured": True,
+                    "stockText": "In Stock",
+                }
+            else:
+                new_item = {
+                    "id": str(payload.productId),
+                    "title": "Selected Equipment",
+                    "image": "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80",
+                    "inStock": True,
+                    "price": 999,
+                    "originalPrice": None,
+                    "discount": None,
+                    "rating": 4.5,
+                    "reviews": 10,
+                    "assured": True,
+                    "stockText": "In Stock",
+                }
+        items.insert(0, new_item)
+
+    wishlist.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(wishlist)
+    return items
+
+
+@app.delete(
+    "/api/v1/wishlist/items/{product_id}",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def remove_wishlist_item(
+    product_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    wishlist, _ = get_or_create_user_wishlist(user_id, db)
+    try:
+        items = json.loads(wishlist.items_json or "[]")
+        if not isinstance(items, list):
+            items = []
+    except Exception:
+        items = []
+
+    items = [item for item in items if str(item.get("id")) != str(product_id)]
+    wishlist.items_json = json.dumps(items)
+    db.commit()
+    db.refresh(wishlist)
+    return items
+
+
+@app.delete(
+    "/api/v1/wishlist",
+    response_model=list[schemas.WishlistItemSchema],
+    tags=["Wishlist"],
+)
+def clear_wishlist(user_id: int | None = Query(default=None), db: Session = Depends(get_db)):
+    wishlist, _ = get_or_create_user_wishlist(user_id, db)
+    wishlist.items_json = "[]"
+    db.commit()
+    db.refresh(wishlist)
+    return []
+
+
+# ==========================================
+# ORDER ENDPOINTS & HELPERS
+# ==========================================
+
+def format_order_response(order: models.Order) -> schemas.OrderResponseSchema:
+    try:
+        items_data = json.loads(order.items_json or "[]")
+        if not isinstance(items_data, list):
+            items_data = []
+    except Exception:
+        items_data = []
+
+    formatted_items = []
+    for it in items_data:
+        formatted_items.append(
+            schemas.OrderItemSchema(
+                id=str(it.get("id") or f"item-{random.randint(100, 999)}"),
+                productId=str(it.get("productId") or it.get("id") or "p1"),
+                title=str(it.get("title") or it.get("name") or "Equipment Item"),
+                brand=str(it.get("brand") or "Equipment Co"),
+                image=str(it.get("image") or "https://images.unsplash.com/photo-1580481072645-022f9a6d83d0?auto=format&fit=crop&w=600&q=80"),
+                hourlyRate=float(it.get("hourlyRate") or 0.0),
+                quantity=int(it.get("quantity") or 1),
+                variantName=it.get("variantName") or it.get("variantTitle") or "Standard",
+            )
+        )
+
+    order_date_str = order.order_date.isoformat() if order.order_date else datetime.utcnow().isoformat()
+
+    return schemas.OrderResponseSchema(
+        id=str(order.id),
+        reference=order.reference,
+        orderDate=order_date_str,
+        status=order.status,
+        startDate=order.start_date,
+        endDate=order.end_date,
+        totalHours=order.total_hours,
+        subtotal=order.subtotal,
+        discount=order.discount,
+        total=order.total,
+        deliveryAddress=order.delivery_address,
+        paymentMethod=order.payment_method,
+        items=formatted_items,
+        invoiceUrl=None,
+    )
+
+
+@app.get(
+    "/api/v1/orders",
+    response_model=list[schemas.OrderResponseSchema],
+    tags=["Orders"],
+)
+def get_customer_orders(
+    user_id: int | None = Query(default=None),
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    query = db.query(models.Order).filter(models.Order.user_id == target_user_id)
+
+    if status and status != "all":
+        if status == "active":
+            query = query.filter(models.Order.status.in_(["Active", "Pending Pickup"]))
+        elif status == "completed":
+            query = query.filter(models.Order.status.in_(["Completed", "Returned"]))
+        elif status == "cancelled":
+            query = query.filter(models.Order.status == "Cancelled")
+        else:
+            query = query.filter(models.Order.status == status)
+
+    orders = query.order_by(models.Order.created_at.desc()).all()
+    return [format_order_response(o) for o in orders]
+
+
+@app.get(
+    "/api/v1/orders/{order_id}",
+    response_model=schemas.OrderResponseSchema,
+    tags=["Orders"],
+)
+def get_order_by_id(
+    order_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    order = (
+        db.query(models.Order)
+        .filter(
+            models.Order.user_id == target_user_id,
+            (models.Order.reference == order_id) | (models.Order.id == (int(order_id) if order_id.isdigit() else 0)),
+        )
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return format_order_response(order)
+
+
+@app.post(
+    "/api/v1/orders",
+    response_model=schemas.OrderResponseSchema,
+    tags=["Orders"],
+)
+def create_customer_order(
+    payload: schemas.CreateOrderSchema,
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(payload.user_id, db)
+
+    # 1. Resolve Cart or provided items and apply promo/discounts
+    promo_discount_percent = 0.0
+    promo_code_obj = None
+    if payload.promoCode:
+        current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        promo_code_obj = db.query(models.PromoCode).filter(
+            models.PromoCode.code == payload.promoCode.upper(),
+            models.PromoCode.is_active == True,
+            models.PromoCode.start_date <= current_date_str,
+            models.PromoCode.end_date >= current_date_str
+        ).first()
+        if promo_code_obj and promo_code_obj.uses_count < promo_code_obj.max_uses:
+            promo_discount_percent = promo_code_obj.discount_percent
+
+    items_list = []
+    subtotal = 0.0
+    total_hours = payload.totalHours or 24
+
+    input_items = []
+    if payload.items and len(payload.items) > 0:
+        input_items = payload.items
+    else:
+        # Load from carts table
+        cart, _ = get_or_create_user_cart(target_user_id, db)
+        try:
+            cart_items = json.loads(cart.items_json or "[]")
+        except Exception:
+            cart_items = []
+        for it in cart_items:
+            class DummyItem:
+                def __init__(self, d):
+                    self.id = d.get("id", "")
+                    self.productId = d.get("productId", "")
+                    self.title = d.get("title", "")
+                    self.brand = d.get("brand", "")
+                    self.image = d.get("image", "")
+                    self.hourlyRate = float(d.get("hourlyRate") or 0.0)
+                    self.quantity = int(d.get("quantity") or 1)
+                    self.variantName = d.get("variantName", "Standard")
+            input_items.append(DummyItem(it))
+
+    for it in input_items:
+        clean_prod_id = None
+        prod_id_str = str(it.productId)
+        if prod_id_str.startswith("db-"):
+            prod_id_str = prod_id_str.replace("db-", "")
+        if prod_id_str.isdigit():
+            clean_prod_id = int(prod_id_str)
+
+        db_product = None
+        if clean_prod_id:
+            db_product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+
+        base_rate = db_product.sales_price if db_product else it.hourlyRate
+        applied_discount_pct = 0.0
+        if promo_discount_percent > 0.0:
+            applied_discount_pct = promo_discount_percent
+        elif db_product:
+            pct, _ = get_active_discount_for_product(db_product, db)
+            applied_discount_pct = pct
+
+        final_rate = base_rate * (1.0 - applied_discount_pct / 100.0)
+        qty = it.quantity
+        subtotal += final_rate * total_hours * qty
+        items_list.append({
+            "id": getattr(it, "id", None) or str(it.productId),
+            "productId": str(it.productId),
+            "title": getattr(it, "title", "Rental Item"),
+            "brand": getattr(it, "brand", "Equipment Brand"),
+            "image": getattr(it, "image", ""),
+            "hourlyRate": final_rate,
+            "quantity": qty,
+            "variantName": getattr(it, "variantName", "Standard"),
+        })
+
+    if promo_code_obj:
+        promo_code_obj.uses_count += 1
+        db.add(promo_code_obj)
+        db.commit()
+
+    discount = float(payload.discount or 0.0)
+    total = max(0.0, subtotal - discount)
+
+    # 2. Resolve Delivery Address
+    delivery_address = payload.deliveryAddress
+    if not delivery_address:
+        if payload.addressId:
+            addr = db.query(models.UserAddress).filter(
+                models.UserAddress.user_id == target_user_id,
+                models.UserAddress.id == (int(payload.addressId) if str(payload.addressId).isdigit() else 0),
+            ).first()
+            if addr:
+                delivery_address = f"{addr.street}, {addr.city}, {addr.state} {addr.zip_code}"
+        if not delivery_address:
+            default_addr = db.query(models.UserAddress).filter(
+                models.UserAddress.user_id == target_user_id,
+                models.UserAddress.is_default == True,
+            ).first()
+            if default_addr:
+                delivery_address = f"{default_addr.street}, {default_addr.city}, {default_addr.state} {default_addr.zip_code}"
+            else:
+                delivery_address = "Standard Delivery Address"
+
+    # 3. Dates & Reference
+    now = datetime.utcnow()
+    start_dt = now
+    end_dt = now + timedelta(hours=total_hours)
+    start_date_str = payload.startDate or start_dt.strftime("%Y-%m-%d %H:%M")
+    end_date_str = payload.endDate or end_dt.strftime("%Y-%m-%d %H:%M")
+    reference = f"ORD-{random.randint(100000, 999999)}"
+
+    # 4. Create Order Record
+    new_order = models.Order(
+        user_id=target_user_id,
+        reference=reference,
+        status="Active",
+        order_date=now,
+        start_date=start_date_str,
+        end_date=end_date_str,
+        total_hours=total_hours,
+        subtotal=subtotal,
+        discount=discount,
+        total=total,
+        delivery_address=delivery_address,
+        payment_method=payload.paymentMethod or "Credit Card",
+        items_json=json.dumps(items_list),
+    )
+    db.add(new_order)
+
+    # 4.5. Deduct stock quantity of ordered variants
+    for it in items_list:
+        prod_id_str = str(it.get("productId") or "")
+        clean_prod_id = None
+        if prod_id_str.startswith("db-"):
+            try:
+                clean_prod_id = int(prod_id_str.replace("db-", ""))
+            except ValueError:
+                pass
+        else:
+            try:
+                clean_prod_id = int(prod_id_str)
+            except ValueError:
+                pass
+
+        if clean_prod_id:
+            product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+            if product and product.attributes_json:
+                try:
+                    attr_data = json.loads(product.attributes_json)
+                except Exception:
+                    attr_data = {}
+
+                variants = attr_data.get("variants", [])
+                variant_name = it.get("variantName")
+                qty_ordered = int(it.get("quantity") or 1)
+
+                modified = False
+                for variant in variants:
+                    if variant.get("name") == variant_name:
+                        try:
+                            curr_stock = int(variant.get("stockQuantity") or "0")
+                            new_stock = max(0, curr_stock - qty_ordered)
+                            variant["stockQuantity"] = str(new_stock)
+                            modified = True
+                        except ValueError:
+                            pass
+
+                if modified:
+                    product.attributes_json = json.dumps(attr_data)
+
+    # 5. Clear User Cart
+    cart = db.query(models.Cart).filter(models.Cart.user_id == target_user_id).first()
+    if cart:
+        cart.items_json = "[]"
+
+    db.commit()
+    db.refresh(new_order)
+    return format_order_response(new_order)
+
+
+@app.post(
+    "/api/v1/orders/{order_id}/cancel",
+    response_model=list[schemas.OrderResponseSchema],
+    tags=["Orders"],
+)
+def cancel_customer_order_endpoint(
+    order_id: str,
+    user_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    target_user_id = resolve_target_user_id(user_id, db)
+    order = (
+        db.query(models.Order)
+        .filter(
+            models.Order.user_id == target_user_id,
+            (models.Order.reference == order_id) | (models.Order.id == (int(order_id) if order_id.isdigit() else 0)),
+        )
+        .first()
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order.status = "Cancelled"
+    order.total = 0.0
+
+    # 4.6. Return stock quantity of cancelled items
+    try:
+        items_data = json.loads(order.items_json or "[]")
+    except Exception:
+        items_data = []
+
+    for it in items_data:
+        prod_id_str = str(it.get("productId") or "")
+        clean_prod_id = None
+        if prod_id_str.startswith("db-"):
+            try:
+                clean_prod_id = int(prod_id_str.replace("db-", ""))
+            except ValueError:
+                pass
+        else:
+            try:
+                clean_prod_id = int(prod_id_str)
+            except ValueError:
+                pass
+
+        if clean_prod_id:
+            product = db.query(models.Product).filter(models.Product.id == clean_prod_id).first()
+            if product and product.attributes_json:
+                try:
+                    attr_data = json.loads(product.attributes_json)
+                except Exception:
+                    attr_data = {}
+
+                variants = attr_data.get("variants", [])
+                variant_name = it.get("variantName")
+                qty_ordered = int(it.get("quantity") or 1)
+
+                modified = False
+                for variant in variants:
+                    if variant.get("name") == variant_name:
+                        try:
+                            curr_stock = int(variant.get("stockQuantity") or "0")
+                            new_stock = curr_stock + qty_ordered
+                            variant["stockQuantity"] = str(new_stock)
+                            modified = True
+                        except ValueError:
+                            pass
+
+                if modified:
+                    product.attributes_json = json.dumps(attr_data)
+
+    db.commit()
+
+    all_orders = (
+        db.query(models.Order)
+        .filter(models.Order.user_id == target_user_id)
+        .order_by(models.Order.created_at.desc())
+        .all()
+    )
+    return [format_order_response(o) for o in all_orders]
+
+
+@app.get(
+    "/api/v1/vendor/orders",
+    tags=["Vendor"],
+)
+def get_vendor_orders(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    # Resolve vendor_id
+    if not vendor_id:
+        # Fallback to first vendor user
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return []
+        vendor_id = vendor.id
+
+    # Get vendor's products
+    vendor_products = db.query(models.Product).filter(models.Product.vendor_id == vendor_id).all()
+    vendor_prod_ids = {p.id for p in vendor_products}
+
+    # Fetch all orders
+    orders = db.query(models.Order).all()
+    vendor_orders = []
+
+    for order in orders:
+        try:
+            items_data = json.loads(order.items_json or "[]")
+        except Exception:
+            items_data = []
+
+        matching_items = []
+        for it in items_data:
+            prod_id_str = str(it.get("productId") or "")
+            clean_id = None
+            if prod_id_str.startswith("db-"):
+                try:
+                    clean_id = int(prod_id_str.replace("db-", ""))
+                except ValueError:
+                    pass
+            else:
+                try:
+                    clean_id = int(prod_id_str)
+                except ValueError:
+                    pass
+
+            if clean_id in vendor_prod_ids:
+                matching_items.append(it)
+
+        if len(matching_items) > 0:
+            # Get customer details
+            customer = db.query(models.User).filter(models.User.id == order.user_id).first()
+            customer_name = customer.full_name if customer else "Customer"
+
+            # Calculate total for vendor's items only
+            vendor_total = 0.0
+            item_names = []
+            for it in matching_items:
+                h_rate = float(it.get("hourlyRate") or 0.0)
+                qty = int(it.get("quantity") or 1)
+                vendor_total += h_rate * order.total_hours * qty
+                item_names.append(it.get("title") or "Item")
+
+            # Map status
+            status_map = {
+                "Active": "Reserved",
+                "Pending Pickup": "Quotation",
+                "Completed": "Returned",
+                "Returned": "Returned",
+                "Cancelled": "Cancelled"
+            }
+            mapped_status = status_map.get(order.status, "Reserved")
+
+            invoice_status_map = {
+                "Active": "Invoiced",
+                "Pending Pickup": "Quotation Sent",
+                "Completed": "Confirmed",
+                "Returned": "Confirmed",
+                "Cancelled": "Nothing to Invoice"
+            }
+            mapped_invoice_status = invoice_status_map.get(order.status, "Confirmed")
+
+            # Date formatting
+            try:
+                # Expecting format: "2026-08-08 16:00"
+                pickup_dt = datetime.strptime(order.start_date, "%Y-%m-%d %H:%M")
+                pickup_str = pickup_dt.strftime("%b %d, %I:%M%p").replace(" 0", " ").lower()
+            except Exception:
+                pickup_str = order.start_date
+
+            try:
+                return_dt = datetime.strptime(order.end_date, "%Y-%m-%d %H:%M")
+                return_str = return_dt.strftime("%b %d, %I:%M%p").replace(" 0", " ").lower()
+            except Exception:
+                return_str = order.end_date
+
+            vendor_orders.append({
+                "id": str(order.id),
+                "reference": order.reference,
+                "customer": customer_name,
+                "item": ", ".join(item_names),
+                "status": mapped_status,
+                "pickupDate": pickup_str,
+                "returnDate": return_str,
+                "startDateRaw": order.start_date,
+                "endDateRaw": order.end_date,
+                "total": int(vendor_total),
+                "invoiceStatus": mapped_invoice_status
+            })
+
+    return vendor_orders
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+class TargetUpdatePayload(BaseModel):
+    targetValue: float
+    vendor_id: Optional[int] = None
+
+@app.get(
+    "/api/v1/vendor/target",
+    tags=["Vendor"],
+)
+def get_vendor_target(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return {"targetValue": 10000.0}
+        vendor_id = vendor.id
+
+    target = db.query(models.MonthlyStoreTarget).filter(models.MonthlyStoreTarget.user_id == vendor_id).first()
+    if not target:
+        return {"targetValue": 10000.0}
+    return {"targetValue": target.target_value}
+
+
+@app.put(
+    "/api/v1/vendor/target",
+    tags=["Vendor"],
+)
+def update_vendor_target(
+    payload: TargetUpdatePayload,
+    db: Session = Depends(get_db),
+):
+    vendor_id = payload.vendor_id
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_id = vendor.id
+
+    target = db.query(models.MonthlyStoreTarget).filter(models.MonthlyStoreTarget.user_id == vendor_id).first()
+    if not target:
+        target = models.MonthlyStoreTarget(user_id=vendor_id, target_value=payload.targetValue)
+        db.add(target)
+    else:
+        target.target_value = payload.targetValue
+
+    db.commit()
+    return {"targetValue": target.target_value}
+
+
+# ==========================================
+# PRICELIST RULES ENDPOINTS
+# ==========================================
+
+@app.get(
+    "/api/v1/vendor/pricelist-rules",
+    response_model=list[schemas.PricelistRuleResponseSchema],
+    tags=["Vendor Pricelist"],
+)
+def get_pricelist_rules(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return []
+        vendor_id = vendor.id
+
+    rules = db.query(models.PricelistRule).filter(models.PricelistRule.vendor_id == vendor_id).all()
+    # Add product name to each response rule
+    for r in rules:
+        if r.product:
+            r.product_name = r.product.name
+    return rules
+
+
+@app.post(
+    "/api/v1/vendor/pricelist-rules",
+    response_model=schemas.PricelistRuleResponseSchema,
+    tags=["Vendor Pricelist"],
+)
+def create_pricelist_rule(
+    payload: schemas.PricelistRuleCreateSchema,
+    db: Session = Depends(get_db),
+):
+    vendor_id = payload.vendor_id
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_id = vendor.id
+
+    new_rule = models.PricelistRule(
+        vendor_id=vendor_id,
+        name=payload.name,
+        discount_percent=payload.discount_percent,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        is_global=payload.is_global,
+        product_id=payload.product_id,
+    )
+    db.add(new_rule)
+    db.commit()
+    db.refresh(new_rule)
+    if new_rule.product:
+        new_rule.product_name = new_rule.product.name
+    return new_rule
+
+
+@app.put(
+    "/api/v1/vendor/pricelist-rules/{rule_id}",
+    response_model=schemas.PricelistRuleResponseSchema,
+    tags=["Vendor Pricelist"],
+)
+def update_pricelist_rule(
+    rule_id: int,
+    payload: schemas.PricelistRuleCreateSchema,
+    db: Session = Depends(get_db),
+):
+    rule = db.query(models.PricelistRule).filter(models.PricelistRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    rule.name = payload.name
+    rule.discount_percent = payload.discount_percent
+    rule.start_date = payload.start_date
+    rule.end_date = payload.end_date
+    rule.is_global = payload.is_global
+    rule.product_id = payload.product_id
+
+    db.commit()
+    db.refresh(rule)
+    if rule.product:
+        rule.product_name = rule.product.name
+    return rule
+
+
+@app.delete(
+    "/api/v1/vendor/pricelist-rules/{rule_id}",
+    tags=["Vendor Pricelist"],
+)
+def delete_pricelist_rule(
+    rule_id: int,
+    db: Session = Depends(get_db),
+):
+    rule = db.query(models.PricelistRule).filter(models.PricelistRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    db.delete(rule)
+    db.commit()
+    return {"message": "Rule deleted successfully"}
+
+
+# ==========================================
+# PROMO CODES ENDPOINTS
+# ==========================================
+
+@app.get(
+    "/api/v1/vendor/promo-codes",
+    response_model=list[schemas.PromoCodeResponseSchema],
+    tags=["Vendor Promos"],
+)
+def get_promo_codes(
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            return []
+        vendor_id = vendor.id
+
+    return db.query(models.PromoCode).filter(models.PromoCode.vendor_id == vendor_id).all()
+
+
+@app.post(
+    "/api/v1/vendor/promo-codes",
+    response_model=schemas.PromoCodeResponseSchema,
+    tags=["Vendor Promos"],
+)
+def create_promo_code(
+    payload: schemas.PromoCodeCreateSchema,
+    db: Session = Depends(get_db),
+):
+    vendor_id = payload.vendor_id
+    if not vendor_id:
+        vendor = db.query(models.User).filter(models.User.role == "vendor").first()
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        vendor_id = vendor.id
+
+    new_promo = models.PromoCode(
+        vendor_id=vendor_id,
+        code=payload.code.upper(),
+        discount_percent=payload.discount_percent,
+        max_uses=payload.max_uses,
+        uses_count=payload.uses_count,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        is_active=payload.is_active,
+    )
+    db.add(new_promo)
+    db.commit()
+    db.refresh(new_promo)
+    return new_promo
+
+
+@app.put(
+    "/api/v1/vendor/promo-codes/{promo_id}",
+    response_model=schemas.PromoCodeResponseSchema,
+    tags=["Vendor Promos"],
+)
+def update_promo_code(
+    promo_id: int,
+    payload: schemas.PromoCodeCreateSchema,
+    db: Session = Depends(get_db),
+):
+    promo = db.query(models.PromoCode).filter(models.PromoCode.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+
+    promo.code = payload.code.upper()
+    promo.discount_percent = payload.discount_percent
+    promo.max_uses = payload.max_uses
+    promo.uses_count = payload.uses_count
+    promo.start_date = payload.start_date
+    promo.end_date = payload.end_date
+    promo.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(promo)
+    return promo
+
+
+@app.delete(
+    "/api/v1/vendor/promo-codes/{promo_id}",
+    tags=["Vendor Promos"],
+)
+def delete_promo_code(
+    promo_id: int,
+    db: Session = Depends(get_db),
+):
+    promo = db.query(models.PromoCode).filter(models.PromoCode.id == promo_id).first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+
+    db.delete(promo)
+    db.commit()
+    return {"message": "Promo code deleted successfully"}
+
+
+@app.get(
+    "/api/v1/promo-codes/validate",
+    tags=["Vendor Promos"],
+)
+def validate_promo_code(
+    code: str,
+    vendor_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    current_date_str = datetime.utcnow().strftime("%Y-%m-%d")
+    
+    query = db.query(models.PromoCode).filter(
+        models.PromoCode.code == code.upper(),
+        models.PromoCode.is_active == True,
+        models.PromoCode.start_date <= current_date_str,
+        models.PromoCode.end_date >= current_date_str
+    )
+    if vendor_id:
+        query = query.filter(models.PromoCode.vendor_id == vendor_id)
+        
+    promo = query.first()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Invalid or expired promo code")
+        
+    if promo.uses_count >= promo.max_uses:
+        raise HTTPException(status_code=400, detail="Promo code has reached its usage limit")
+        
+    return {
+        "id": promo.id,
+        "code": promo.code,
+        "discount_percent": promo.discount_percent,
+        "vendor_id": promo.vendor_id
+    }
+
+
+# ==========================================
+# ADMIN AUTH & MANAGEMENT ENDPOINTS
+# ==========================================
+
+ADMIN_SECRET_EMAILS = ["admin@easyrental.com", "admin", "admin@rms.com"]
+ADMIN_SECRET_PASSWORDS = ["admin123", "admin", "Admin@EasyRental2026", "secretadmin", "admin@123"]
+
+@app.post(
+    "/api/v1/admin/signin",
+    response_model=schemas.AdminUserResponseSchema,
+    tags=["Admin Auth"],
+)
+def admin_signin(payload: schemas.AdminSignInSchema, db: Session = Depends(get_db)):
+    clean_email = payload.email.strip().lower()
+    clean_pwd = payload.password.strip()
+
+    if clean_email not in ADMIN_SECRET_EMAILS or clean_pwd not in ADMIN_SECRET_PASSWORDS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Admin Secret ID or Password.",
+        )
+
+    # Ensure admin user exists in DB or return admin schema
+    admin_user = db.query(models.User).filter(models.User.email == "admin@easyrental.com").first()
+    if not admin_user:
+        admin_user = models.User(
+            full_name="System Administrator",
+            email="admin@easyrental.com",
+            hashed_password="hashed_admin123",
+            role="admin",
+            is_active=True,
+        )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+
+    return schemas.AdminUserResponseSchema(
+        id=admin_user.id,
+        full_name=admin_user.full_name,
+        email=admin_user.email,
+        role="admin",
+        is_active=True,
+        created_at=admin_user.created_at,
+    )
+
+
+@app.get(
+    "/api/v1/admin/stats",
+    tags=["Admin Management"],
+)
+def get_admin_stats(db: Session = Depends(get_db)):
+    total_prods = db.query(models.Product).count()
+    active_prods = db.query(models.Product).filter(models.Product.is_published == True).count()
+    
+    total_consumers = db.query(models.User).filter(models.User.role == "customer").count()
+    active_consumers = db.query(models.User).filter(models.User.role == "customer", models.User.is_active == True).count()
+    
+    total_vendors = db.query(models.User).filter(models.User.role == "vendor").count()
+    active_vendors = db.query(models.User).filter(models.User.role == "vendor", models.User.is_active == True).count()
+    
+    total_orders = db.query(models.Order).count()
+
+    return {
+        "total_products": total_prods,
+        "active_products": active_prods,
+        "disabled_products": total_prods - active_prods,
+        "total_consumers": total_consumers,
+        "active_consumers": active_consumers,
+        "disabled_consumers": total_consumers - active_consumers,
+        "total_vendors": total_vendors,
+        "active_vendors": active_vendors,
+        "disabled_vendors": total_vendors - active_vendors,
+        "total_orders": total_orders,
+    }
+
+
+@app.get(
+    "/api/v1/admin/products",
+    tags=["Admin Management"],
+)
+def get_admin_products(db: Session = Depends(get_db)):
+    products = (
+        db.query(models.Product)
+        .options(joinedload(models.Product.vendor).joinedload(models.User.vendor_profile))
+        .order_by(models.Product.id.desc())
+        .all()
+    )
+    result = []
+    for p in products:
+        vendor_name = p.vendor.full_name if p.vendor else "Unknown Vendor"
+        vendor_email = p.vendor.email if p.vendor else "N/A"
+        vendor_active = p.vendor.is_active if p.vendor else True
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "category": p.category,
+            "product_type": p.product_type,
+            "sales_price": p.sales_price,
+            "cost_price": p.cost_price,
+            "is_published": p.is_published,
+            "attributes_json": p.attributes_json,
+            "vendor_id": p.vendor_id,
+            "vendor_name": vendor_name,
+            "vendor_email": vendor_email,
+            "vendor_active": vendor_active,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        })
+    return result
+
+
+@app.put(
+    "/api/v1/admin/products/{product_id}/toggle-status",
+    tags=["Admin Management"],
+)
+def toggle_product_status(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    product.is_published = not product.is_published
+    db.commit()
+    db.refresh(product)
+    return {
+        "id": product.id,
+        "name": product.name,
+        "is_published": product.is_published,
+        "message": f"Product '{product.name}' is now {'Published / Active' if product.is_published else 'Disabled / Hidden'}."
+    }
+
+
+@app.get(
+    "/api/v1/admin/consumers",
+    tags=["Admin Management"],
+)
+def get_admin_consumers(db: Session = Depends(get_db)):
+    consumers = (
+        db.query(models.User)
+        .options(joinedload(models.User.customer_profile))
+        .filter(models.User.role == "customer")
+        .order_by(models.User.id.desc())
+        .all()
+    )
+    result = []
+    for c in consumers:
+        order_count = db.query(models.Order).filter(models.Order.user_id == c.id).count()
+        result.append({
+            "id": c.id,
+            "full_name": c.full_name,
+            "email": c.email,
+            "phone_number": c.phone_number,
+            "is_active": c.is_active,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "order_count": order_count,
+            "city": c.customer_profile.city if c.customer_profile else None,
+            "state": c.customer_profile.state if c.customer_profile else None,
+        })
+    return result
+
+
+@app.put(
+    "/api/v1/admin/consumers/{user_id}/toggle-status",
+    tags=["Admin Management"],
+)
+def toggle_consumer_status(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id, models.User.role == "customer").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Consumer not found")
+    
+    user.is_active = not user.is_active
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "is_active": user.is_active,
+        "message": f"Consumer '{user.full_name}' has been {'Activated' if user.is_active else 'Disabled / Suspended'}."
+    }
+
+
+@app.get(
+    "/api/v1/admin/vendors",
+    tags=["Admin Management"],
+)
+def get_admin_vendors(db: Session = Depends(get_db)):
+    vendors = (
+        db.query(models.User)
+        .options(joinedload(models.User.vendor_profile))
+        .filter(models.User.role == "vendor")
+        .order_by(models.User.id.desc())
+        .all()
+    )
+    result = []
+    for v in vendors:
+        product_count = db.query(models.Product).filter(models.Product.vendor_id == v.id).count()
+        result.append({
+            "id": v.id,
+            "full_name": v.full_name,
+            "email": v.email,
+            "company_name": v.vendor_profile.company_name if v.vendor_profile else v.full_name,
+            "category": v.vendor_profile.category if v.vendor_profile else "General Rental",
+            "is_verified": v.vendor_profile.is_verified if v.vendor_profile else False,
+            "is_active": v.is_active,
+            "product_count": product_count,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        })
+    return result
+
+
+@app.put(
+    "/api/v1/admin/vendors/{user_id}/toggle-status",
+    tags=["Admin Management"],
+)
+def toggle_vendor_status(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id, models.User.role == "vendor").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    user.is_active = not user.is_active
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "is_active": user.is_active,
+        "message": f"Vendor '{user.full_name}' has been {'Activated' if user.is_active else 'Disabled / Suspended'}."
+    }

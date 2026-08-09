@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import {
   Package,
   Plus,
@@ -13,14 +13,23 @@ import {
   Edit,
   Loader2,
   RefreshCw,
-  Sparkles,
+  Layers,
+  ChevronDown,
+  LogOut,
+  Settings as SettingsIcon,
+  Tag,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { fetchProducts, deleteProduct, createProduct, getLoggedVendor, type ApiProduct, type VendorUser } from "@/lib/api"
+import { VendorPricelistView } from "@/pages/VendorDashboard"
+
+import { useDebounce } from "@/hooks/useDebounce"
 
 export function VendorProductList() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [loggedVendor, setLoggedVendor] = useState<VendorUser | null>(null)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -28,9 +37,20 @@ export function VendorProductList() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [typeFilter, setTypeFilter] = useState<"all" | "Goods" | "Service">("all")
-  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all")
+  const statusFilter = "all"
+  const [activeTab, setActiveTab] = useState<"products" | "pricelist">("products")
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    if (searchParams.get("tab") === "pricelist" || (location.state as any)?.tab === "pricelist") {
+      setActiveTab("pricelist")
+    } else {
+      setActiveTab("products")
+    }
+  }, [location.search, location.state])
 
   // Load active logged vendor
   useEffect(() => {
@@ -74,8 +94,66 @@ export function VendorProductList() {
     }
   }
 
+  // Extract list of individual variants with stock quantities
+  const getProductVariantsList = (product: ApiProduct): { id?: string; name: string; stockQuantity: number }[] => {
+    if (product.attributes_json) {
+      try {
+        const parsed = JSON.parse(product.attributes_json)
+        if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
+          return parsed.variants.map((v: any, idx: number) => ({
+            id: v.id || `v_${idx}`,
+            name: v.name || `Variant #${idx + 1}`,
+            stockQuantity: parseInt(v.stockQuantity || "0", 10) || 0,
+          }))
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return []
+  }
+
+  // Calculate starting display price for a product from its variants
+  const getProductDisplayPrice = (product: ApiProduct): number => {
+    if (product.attributes_json) {
+      try {
+        const parsed = JSON.parse(product.attributes_json)
+        if (parsed && Array.isArray(parsed.variants) && parsed.variants.length > 0) {
+          const firstPrice = parseFloat(parsed.variants[0].price)
+          if (!isNaN(firstPrice) && firstPrice > 0) return firstPrice
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return product.sales_price || 0
+  }
+
+  // Extract cover image from the first variant that has an image
+  const getProductCoverImage = (product: ApiProduct): string => {
+    if (product.attributes_json) {
+      try {
+        const parsed = JSON.parse(product.attributes_json)
+        if (parsed && Array.isArray(parsed.variants)) {
+          const firstWithImg = parsed.variants.find((v: any) => v.imageUrl && v.imageUrl.trim() !== "")
+          if (firstWithImg) return firstWithImg.imageUrl
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return ""
+  }
+
+  // Calculate total variant stock for a product
+  const getProductTotalStock = (product: ApiProduct): number => {
+    const list = getProductVariantsList(product)
+    return list.reduce((sum, v) => sum + v.stockQuantity, 0)
+  }
+
   // Seed demo products if database is empty for this vendor
   const handleSeedDemoProducts = async () => {
+    if (isSeeding) return
     setIsSeeding(true)
     const vendorId = loggedVendor?.id || 1
     const seedData = [
@@ -84,59 +162,75 @@ export function VendorProductList() {
         name: "Computers (Desktop Workstation)",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 100,
-        rent_price: 1200.0,
         sales_price: 1200.0,
         cost_price: 0.0,
         is_published: true,
-        periodicity: "Hours",
         padding_time: "2:00 H",
         pickup_time: "10:00 H",
         return_time: "19:00 H",
         late_fees: 45.0,
         security_deposit: 150.0,
-        attributes_json: JSON.stringify([
-          { id: "1", name: "Brand", values: "Apple, Dell, HP" },
-          { id: "2", name: "RAM", values: "32GB, 64GB" },
-        ]),
+        attributes_json: JSON.stringify({
+          variants: [
+            {
+              id: "v1",
+              name: "MacBook Pro 16\" M3 Max",
+              price: "1250.00",
+              stockQuantity: "25",
+              imageUrl: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
+              features: "Apple M3 Max • 32GB RAM • 1TB SSD • Space Gray",
+            },
+            {
+              id: "v2",
+              name: "Dell XPS 15 Silver",
+              price: "1100.00",
+              stockQuantity: "30",
+              imageUrl: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=400&q=80",
+              features: "Intel i9 13th Gen • 16GB DDR5 RAM • 512GB SSD",
+            },
+          ],
+        }),
       },
       {
         vendor_id: vendorId,
         name: "Smart TV 65\" 4K OLED",
         product_type: "Goods",
         image_url: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 45,
-        rent_price: 650.0,
         sales_price: 650.0,
         cost_price: 0.0,
         is_published: true,
-        periodicity: "Day",
         padding_time: "1:00 H",
         pickup_time: "10:00 H",
         return_time: "18:00 H",
         late_fees: 25.0,
         security_deposit: 100.0,
-        attributes_json: JSON.stringify([
-          { id: "1", name: "Brand", values: "Sony, LG, Samsung" },
-        ]),
+        attributes_json: JSON.stringify({
+          variants: [
+            {
+              id: "v2",
+              name: "Sony 65\" Bravia XR",
+              price: "650.00",
+              stockQuantity: "20",
+              imageUrl: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80",
+              features: "4K HDR OLED • Google TV • 120Hz Refresh Rate",
+            },
+          ],
+        }),
       },
       {
         vendor_id: vendorId,
         name: "Security Deposit / Downpayment",
         product_type: "Service",
         image_url: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=400&q=80",
-        quantity_on_hand: 0,
-        rent_price: 200.0,
         sales_price: 200.0,
         cost_price: 0.0,
         is_published: true,
-        periodicity: "Day",
         padding_time: "0:00 H",
         pickup_time: "09:00 H",
         return_time: "18:00 H",
         late_fees: 0.0,
         security_deposit: 0.0,
-        attributes_json: JSON.stringify([]),
+        attributes_json: JSON.stringify({ variants: [] }),
       },
     ]
 
@@ -155,7 +249,7 @@ export function VendorProductList() {
 
   // Filter products
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     const matchesType = typeFilter === "all" || product.product_type === typeFilter
     const matchesStatus =
       statusFilter === "all" ||
@@ -189,110 +283,164 @@ export function VendorProductList() {
             <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-medium">
               <button
                 onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-colors"
               >
-                Orders
+                Dashboard
               </button>
               <button
-                onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                onClick={() => {
+                  setActiveTab("products")
+                  navigate("/vendor/products")
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  activeTab === "products"
+                    ? "bg-slate-100 text-slate-900 font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
+                }`}
               >
-                Schedule
-              </button>
-              <button className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-900 font-bold transition-colors">
                 Products
               </button>
               <button
-                onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                onClick={() => {
+                  setActiveTab("pricelist")
+                  navigate("/vendor/products?tab=pricelist")
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  activeTab === "pricelist"
+                    ? "bg-slate-100 text-slate-900 font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
+                }`}
               >
-                Reports
+                Pricelist
               </button>
               <button
-                onClick={() => navigate("/vendor/dashboard")}
-                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                onClick={() => navigate("/vendor/dashboard?tab=reports")}
+                className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 transition-colors"
               >
-                Settings
+                Reports
               </button>
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right Profile Dropdown Menu */}
+          <div className="relative">
             <button
-              onClick={loadProducts}
-              title="Refresh Products from DB"
-              className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 transition-colors font-medium p-1.5 rounded-lg hover:bg-slate-100"
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 pr-2.5 hover:bg-slate-50 transition-colors shadow-xs"
             >
-              <RefreshCw className={`size-3.5 ${loading ? "animate-spin text-purple-600" : ""}`} />
-              <span>Refresh</span>
-            </button>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs">
-              <span className="font-semibold text-slate-900">
-                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Apex Rentals"}
-              </span>
-              <div className="flex size-6 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs uppercase">
-                {(loggedVendor?.full_name || "A").charAt(0)}
+              <div className="flex size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs">
+                {loggedVendor?.full_name ? loggedVendor.full_name.slice(0, 2).toUpperCase() : "VD"}
               </div>
-            </div>
+              <span className="text-xs font-semibold text-slate-800 hidden sm:inline">
+                {loggedVendor?.vendor_profile?.company_name || loggedVendor?.full_name || "Vendor Admin"}
+              </span>
+              <ChevronDown className="size-3.5 text-slate-500" />
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl p-2 text-xs z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                  <p className="font-bold text-slate-900">{loggedVendor?.full_name || "Vendor Admin"}</p>
+                  <p className="text-[11px] text-slate-500">{loggedVendor?.email || "vendor@easyrental.com"}</p>
+                </div>
+
+                <div className="space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false)
+                      navigate("/vendor/settings")
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors font-medium text-left"
+                  >
+                    <SettingsIcon className="size-4 text-slate-500" />
+                    <span>Store Settings</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false)
+                      navigate("/vendor/signin")
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-medium text-left"
+                  >
+                    <LogOut className="size-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        {/* Title + Add Product Button + Search Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Package className="size-6 text-purple-600" />
-              <span>Database Products Catalog</span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Manage live rental products stored in your MariaDB database.
-            </p>
-          </div>
+        {activeTab === "pricelist" ? (
+          <VendorPricelistView loggedVendor={loggedVendor} />
+        ) : (
+          <>
+            {/* Page Title & Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold tracking-tight text-slate-900">Products & Rental Catalog</h1>
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-extrabold text-xs">
+                    {products.length} Items
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Create, view, edit, or publish rental products and equipment for your vendor store.
+                </p>
+              </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {products.length === 0 && (
-              <button
-                onClick={handleSeedDemoProducts}
-                disabled={isSeeding}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold text-xs shadow-xs transition-all"
-              >
-                <Sparkles className="size-3.5 text-purple-600" />
-                <span>{isSeeding ? "Seeding..." : "Seed Demo Products"}</span>
-              </button>
-            )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setActiveTab("pricelist")
+                    navigate("/vendor/products?tab=pricelist")
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                  title="Pricelist & Discount Rules"
+                >
+                  <Tag className="size-4 text-indigo-600" />
+                  <span>Pricelist Rules</span>
+                </button>
 
-            {/* Primary CTA: Add New Product */}
-            <button
-              onClick={() => navigate("/vendor/products/new")}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all transform active:scale-95 shrink-0"
-            >
-              <Plus className="size-4" />
-              <span>Add New Product</span>
-            </button>
-          </div>
-        </div>
+                <button
+                  onClick={loadProducts}
+                  className="p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs"
+                  title="Refresh Products"
+                >
+                  <RefreshCw className="size-4" />
+                </button>
 
-        {/* Filter Controls & View Switcher Toolbar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          {/* Search Bar */}
-          <div className="relative flex-1 max-w-md">
+                <Link
+                  to="/vendor/products/new"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95"
+                >
+                  <Plus className="size-4" />
+                  <span>New Product</span>
+                </Link>
+              </div>
+            </div>
+
+        {/* Toolbar & Filter Options */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
             <Input
               type="text"
-              placeholder="Search database products by name..."
+              placeholder="Search product name, category, or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-9 pl-3 h-9 bg-slate-50 border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-purple-500 shadow-xs"
+              className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 rounded-lg focus-visible:ring-purple-500 font-medium"
             />
-            <div className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-md text-slate-400">
-              <Search className="size-3.5" />
-            </div>
           </div>
 
-          {/* Filters & View Switches */}
-          <div className="flex items-center gap-3 flex-wrap justify-between md:justify-end">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Product Type Filter */}
             <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs font-medium">
               <span className="text-[10px] text-slate-500 px-2 uppercase font-semibold">Type</span>
@@ -322,34 +470,6 @@ export function VendorProductList() {
               </button>
             </div>
 
-            {/* Status Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg text-xs font-medium">
-              <span className="text-[10px] text-slate-500 px-2 uppercase font-semibold">Status</span>
-              <button
-                onClick={() => setStatusFilter("all")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === "all" ? "bg-white text-slate-900 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setStatusFilter("published")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === "published" ? "bg-white text-emerald-700 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Published
-              </button>
-              <button
-                onClick={() => setStatusFilter("draft")}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  statusFilter === "draft" ? "bg-white text-slate-700 shadow-xs font-bold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Draft
-              </button>
-            </div>
 
             {/* View Switcher */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
@@ -385,10 +505,7 @@ export function VendorProductList() {
             <Loader2 className="size-6 animate-spin text-purple-600" />
             <span className="text-xs font-semibold">Fetching products from database...</span>
           </div>
-        ) : (
-          <>
-            {/* LIST VIEW TABLE */}
-            {viewMode === "list" ? (
+        ) : viewMode === "list" ? (
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
@@ -396,9 +513,8 @@ export function VendorProductList() {
                       <tr className="border-b border-slate-200 bg-slate-100/80 text-slate-700 font-semibold uppercase tracking-wider">
                         <th className="p-3.5">Product</th>
                         <th className="p-3.5">Type</th>
-                        <th className="p-3.5">Quantity (Units)</th>
+                        <th className="p-3.5">Variant Quantities</th>
                         <th className="p-3.5">Rent Price</th>
-                        <th className="p-3.5">Periodicity</th>
                         <th className="p-3.5 text-center">Status</th>
                         <th className="p-3.5 text-right">Actions</th>
                       </tr>
@@ -406,7 +522,7 @@ export function VendorProductList() {
                     <tbody className="divide-y divide-slate-200">
                       {filteredProducts.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-slate-500 font-sans space-y-2">
+                          <td colSpan={6} className="p-8 text-center text-slate-500 font-sans space-y-2">
                             <p>No products found in database matching your query.</p>
                             {products.length === 0 && (
                               <button
@@ -420,16 +536,18 @@ export function VendorProductList() {
                         </tr>
                       ) : (
                         filteredProducts.map((product) => {
-                          const displayRentPrice = product.rent_price || product.sales_price || 0
-                          const displayQty = Math.round(product.quantity_on_hand || 0)
+                          const displayRentPrice = getProductDisplayPrice(product)
+                          const coverImage = getProductCoverImage(product)
+                          const variantsList = getProductVariantsList(product)
+                          const totalStock = getProductTotalStock(product)
                           return (
                             <tr key={product.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="p-3.5">
                                 <div className="flex items-center gap-3">
                                   <div className="size-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                                    {product.image_url ? (
+                                    {coverImage ? (
                                       <img
-                                        src={product.image_url}
+                                        src={coverImage}
                                         alt={product.name}
                                         className="size-full object-cover"
                                       />
@@ -460,14 +578,41 @@ export function VendorProductList() {
                                   {product.product_type}
                                 </span>
                               </td>
-                              <td className="p-3.5 font-mono font-bold text-slate-800">
-                                {displayQty}
+
+                              {/* VARIANT INDIVIDUAL QUANTITIES CELL */}
+                              <td className="p-3.5">
+                                {variantsList.length > 0 ? (
+                                  <div className="space-y-1.5 max-w-[220px]">
+                                    {variantsList.map((v, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-between gap-2 text-[11px] bg-slate-50 px-2 py-1 rounded-md border border-slate-200"
+                                      >
+                                        <span className="font-medium text-slate-800 truncate" title={v.name}>
+                                          {v.name}
+                                        </span>
+                                        <span
+                                          className={`font-mono font-bold px-1.5 py-0.5 rounded text-[10px] shrink-0 ${
+                                            v.stockQuantity > 0
+                                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                              : "bg-rose-100 text-rose-800 border border-rose-200"
+                                          }`}
+                                        >
+                                          {v.stockQuantity} Qty
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                    <Layers className="size-3 text-slate-400" />
+                                    <span>Total: <strong className="font-mono text-slate-800">{totalStock} units</strong></span>
+                                  </div>
+                                )}
                               </td>
+
                               <td className="p-3.5 font-mono font-extrabold text-slate-900">
-                                ${displayRentPrice.toFixed(2)}
-                              </td>
-                              <td className="p-3.5 text-slate-600 font-medium">
-                                {product.periodicity}
+                                ₹{Math.round(displayRentPrice)}
                               </td>
                               <td className="p-3.5 text-center">
                                 {product.is_published ? (
@@ -511,8 +656,10 @@ export function VendorProductList() {
               /* GRID VIEW */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredProducts.map((product) => {
-                  const displayRentPrice = product.rent_price || product.sales_price || 0
-                  const displayQty = Math.round(product.quantity_on_hand || 0)
+                  const displayRentPrice = getProductDisplayPrice(product)
+                  const coverImage = getProductCoverImage(product)
+                  const variantsList = getProductVariantsList(product)
+                  const totalStock = getProductTotalStock(product)
                   return (
                     <div
                       key={product.id}
@@ -520,9 +667,9 @@ export function VendorProductList() {
                     >
                       <div>
                         <div className="relative h-40 rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200">
-                          {product.image_url ? (
+                          {coverImage ? (
                             <img
-                              src={product.image_url}
+                              src={coverImage}
                               alt={product.name}
                               className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
@@ -558,16 +705,44 @@ export function VendorProductList() {
                         <h3 className="font-bold text-slate-900 text-sm group-hover:text-purple-600 transition-colors">
                           {product.name}
                         </h3>
-                        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-                          <span>Stock: <strong className="font-mono text-slate-800">{displayQty} units</strong></span>
-                          <span>Rate: <strong className="font-semibold text-slate-800">{product.periodicity}</strong></span>
+
+                        {/* GRID VIEW INDIVIDUAL VARIANT STOCKS */}
+                        <div className="space-y-1.5 mt-2.5 pt-2 border-t border-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Variant Stock Quantities
+                          </span>
+                          {variantsList.length > 0 ? (
+                            <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+                              {variantsList.map((v, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between text-[11px] bg-slate-50 px-2 py-1 rounded border border-slate-200"
+                                >
+                                  <span className="text-slate-700 truncate font-medium max-w-[150px]" title={v.name}>
+                                    {v.name}
+                                  </span>
+                                  <span
+                                    className={`font-mono font-bold text-[10px] ${
+                                      v.stockQuantity > 0 ? "text-emerald-700" : "text-rose-600"
+                                    }`}
+                                  >
+                                    {v.stockQuantity} Qty
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              Total Stock: <strong>{totalStock} units</strong>
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase font-semibold">Rent Price</span>
-                          <span className="font-mono font-extrabold text-slate-900 text-base">${displayRentPrice.toFixed(2)}</span>
+                          <span className="font-mono font-extrabold text-slate-900 text-base">₹{Math.round(displayRentPrice)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button
@@ -579,9 +754,10 @@ export function VendorProductList() {
                           <button
                             onClick={() => handleDeleteProduct(product.id, product.name)}
                             disabled={deletingId === product.id}
-                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200"
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors border border-rose-200 disabled:opacity-50"
+                            title="Delete Product"
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       </div>

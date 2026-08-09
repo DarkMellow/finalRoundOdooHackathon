@@ -1,7 +1,16 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { fetchProducts } from "@/lib/api"
+import { getLoggedCustomer, type CustomerUser } from "@/lib/api"
+import { fetchCartSummary } from "@/lib/cartCheckoutApi"
+import { fetchWishlistProducts, toggleWishlistApi } from "@/lib/wishlistFetcher"
+import { ProductExpansionView } from "@/pages/ProductExpansionView"
+import { CartCheckout } from "@/pages/CartCheckout"
+import { Wishlist } from "@/pages/Wishlist"
+import { CustomerOrdersView } from "@/pages/CustomerOrdersView"
 import { Input } from "@/components/ui/input"
+import { useDebounce } from "@/hooks/useDebounce"
+import { OptimizedCatalogImage } from "@/components/ui/OptimizedCatalogImage"
+import { useCatalogPrefetch } from "@/hooks/useCatalogPrefetch"
 import {
   Building2,
   Search,
@@ -10,30 +19,34 @@ import {
   ChevronDown,
   User,
   Package,
-  Settings as SettingsIcon,
   LogOut,
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
-  Check,
   Star,
   Tag,
 } from "lucide-react"
 
-interface Product {
-  id: string
-  title: string
-  description: string
-  category: string // Primary Tag / Class
-  brand: string
-  image: string
-  price: number
-  billingPeriod: "per Month" | "per day" | "per hour"
-  colorVariants?: string[] // hex values
-  sizeVariants?: string[] // e.g. ["43\"", "55\"", "65\""]
-  tags: string[]
-  inStock: boolean
-  rating: number
+function CatalogCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs flex flex-col justify-between animate-pulse">
+      <div className="relative aspect-4/3 w-full bg-slate-200" />
+      <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-16 bg-slate-200 rounded-md" />
+            <div className="h-3 w-8 bg-slate-200 rounded-md" />
+          </div>
+          <div className="h-4 w-3/4 bg-slate-200 rounded-md" />
+          <div className="h-3 w-full bg-slate-200 rounded-md" />
+          <div className="h-3 w-1/2 bg-slate-200 rounded-md" />
+        </div>
+        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
+          <div className="h-5 w-20 bg-slate-200 rounded-md" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const ALL_CATALOG_TAGS = [
@@ -45,98 +58,112 @@ const ALL_CATALOG_TAGS = [
   "Audio",
   "Photography",
 ]
-
-const COLOR_OPTIONS = [
-  { name: "Teal", hex: "#0d9488" },
-  { name: "Purple", hex: "#a855f7" },
-  { name: "Brown", hex: "#78350f" },
-  { name: "Orange", hex: "#ea580c" },
-  { name: "Blue", hex: "#2563eb" },
-  { name: "Black", hex: "#0f172a" },
-]
-
 export function CustomerCatalog() {
   const navigate = useNavigate()
+  const [loggedCustomer, setLoggedCustomer] = useState<CustomerUser | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 400)
   const [selectedTag, setSelectedTag] = useState<string>("All Tags")
   const [selectedBrand, setSelectedBrand] = useState<string>("all")
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const [priceMax, setPriceMax] = useState<number>(2000)
 
   const [wishlist, setWishlist] = useState<string[]>([])
-  const [cart] = useState<{ id: string; quantity: number }[]>([
-    { id: "p1", quantity: 1 },
-  ])
+  const [cartItemCount, setCartItemCount] = useState<number>(0)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedProductIdForModal, setSelectedProductIdForModal] = useState<string | null>(null)
+  const [isCartModalOpen, setIsCartModalOpen] = useState<boolean>(false)
+  const [isWishlistModalOpen, setIsWishlistModalOpen] = useState<boolean>(false)
+  const [isMyOrdersModalOpen, setIsMyOrdersModalOpen] = useState<boolean>(false)
 
-  const [dbProducts, setDbProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const ITEMS_PER_PAGE = 6
 
-  // Load live database products from all vendors
+  // React-based smart prefetching hook: loads Page 1, Page N (last page), and Page +/- 1, 2 in background
+  const {
+    currentPage,
+    setCurrentPage,
+    products: paginatedProducts,
+    totalCount: totalCountToDisplay,
+    totalPages,
+    initialLoading,
+    pageLoading,
+  } = useCatalogPrefetch({
+    itemsPerPage: ITEMS_PER_PAGE,
+    searchQuery: debouncedSearchQuery,
+    selectedTag,
+    selectedBrand,
+    priceMax,
+  })
+
+  const refreshCartCount = () => {
+    fetchCartSummary()
+      .then((summary) => {
+        const totalCount = summary.items.reduce((sum, item) => sum + item.quantity, 0)
+        setCartItemCount(totalCount)
+      })
+      .catch((err) => console.warn("Failed to load cart summary:", err))
+  }
+
+  const userFullName = loggedCustomer?.full_name || "Customer"
+  const userEmail = loggedCustomer?.email || ""
+  const userInitials = userFullName
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "C"
+
+  // Initial customer auth check, wishlist & cart summary loading
   useEffect(() => {
-    setLoading(true)
-    fetchProducts()
-      .then((items) => {
-        // Filter only published products for customer catalog
-        const publishedItems = items.filter((item) => item.is_published !== false)
-        const mapped: Product[] = publishedItems.map((item) => ({
-          id: `db-${item.id}`,
-          title: item.name,
-          description: `Vendor Product #${item.id} • ${item.product_type} (${item.periodicity} rental rate)`,
-          category: item.category || (item.product_type === "Goods" ? "Electronics" : "Services"),
-          brand: `Vendor #${item.vendor_id}`,
-          image: item.image_url || "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80",
-          price: item.rent_price || item.sales_price || 0,
-          billingPeriod: item.periodicity === "Day" ? "per day" : item.periodicity === "Hours" ? "per hour" : "per Month",
-          tags: [item.category || "Electronics", item.product_type, item.periodicity, `Vendor #${item.vendor_id}`],
-          inStock: (item.quantity_on_hand || 0) > 0,
-          rating: 5.0,
-        }))
-        setDbProducts(mapped)
-      })
-      .catch((err) => {
-        console.warn("Could not fetch database products for catalog:", err)
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    const user = getLoggedCustomer()
+    if (!user) {
+      navigate("/customer/signin")
+      return
+    }
+    setLoggedCustomer(user)
 
-  // Only display actual products from database across all vendors
-  const allProducts = dbProducts
+    Promise.all([
+      fetchWishlistProducts().catch(() => []),
+      fetchCartSummary().catch(() => null),
+    ]).then(([wishlistItems, cartSummary]) => {
+      if (wishlistItems) setWishlist(wishlistItems.map((i: any) => i.id))
+      if (cartSummary && Array.isArray(cartSummary.items)) {
+        const totalCount = cartSummary.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+        setCartItemCount(totalCount)
+      }
+    })
+  }, [navigate])
 
   // Toggle wishlist
-  const toggleWishlist = (id: string) => {
+  const toggleWishlist = async (id: string) => {
+    const prod = paginatedProducts.find((p) => p.id === id)
     if (wishlist.includes(id)) {
       setWishlist(wishlist.filter((item) => item !== id))
     } else {
       setWishlist([...wishlist, id])
     }
-  }
-
-  // Filter products by search query, brand, price, AND primary tag / category
-  const filteredProducts = allProducts.filter((product) => {
-    const matchesSearch =
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
-
-    if (!matchesSearch) return false
-
-    // Primary tag / class filter matching
-    if (selectedTag !== "All Tags") {
-      const isMatch =
-        product.category.toLowerCase() === selectedTag.toLowerCase() ||
-        product.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
-      if (!isMatch) return false
+    try {
+      const updated = await toggleWishlistApi(
+        id,
+        prod
+          ? {
+              id: prod.id,
+              title: prod.title,
+              image: prod.image,
+              inStock: prod.inStock,
+              price: prod.price,
+              rating: prod.rating || 4.5,
+              reviews: 15,
+              assured: true,
+              stockText: prod.inStock ? "In Stock" : "Out of Stock",
+            }
+          : undefined
+      )
+      setWishlist(updated.map((i) => i.id))
+    } catch (err) {
+      console.warn("Failed to sync wishlist toggle with backend:", err)
     }
-
-    if (selectedBrand !== "all" && product.brand !== selectedBrand) return false
-    if (product.price > priceMax && priceMax < 2000) return false
-
-    return true
-  })
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-500 selection:text-white">
@@ -158,12 +185,12 @@ export function CustomerCatalog() {
               <Link to="/customer/catalog" className="px-3 py-2 rounded-lg bg-slate-100 text-blue-600 font-bold">
                 Products
               </Link>
-              <a href="#about" onClick={(e) => e.preventDefault()} className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
+              <Link to="/customer/about" className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
                 About us
-              </a>
-              <a href="#contact" onClick={(e) => e.preventDefault()} className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
+              </Link>
+              <Link to="/customer/contact" className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors">
                 Contact Us
-              </a>
+              </Link>
             </nav>
           </div>
 
@@ -185,8 +212,8 @@ export function CustomerCatalog() {
           <div className="flex items-center gap-3">
             {/* Wishlist Button */}
             <button
-              onClick={() => alert(`Wishlist contains ${wishlist.length} saved items`)}
-              className="relative p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-xs"
+              onClick={() => setIsWishlistModalOpen(true)}
+              className="relative p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-xs cursor-pointer"
               title="Wishlist"
             >
               <Heart className={`size-4 ${wishlist.length > 0 ? "fill-rose-500 text-rose-500" : ""}`} />
@@ -199,13 +226,13 @@ export function CustomerCatalog() {
 
             {/* Cart Button */}
             <button
-              onClick={() => alert(`Cart contains ${cart.reduce((a, b) => a + b.quantity, 0)} items`)}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-blue-300 transition-colors shadow-xs"
+              onClick={() => setIsCartModalOpen(true)}
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:border-blue-300 transition-colors shadow-xs cursor-pointer"
               title="Cart"
             >
               <ShoppingCart className="size-4 text-blue-600" />
               <span className="flex size-4 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-[9px]">
-                {cart.reduce((a, b) => a + b.quantity, 0)}
+                {cartItemCount}
               </span>
             </button>
 
@@ -216,63 +243,63 @@ export function CustomerCatalog() {
                 className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 pr-2.5 hover:bg-slate-50 transition-colors shadow-xs"
               >
                 <div className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-white font-bold text-xs">
-                  JD
+                  {userInitials}
                 </div>
                 <ChevronDown className="size-3.5 text-slate-500" />
               </button>
 
               {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white shadow-xl p-1.5 text-xs z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                    <p className="font-bold text-slate-900">Jane Doe</p>
-                    <p className="text-[10px] text-slate-500">jane.doe@example.com</p>
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl p-2 text-xs z-50 animate-in fade-in slide-in-from-top-2">
+                  <div
+                    onClick={() => {
+                      setUserDropdownOpen(false)
+                      navigate("/customer/profile")
+                    }}
+                    className="px-3 py-2 border-b border-slate-100 mb-1 cursor-pointer hover:bg-slate-50 transition-colors rounded-t-xl"
+                  >
+                    <p className="font-bold text-slate-900 text-sm">{userFullName}</p>
+                    <p className="text-[11px] text-slate-500">{userEmail}</p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false)
-                      alert("My Profile clicked")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <User className="size-3.5 text-blue-600" />
-                    <span>My account / My Profile</span>
-                  </button>
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        navigate("/customer/profile")
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left cursor-pointer"
+                    >
+                      <User className="size-4 text-blue-600" />
+                      <span>My account / My Profile</span>
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false)
-                      alert("My Orders clicked")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <Package className="size-3.5 text-indigo-600" />
-                    <span>My Orders</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        setIsMyOrdersModalOpen(true)
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100/80 transition-colors font-medium text-left"
+                    >
+                      <Package className="size-4 text-purple-600" />
+                      <span>My Orders</span>
+                    </button>
+                  </div>
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false)
-                      alert("Settings clicked")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <SettingsIcon className="size-3.5 text-slate-500" />
-                    <span>Settings</span>
-                  </button>
-
-                  <div className="border-t border-slate-100 my-1" />
-
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem("user")
-                      navigate("/customer/signin")
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-rose-600 hover:bg-rose-50 transition-colors font-semibold"
-                  >
-                    <LogOut className="size-3.5" />
-                    <span>Logout</span>
-                  </button>
+                  <div className="pt-1 mt-1 border-t border-slate-100">
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem("user")
+                        localStorage.removeItem("customer_user")
+                        setLoggedCustomer(null)
+                        setUserDropdownOpen(false)
+                        navigate("/customer/signin")
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-rose-600 font-bold hover:bg-rose-50 transition-colors text-left"
+                    >
+                      <LogOut className="size-4 text-rose-600" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -298,7 +325,6 @@ export function CustomerCatalog() {
               onClick={() => {
                 setSelectedTag("All Tags")
                 setSelectedBrand("all")
-                setSelectedColor(null)
                 setPriceMax(100)
                 setSearchQuery("")
               }}
@@ -356,45 +382,19 @@ export function CustomerCatalog() {
               className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="all">All Brands</option>
-              <option value="IKEA">IKEA</option>
-              <option value="Sony">Sony</option>
-              <option value="Dell">Dell</option>
-              <option value="ASUS">ASUS</option>
-              <option value="Bose">Bose</option>
-              <option value="Herman Miller">Herman Miller</option>
+              {Array.from(new Set(paginatedProducts.map((p) => p.brand).filter(Boolean))).map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
             </select>
-          </div>
-
-          {/* 2. Color Swatches Filter */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-              Color
-            </label>
-            <div className="flex items-center gap-2 flex-wrap">
-              {COLOR_OPTIONS.map((color) => {
-                const isSelected = selectedColor === color.hex
-                return (
-                  <button
-                    key={color.name}
-                    onClick={() => setSelectedColor(isSelected ? null : color.hex)}
-                    style={{ backgroundColor: color.hex }}
-                    className={`size-7 rounded-full transition-transform flex items-center justify-center shadow-xs ${
-                      isSelected ? "ring-2 ring-blue-600 ring-offset-2 scale-110" : "hover:scale-105"
-                    }`}
-                    title={color.name}
-                  >
-                    {isSelected && <Check className="size-3.5 text-white drop-shadow-md" />}
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
           {/* 3. Price Range Filter */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-slate-700 uppercase tracking-wider">Price Range</span>
-              <span className="font-mono font-bold text-blue-600">${priceMax}</span>
+              <span className="font-mono font-bold text-blue-600">₹{Math.round(priceMax)}</span>
             </div>
             <input
               type="range"
@@ -405,21 +405,22 @@ export function CustomerCatalog() {
               className="w-full accent-blue-600 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-              <span>$5</span>
-              <span>$100</span>
+              <span>₹5</span>
+              <span>₹100</span>
             </div>
           </div>
         </aside>
 
         {/* ========================================================================= */}
+        {/* ========================================================================= */}
         {/* RIGHT PRODUCT GRID (Main catalog grid) */}
         {/* ========================================================================= */}
-        <section className="flex-1 space-y-6">
+        <section id="catalog-grid-header" className="flex-1 space-y-6 scroll-mt-20">
           {/* Top Bar Summary */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                Featured Products ({filteredProducts.length})
+                Featured Products ({totalCountToDisplay})
               </h1>
               {selectedTag !== "All Tags" && (
                 <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center gap-1">
@@ -429,41 +430,47 @@ export function CustomerCatalog() {
               )}
             </div>
             <span className="text-xs text-slate-500">
-              Showing page <span className="font-bold text-slate-800">1</span> of 1
+              Showing page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
+              <span className="font-bold text-slate-800">{totalPages}</span> ({totalCountToDisplay} total)
             </span>
           </div>
 
-          {/* Product Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {loading ? (
-              <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 font-semibold">
-                Loading products from database...
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
-                No products match your selected catalog tag or filter criteria.
-              </div>
-            ) : (
-              filteredProducts.map((product) => {
+            {/* Product Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {initialLoading || pageLoading ? (
+                Array.from({ length: ITEMS_PER_PAGE }).map((_, idx) => (
+                  <CatalogCardSkeleton key={idx} />
+                ))
+              ) : paginatedProducts.length === 0 ? (
+                <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-200">
+                  No products match your selected catalog tag or filter criteria.
+                </div>
+              ) : (
+                paginatedProducts.map((product) => {
                 const isWishlisted = wishlist.includes(product.id)
                 return (
                   <div
                     key={product.id}
-                    className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group"
+                    onClick={() => setSelectedProductIdForModal(product.id)}
+                    className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer"
                   >
                     {/* Image Container */}
                     <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
-                      <img
+                      <OptimizedCatalogImage
                         src={product.image}
                         alt={product.title}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        containerClassName="h-full w-full"
+                        className="group-hover:scale-105"
                       />
 
                       {/* TOP LEFT PRIMARY CATALOG TAG / CLASS BADGE */}
                       <div className="absolute top-2.5 left-2.5 z-10">
                         <button
-                          onClick={() => setSelectedTag(product.category)}
-                          className="px-2.5 py-1 rounded-md bg-slate-900/85 hover:bg-blue-600 text-white font-bold text-[10px] uppercase tracking-wider backdrop-blur-md shadow-xs transition-colors border border-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedTag(product.category)
+                          }}
+                          className="px-2.5 py-1 rounded-md bg-slate-900/85 hover:bg-blue-600 text-white font-bold text-[10px] uppercase tracking-wider backdrop-blur-md shadow-xs transition-colors border border-white/20 cursor-pointer"
                         >
                           {product.category}
                         </button>
@@ -471,8 +478,12 @@ export function CustomerCatalog() {
 
                       {/* Wishlist Button Overlay */}
                       <button
-                        onClick={() => toggleWishlist(product.id)}
-                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 flex items-center justify-center text-slate-700 hover:text-rose-600 transition-colors shadow-xs z-10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleWishlist(product.id)
+                        }}
+                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/60 flex items-center justify-center text-slate-700 hover:text-rose-600 transition-colors shadow-xs z-10 cursor-pointer"
+                        title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                       >
                         <Heart
                           className={`size-4 ${
@@ -503,6 +514,16 @@ export function CustomerCatalog() {
                           ))}
                         </div>
                       )}
+
+                      {/* Active Discount Badge */}
+                      {product.discount && product.discount > 0 && (
+                        <div className="absolute bottom-2.5 right-2.5 z-10">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[10px] font-mono shadow-md flex items-center gap-1">
+                            <Tag className="size-2.5" />
+                            -{Math.round(product.discount)}%
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Content Section */}
@@ -528,27 +549,19 @@ export function CustomerCatalog() {
 
                       {/* Price & Billing Period */}
                       <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                        <div>
+                        <div className="flex items-baseline gap-1.5">
                           <span className="font-mono text-base font-extrabold text-slate-900">
-                            ${product.price}
+                            ₹{Math.round(product.price)}
                           </span>
+                          {product.originalPrice && product.originalPrice > product.price && (
+                            <span className="font-mono text-xs text-slate-400 line-through">
+                              ₹{Math.round(product.originalPrice)}
+                            </span>
+                          )}
                           <span className="text-xs text-slate-500 font-medium ml-1">
                             / {product.billingPeriod}
                           </span>
                         </div>
-
-                        {/* Color Swatches */}
-                        {product.colorVariants && (
-                          <div className="flex items-center gap-1">
-                            {product.colorVariants.map((hex, idx) => (
-                              <div
-                                key={idx}
-                                style={{ backgroundColor: hex }}
-                                className="size-3.5 rounded-full border border-slate-300"
-                              />
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -560,48 +573,112 @@ export function CustomerCatalog() {
           {/* ========================================================================= */}
           {/* PAGINATION CONTROLS */}
           {/* ========================================================================= */}
-          <div className="flex items-center justify-center gap-2 pt-6">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-6">
+              <button
+                onClick={() => {
+                  const targetPage = Math.max(1, currentPage - 1)
+                  setCurrentPage(targetPage)
+                  document.getElementById("catalog-grid-header")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
+                disabled={currentPage === 1}
+                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Previous Page"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
 
-            <button
-              onClick={() => setCurrentPage(1)}
-              className={`size-8 rounded-xl font-semibold text-xs transition-colors ${
-                currentPage === 1
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              1
-            </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                if (
+                  totalPages > 7 &&
+                  pageNum !== 1 &&
+                  pageNum !== totalPages &&
+                  Math.abs(pageNum - currentPage) > 1
+                ) {
+                  if (pageNum === 2 || pageNum === totalPages - 1) {
+                    return (
+                      <span key={pageNum} className="text-slate-400 font-mono text-xs px-1">
+                        ...
+                      </span>
+                    )
+                  }
+                  return null
+                }
 
-            <button
-              onClick={() => setCurrentPage(2)}
-              className={`size-8 rounded-xl font-semibold text-xs transition-colors ${
-                currentPage === 2
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              2
-            </button>
+                const isActive = currentPage === pageNum
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => {
+                      setCurrentPage(pageNum)
+                      document.getElementById("catalog-grid-header")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }}
+                    className={`size-8 rounded-xl font-semibold text-xs transition-all ${
+                      isActive
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
 
-            <span className="text-slate-400 font-mono text-xs px-1">...</span>
-
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
+              <button
+                onClick={() => {
+                  const targetPage = Math.min(totalPages, currentPage + 1)
+                  setCurrentPage(targetPage)
+                  document.getElementById("catalog-grid-header")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Next Page"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
         </section>
       </main>
+
+      {/* Product Expansion View Modal */}
+      {selectedProductIdForModal && (
+        <ProductExpansionView
+          productId={selectedProductIdForModal}
+          isOpen={Boolean(selectedProductIdForModal)}
+          onClose={() => setSelectedProductIdForModal(null)}
+          onAddToCart={() => refreshCartCount()}
+          isWishlisted={wishlist.includes(selectedProductIdForModal)}
+          onToggleWishlist={(id) => {
+            setWishlist((prev) =>
+              prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+            )
+          }}
+        />
+      )}
+
+      {/* Cart Checkout Modal */}
+      <CartCheckout
+        isOpen={isCartModalOpen}
+        onClose={() => {
+          setIsCartModalOpen(false)
+          refreshCartCount()
+        }}
+      />
+
+      {/* Wishlist Modal */}
+      <Wishlist
+        isOpen={isWishlistModalOpen}
+        onClose={() => setIsWishlistModalOpen(false)}
+        onSelectProduct={(id) => setSelectedProductIdForModal(id)}
+      />
+
+      {/* My Orders Modal */}
+      <CustomerOrdersView
+        isOpen={isMyOrdersModalOpen}
+        onClose={() => setIsMyOrdersModalOpen(false)}
+        onSelectProduct={(id) => setSelectedProductIdForModal(id)}
+      />
     </div>
   )
 }

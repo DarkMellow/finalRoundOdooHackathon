@@ -23,6 +23,14 @@ class User(Base):
     properties = relationship("Property", back_populates="owner")
     bookings = relationship("RentalBooking", back_populates="customer")
     products = relationship("Product", back_populates="vendor")
+    cart = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    wishlist = relationship("Wishlist", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
+    cards = relationship("UserCard", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
+    store_target = relationship("MonthlyStoreTarget", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    pricelist_rules = relationship("PricelistRule", back_populates="vendor", cascade="all, delete-orphan")
+    promo_codes = relationship("PromoCode", back_populates="vendor", cascade="all, delete-orphan")
 
 
 class CustomerProfile(Base):
@@ -36,6 +44,7 @@ class CustomerProfile(Base):
     zip_code = Column(String(20), nullable=True)
     id_proof_type = Column(String(50), nullable=True)
     id_proof_number = Column(String(100), nullable=True)
+    addresses_json = Column(Text, nullable=True)  # JSON array of saved delivery addresses
 
     user = relationship("User", back_populates="customer_profile")
 
@@ -93,15 +102,11 @@ class Product(Base):
     name = Column(String(200), nullable=False)
     category = Column(String(100), default="Electronics", nullable=True)
     product_type = Column(String(50), default="Goods", nullable=False)  # 'Goods' or 'Service'
-    image_url = Column(Text, nullable=True)
-    quantity_on_hand = Column(Integer, default=0, nullable=False)
-    rent_price = Column(Float, default=0.0, nullable=False)
     sales_price = Column(Float, default=0.0, nullable=True)
     cost_price = Column(Float, default=0.0, nullable=True)
     is_published = Column(Boolean, default=False, nullable=False)
 
     # Sales / Rental parameters
-    periodicity = Column(String(50), default="Hours", nullable=False)  # 'Hours', 'Day', 'Night', 'Weekly'
     padding_time = Column(String(50), default="2:00 H", nullable=True)
     pickup_time = Column(String(50), default="10:00 H", nullable=True)
     return_time = Column(String(50), default="19:00 H", nullable=True)
@@ -115,4 +120,152 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     vendor = relationship("User", back_populates="products")
+
+    @property
+    def vendor_name(self) -> str | None:
+        if self.vendor and self.vendor.full_name:
+            return self.vendor.full_name
+        return None
+
+    @property
+    def vendor_brand(self) -> str | None:
+        if self.vendor and self.vendor.vendor_profile and self.vendor.vendor_profile.company_name:
+            return self.vendor.vendor_profile.company_name
+        if self.vendor and self.vendor.full_name:
+            return self.vendor.full_name
+        return None
+
+
+class Cart(Base):
+    __tablename__ = "carts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    items_json = Column(Text, nullable=True)  # JSON serialized array of cart items
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="cart")
+
+
+class UserAddress(Base):
+    __tablename__ = "user_addresses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    full_name = Column(String(120), nullable=False)
+    label = Column(String(50), default="Home", nullable=False)
+    street = Column(String(255), nullable=False)
+    city = Column(String(100), nullable=False)
+    state = Column(String(100), default="IL", nullable=True)
+    zip_code = Column(String(20), default="60601", nullable=True)
+    phone = Column(String(30), nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="addresses")
+
+
+class UserCard(Base):
+    __tablename__ = "user_cards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    cardholder_name = Column(String(120), nullable=False)
+    card_number_last4 = Column(String(10), nullable=False)
+    expiry = Column(String(20), nullable=False)
+    brand = Column(String(50), default="Visa", nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="cards")
+
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    items_json = Column(Text, nullable=True)  # JSON serialized array of wishlisted product items
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="wishlist")
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    reference = Column(String(50), nullable=False, unique=True, index=True)
+    status = Column(String(50), default="Active", nullable=False)
+    order_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    start_date = Column(String(50), nullable=False)
+    end_date = Column(String(50), nullable=False)
+    total_hours = Column(Integer, default=24, nullable=False)
+    subtotal = Column(Float, default=0.0, nullable=False)
+    discount = Column(Float, default=0.0, nullable=False)
+    total = Column(Float, default=0.0, nullable=False)
+    delivery_address = Column(String(255), nullable=False)
+    payment_method = Column(String(100), nullable=False)
+    items_json = Column(Text, nullable=False)  # JSON serialized array of ordered items
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="orders")
+
+
+class MonthlyStoreTarget(Base):
+    __tablename__ = "monthly_store_targets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    target_value = Column(Float, default=10000.0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="store_target")
+
+
+class PricelistRule(Base):
+    __tablename__ = "pricelist_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    discount_percent = Column(Float, default=0.0, nullable=False)
+    start_date = Column(String(50), nullable=False)
+    end_date = Column(String(50), nullable=False)
+    is_global = Column(Boolean, default=True, nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vendor = relationship("User", back_populates="pricelist_rules")
+    product = relationship("Product", backref="pricelist_rules")
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    code = Column(String(50), nullable=False)
+    discount_percent = Column(Float, default=0.0, nullable=False)
+    max_uses = Column(Integer, default=100, nullable=False)
+    uses_count = Column(Integer, default=0, nullable=False)
+    start_date = Column(String(50), nullable=False)
+    end_date = Column(String(50), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vendor = relationship("User", back_populates="promo_codes")
+
+
+
+
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, ConfigDict
 
 
@@ -80,40 +80,65 @@ class VendorUserResponseSchema(BaseModel):
 
 
 # ==========================================
-# PRODUCT SCHEMAS
+# ADMIN SCHEMAS
 # ==========================================
+
+class AdminSignInSchema(BaseModel):
+    email: str
+    password: str
+
+
+class AdminUserResponseSchema(BaseModel):
+    id: int = 1
+    full_name: str = "System Administrator"
+    email: str = "admin@easyrental.com"
+    role: str = "admin"
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# PRODUCT & VARIANT SCHEMAS
+# ==========================================
+
+class ProductVariantItemSchema(BaseModel):
+    id: str
+    name: str
+    price: str
+    stockQuantity: str
+    imageUrl: str
+    features: str
+
+
+class ProductAttributesJsonSchema(BaseModel):
+    variants: Optional[List[ProductVariantItemSchema]] = None
+
 
 class ProductCreateSchema(BaseModel):
     vendor_id: Optional[int] = 1
     name: str
     category: Optional[str] = "Electronics"
     product_type: str = "Goods"  # 'Goods' or 'Service'
-    image_url: Optional[str] = None
-    quantity_on_hand: int = 0
-    rent_price: float = 0.0
     sales_price: Optional[float] = 0.0
     cost_price: Optional[float] = 0.0
     is_published: bool = False
-    periodicity: str = "Hours"
     padding_time: Optional[str] = "2:00 H"
     pickup_time: Optional[str] = "10:00 H"
     return_time: Optional[str] = "19:00 H"
     late_fees: Optional[float] = 0.0
     security_deposit: Optional[float] = 0.0
-    attributes_json: Optional[str] = None
+    attributes_json: Optional[str] = None  # Serialized ProductAttributesJsonSchema JSON string
 
 
 class ProductUpdateSchema(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     product_type: Optional[str] = None
-    image_url: Optional[str] = None
-    quantity_on_hand: Optional[int] = None
-    rent_price: Optional[float] = None
     sales_price: Optional[float] = None
     cost_price: Optional[float] = None
     is_published: Optional[bool] = None
-    periodicity: Optional[str] = None
     padding_time: Optional[str] = None
     pickup_time: Optional[str] = None
     return_time: Optional[str] = None
@@ -128,13 +153,9 @@ class ProductResponseSchema(BaseModel):
     name: str
     category: Optional[str] = "Electronics"
     product_type: str = "Goods"
-    image_url: Optional[str] = None
-    quantity_on_hand: Optional[int] = 0
-    rent_price: Optional[float] = 0.0
     sales_price: Optional[float] = 0.0
     cost_price: Optional[float] = 0.0
     is_published: Optional[bool] = True
-    periodicity: Optional[str] = "Hours"
     padding_time: Optional[str] = None
     pickup_time: Optional[str] = None
     return_time: Optional[str] = None
@@ -142,7 +163,228 @@ class ProductResponseSchema(BaseModel):
     security_deposit: Optional[float] = None
     attributes_json: Optional[str] = None
     created_at: Optional[datetime] = None
+    vendor_name: Optional[str] = None
+    vendor_brand: Optional[str] = None
+    discounted_price: Optional[float] = None
+    discount_percent: Optional[float] = None
+    discount_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# CART SCHEMAS
+# ==========================================
+
+class CartItemSchema(BaseModel):
+    id: str
+    productId: str
+    variantId: Optional[str] = None
+    title: str
+    brand: str
+    image: str
+    hourlyRate: float
+    quantity: int = 1
+    variantName: Optional[str] = None
+    savedForLater: bool = False
+
+
+class AddToCartSchema(BaseModel):
+    user_id: Optional[int] = None
+    productId: str
+    variantId: Optional[str] = None
+    quantity: int = 1
+    title: Optional[str] = None
+    brand: Optional[str] = None
+    image: Optional[str] = None
+    hourlyRate: Optional[float] = None
+    variantName: Optional[str] = None
+
+
+class UpdateCartItemSchema(BaseModel):
+    quantity: Optional[int] = None
+    savedForLater: Optional[bool] = None
+
+
+class CartResponseSchema(BaseModel):
+    user_id: int
+    items: List[CartItemSchema] = []
+
+
+# ==========================================
+# ADDRESS SCHEMAS
+# ==========================================
+
+class DeliveryAddressSchema(BaseModel):
+    id: str
+    fullName: str
+    street: str
+    city: str
+    state: str
+    zipCode: str
+    phone: str
+    isDefault: bool = False
+    label: str = "Home"  # 'Home' | 'Work' | 'Other'
+
+
+class SaveAddressSchema(BaseModel):
+    user_id: Optional[int] = None
+    fullName: str
+    street: str
+    city: str
+    state: Optional[str] = "IL"
+    zipCode: Optional[str] = "60601"
+    phone: Optional[str] = "+1 (555) 000-1122"
+    label: Optional[str] = "Home"
+    isDefault: Optional[bool] = False
+
+
+# ==========================================
+# CARD SCHEMAS
+# ==========================================
+
+class SavedCardSchema(BaseModel):
+    id: str
+    cardholderName: str
+    cardNumberLast4: str
+    expiry: str
+    brand: str = "Visa"
+    isDefault: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SaveCardSchema(BaseModel):
+    user_id: Optional[int] = None
+    cardholderName: str
+    cardNumber: str
+    expiry: Optional[str] = "12/28"
+    brand: Optional[str] = "Visa"
+    isDefault: Optional[bool] = False
+
+
+# ==========================================
+# WISHLIST SCHEMAS
+# ==========================================
+
+class WishlistItemSchema(BaseModel):
+    id: str
+    title: str
+    image: str
+    inStock: bool = True
+    price: float
+    originalPrice: Optional[float] = None
+    discount: Optional[int] = None
+    rating: float = 4.5
+    reviews: int = 20
+    assured: bool = True
+    stockText: Optional[str] = "In Stock"
+
+
+class WishlistToggleSchema(BaseModel):
+    user_id: Optional[int] = None
+    productId: str
+    item: Optional[WishlistItemSchema] = None
+
+
+# ==========================================
+# ORDER SCHEMAS
+# ==========================================
+
+class OrderItemSchema(BaseModel):
+    id: str
+    productId: str
+    title: str
+    brand: str = "Brand"
+    image: str
+    hourlyRate: float
+    quantity: int = 1
+    variantName: Optional[str] = "Standard"
+
+
+class OrderResponseSchema(BaseModel):
+    id: str
+    reference: str
+    orderDate: str
+    status: str
+    startDate: str
+    endDate: str
+    totalHours: int
+    subtotal: float
+    discount: float
+    total: float
+    deliveryAddress: str
+    paymentMethod: str
+    items: List[OrderItemSchema] = []
+    invoiceUrl: Optional[str] = None
+
+
+class CreateOrderSchema(BaseModel):
+    user_id: Optional[int] = None
+    addressId: Optional[str] = None
+    deliveryAddress: Optional[str] = None
+    paymentMethod: Optional[str] = "Card"
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    totalHours: Optional[int] = 24
+    discount: Optional[float] = 0.0
+    items: Optional[List[OrderItemSchema]] = None
+    promoCode: Optional[str] = None
+
+
+# ==========================================
+# PRICELIST & PROMO SCHEMAS
+# ==========================================
+
+class PricelistRuleCreateSchema(BaseModel):
+    vendor_id: Optional[int] = None
+    name: str
+    discount_percent: float
+    start_date: str
+    end_date: str
+    is_global: bool = True
+    product_id: Optional[int] = None
+
+
+class PricelistRuleResponseSchema(BaseModel):
+    id: int
+    vendor_id: int
+    name: str
+    discount_percent: float
+    start_date: str
+    end_date: str
+    is_global: bool
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PromoCodeCreateSchema(BaseModel):
+    vendor_id: Optional[int] = None
+    code: str
+    discount_percent: float
+    max_uses: int = 100
+    uses_count: int = 0
+    start_date: str
+    end_date: str
+    is_active: bool = True
+
+
+class PromoCodeResponseSchema(BaseModel):
+    id: int
+    vendor_id: int
+    code: str
+    discount_percent: float
+    max_uses: int
+    uses_count: int
+    start_date: str
+    end_date: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
 
 

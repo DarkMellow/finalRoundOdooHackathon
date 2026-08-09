@@ -107,8 +107,21 @@ export async function vendorSignIn(data: {
 }
 
 // ==========================================
-// PRODUCT API FUNCTIONS
+// PRODUCT API FUNCTIONS & VARIANTS SCHEMA
 // ==========================================
+
+export interface ProductVariantItem {
+  id: string
+  name: string
+  price: string
+  stockQuantity: string
+  imageUrl: string
+  features: string
+}
+
+export interface ProductAttributesJson {
+  variants?: ProductVariantItem[]
+}
 
 export interface ApiProduct {
   id: number
@@ -116,13 +129,9 @@ export interface ApiProduct {
   name: string
   category?: string
   product_type: "Goods" | "Service"
-  image_url?: string
-  quantity_on_hand: number
-  rent_price: number
   sales_price?: number
   cost_price?: number
   is_published: boolean
-  periodicity: "Hours" | "Day" | "Night" | "Weekly"
   padding_time?: string
   pickup_time?: string
   return_time?: string
@@ -130,6 +139,11 @@ export interface ApiProduct {
   security_deposit?: number
   attributes_json?: string
   created_at: string
+  vendor_name?: string
+  vendor_brand?: string
+  discounted_price?: number
+  discount_percent?: number
+  discount_name?: string
 }
 
 export function getLoggedVendor(): VendorUser | null {
@@ -144,12 +158,58 @@ export function getLoggedVendor(): VendorUser | null {
   return null
 }
 
-export async function fetchProducts(vendorId?: number): Promise<ApiProduct[]> {
-  const url = vendorId
-    ? `${API_BASE_URL}/api/v1/products?vendor_id=${vendorId}`
-    : `${API_BASE_URL}/api/v1/products`
+export function getLoggedCustomer(): CustomerUser | null {
+  try {
+    const data = localStorage.getItem("user") || localStorage.getItem("customer_user")
+    if (data) {
+      return JSON.parse(data)
+    }
+  } catch (err) {
+    console.warn("Failed to parse user from localStorage:", err)
+  }
+  return null
+}
+
+export async function fetchProducts(
+  vendorId?: number,
+  skip?: number,
+  limit?: number
+): Promise<ApiProduct[]> {
+  const params = new URLSearchParams()
+  if (vendorId) params.append("vendor_id", String(vendorId))
+  if (skip !== undefined) params.append("skip", String(skip))
+  if (limit !== undefined) params.append("limit", String(limit))
+
+  const queryString = params.toString()
+  const url = queryString ? `${API_BASE_URL}/api/v1/products?${queryString}` : `${API_BASE_URL}/api/v1/products`
   const res = await fetch(url)
   return handleResponse<ApiProduct[]>(res)
+}
+
+export async function fetchProductsPaginated(
+  vendorId?: number,
+  skip: number = 0,
+  limit: number = 6,
+  search?: string,
+  category?: string,
+  brand?: string,
+  priceMax?: number
+): Promise<{ items: ApiProduct[]; total: number }> {
+  const params = new URLSearchParams()
+  if (vendorId) params.append("vendor_id", String(vendorId))
+  params.append("skip", String(skip))
+  params.append("limit", String(limit))
+  if (search && search.trim()) params.append("search", search.trim())
+  if (category && category.trim() && category !== "All Tags") params.append("category", category.trim())
+  if (brand && brand.trim() && brand !== "all") params.append("brand", brand.trim())
+  if (priceMax !== undefined && priceMax < 2000) params.append("price_max", String(priceMax))
+
+  const url = `${API_BASE_URL}/api/v1/products?${params.toString()}`
+  const res = await fetch(url)
+  const totalHeader = res.headers.get("X-Total-Count")
+  const total = totalHeader ? parseInt(totalHeader, 10) : 0
+  const items = await handleResponse<ApiProduct[]>(res)
+  return { items, total: total || items.length }
 }
 
 export async function fetchProductById(id: number | string): Promise<ApiProduct> {
@@ -181,4 +241,3 @@ export async function deleteProduct(id: number | string): Promise<{ status: stri
   })
   return handleResponse<{ status: string; message: string }>(res)
 }
-
